@@ -132,6 +132,11 @@ describe("Claude Code hooks against the reference coordinator", () => {
     expect(commit.hookSpecificOutput.permissionDecision).toBe("deny");
     expect(await B.commitGate("sb")).toContain("stale_assumption");
 
+    // the conversation ends with the error open: the session is kept for the git gate
+    await B.handle(hook("sb", rootB, { hook_event_name: "SessionEnd", reason: "other" }));
+    expect(coord.log.at(-1)!.kind).not.toBe("leave");
+    expect(await B.commitGate("sb")).toContain("stale_assumption");
+
     // B adapts to the new signature -> accepted (its base advanced when the deny reached it)
     const newCall = "return `total ${calcTotal(items, { taxRate: 0 })}`;";
     const b2 = await edit(B, "sb", rootB, "tB3", "src/cart.ts", "return `${items.length} items`;", newCall);
@@ -216,9 +221,9 @@ describe("installer, git hooks and the bundled CLI", () => {
     const env = { ...process.env, WEFT_TOKEN: "local-test-token" };
     const out = execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "claude-b", "--task", "T-2", "--title", "cart total"], { cwd: root, env, encoding: "utf8" });
     expect(out).toContain("installed Claude Code adapter");
-    const settings = JSON.parse(readFileSync(join(root, ".claude/settings.json"), "utf8"));
+    const settings = JSON.parse(readFileSync(join(root, ".claude/settings.local.json"), "utf8"));
     expect(Object.keys(settings.hooks).sort()).toEqual(["PostToolUse", "PreToolUse", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"]);
-    expect(readFileSync(join(root, ".git/info/exclude"), "utf8")).toContain(".weft/");
+    expect(readFileSync(join(root, ".git/info/exclude"), "utf8")).toContain(".weft/\n.claude/settings.local.json\n");
     const cfg = JSON.parse(readFileSync(join(root, ".weft/claude.json"), "utf8"));
     expect(cfg.change).toMatch(/^I[0-9a-f]{40}$/);
     expect(JSON.stringify(cfg)).not.toContain("local-test-token");

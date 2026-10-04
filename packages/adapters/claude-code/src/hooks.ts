@@ -12,7 +12,7 @@
 //                      inject verdict + inbox as additionalContext           (L1)
 //   PostToolUse (other) drain inbox (throttled); Bash HEAD move -> checkpoint
 //   Stop               gate stop -> decision "block" while errors are open   (L3)
-//   SessionEnd         bye
+//   SessionEnd         bye (unless errors are open: then the session stays for the git gate)
 //
 // base_seq (spec §5.2) advances only when coordinator text actually reaches the model
 // (a deny reason, additionalContext, a stop reason) — never on a silent response. So an
@@ -473,6 +473,18 @@ export class ClaudeAdapter {
 
   private async sessionEnd(input: HookInput, st: SessionState): Promise<HookOutput> {
     if (!st.wcpSession) return undefined;
+    // Open errors live on the WCP session (spec §6.5). Closing it would silently forgive
+    // them, so a session with open errors stays alive (heartbeat loop, 30 min idle limit):
+    // the git pre-commit gate and a resumed conversation still see them.
+    try {
+      const g = await this.call(st, (s) => this.deps.transport.gate(s, "commit"));
+      if (!g.allow) {
+        this.log(`session end: keeping ${st.wcpSession} open (${g.open_errors.length} open errors)`);
+        return undefined;
+      }
+    } catch (err) {
+      this.log(`session end gate check failed: ${String(err)}`);
+    }
     try {
       await this.deps.transport.bye(st.wcpSession, `claude-code session end${input.reason ? `: ${input.reason}` : ""}`);
     } catch (err) {

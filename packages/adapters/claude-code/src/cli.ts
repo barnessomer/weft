@@ -127,15 +127,17 @@ async function install(args: string[]): Promise<void> {
     chmodSync(tokenPath, 0o600);
   }
 
-  // .weft/ never enters git (token, state, logs)
+  // .weft/ (token, state, logs) and local hook settings never enter git
   const exclude = resolve(root, git(root, ["rev-parse", "--git-path", "info/exclude"]));
   mkdirSync(dirname(exclude), { recursive: true });
   const ex = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
-  if (!ex.split("\n").includes(".weft/")) writeFileSync(exclude, `${ex}${ex && !ex.endsWith("\n") ? "\n" : ""}.weft/\n`);
+  const want = [".weft/", ".claude/settings.local.json"].filter((l) => !ex.split("\n").includes(l));
+  if (want.length) writeFileSync(exclude, `${ex}${ex && !ex.endsWith("\n") ? "\n" : ""}${want.join("\n")}\n`);
 
-  // Claude Code hooks (project settings)
+  // Claude Code hooks. Default: .claude/settings.local.json (machine-specific absolute paths,
+  // never committed); --shared writes the committed .claude/settings.json instead.
   const command = `${shellQuote(process.execPath)} ${shellQuote(SELF)} hook`;
-  const settingsPath = join(root, ".claude", "settings.json");
+  const settingsPath = join(root, ".claude", args.includes("--shared") ? "settings.json" : "settings.local.json");
   mkdirSync(dirname(settingsPath), { recursive: true });
   const settings = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, "utf8")) as Record<string, unknown>) : {};
   writeFileSync(settingsPath, JSON.stringify(mergeSettings(settings, command), null, 2) + "\n");
@@ -237,7 +239,7 @@ async function main(): Promise<void> {
     case "status":
       return status();
     default:
-      process.stderr.write("usage: weft-adapter-claude install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise]\n       weft-adapter-claude hook|commit-msg FILE|pre-commit|status\n");
+      process.stderr.write("usage: weft-adapter-claude install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise] [--shared]\n       weft-adapter-claude hook|commit-msg FILE|pre-commit|status\n");
       process.exitCode = cmd ? 2 : 0;
   }
 }
