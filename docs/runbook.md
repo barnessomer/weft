@@ -51,6 +51,64 @@ pnpm --filter @weft/gateway deploy:preview
 
 All Worker names and future Cloudflare resources must begin with `weft-`. Do not use the preview command to deploy production without an approved environment configuration.
 
+## Production signal and auto-revert (B13)
+
+`@weft/production-signal` is a Tail Worker and Queue consumer. It writes exception-only tail
+events to Analytics Engine (`weft_prod` / `weft_prod_preview`), persists the short detector
+window in the shared Weft D1 database, and starts the normal `RevertOperation` workflow only
+when the configured threshold is reached after an unreverted `landings` operation. The workflow
+remains the sole component that changes trunk state, reopens the task, and attaches the stack
+trace evidence.
+
+Before a first preview deploy, create the Queue and apply the gateway migration to the same D1
+database. Then deploy the consumer:
+
+```sh
+wrangler queues create weft-prod-events-preview
+pnpm --filter @weft/gateway exec wrangler d1 migrations apply weft-preview --remote
+pnpm --filter @weft/production-signal deploy:preview
+```
+
+Demo target (live since 2026-10-04): Worker `weft-demo`
+(https://weft-demo.redacted-subdomain.workers.dev) is connected to **Workers Builds** from the
+Artifacts trunk `weft-preview/weft-demo` (branch `main`, deploy `npx wrangler deploy`, Preview
+builds on). Every trunk push deploys it in ~5–40 s. The connection was made in the dashboard
+(*Workers & Pages → Create application → Continue with Artifacts*): the Workers Builds API needs
+"Workers CI" permissions that the wrangler OAuth token does not carry (`403 code 10000`). If the
+Worker is ever deleted, repeat that once; nothing else is manual.
+
+The Tail Consumer is declared by the target, so it lives in the trunk's `wrangler.jsonc`:
+
+```jsonc
+"tail_consumers": [{ "service": "weft-production-signal-preview" }]
+```
+
+`node apps/production-signal/scripts/live.mjs seed` (re)writes `src/worker.ts` (quote API) and
+`wrangler.jsonc` on trunk; other cards' seeds (B8 catalog, B10 storefront) leave both files alone.
+
+Proof (planted bug → auto-revert, ~2.5 min, no human step after the land):
+
+```sh
+node apps/production-signal/scripts/live.mjs prove   # -> demo/evidence/b13-auto-revert-live/run.json
+```
+
+It lands a change whose `/quote` handler throws, waits for Workers Builds to deploy it, sends 8
+requests, and checks `prod-revert-<land op>` (D1 `production_reverts` latch), the revert commit and
+redeploy, the reopened task and the `production_tail_error` evidence. The bug never outlives the
+run: the revert redeploys the healthy trunk.
+
+Detector knobs (`wrangler.toml` vars): `WEFT_SPIKE_THRESHOLD` (5 exceptions) and
+`WEFT_SPIKE_WINDOW_SECONDS` (600; covers Workers Builds latency after the land). Only exceptions
+count (5xx responses without an exception are ignored). Inspect:
+
+```sh
+wrangler d1 execute weft-preview --remote --env preview --command "SELECT * FROM production_reverts"
+# Analytics Engine (SQL API): SELECT blob1 AS script, count() FROM weft_prod_preview WHERE index1 = 'weft-demo' GROUP BY blob1
+```
+
+Production (`weft-production-signal`, queue `weft-prod-events`, dataset `weft_prod`, D1 `weft`) is
+configured but not deployed; a production target would name `weft-production-signal` instead.
+
 ## Gateway + sequencer (B2)
 
 Preview: `https://weft-gateway-preview.redacted-subdomain.workers.dev` (`/v1/health` is public).

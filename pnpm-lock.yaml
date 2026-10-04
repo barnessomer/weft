@@ -44,6 +44,8 @@ importers:
 
   apps/previews: {}
 
+  apps/production-signal: {}
+
   apps/sandbox:
     dependencies:
       '@weft/artifacts':
