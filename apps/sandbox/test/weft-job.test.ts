@@ -226,6 +226,16 @@ describe("weft-job land + revert", () => {
     expect(r.reused).toBe(true);
     expect(r.after).toBe(rb.rebased);
   });
+
+  it("land with a stale or missing rebased hint just rebases again", async () => {
+    const w = await world();
+    const f = await w.fork();
+    const head = await w.commit(f, { "src/cart.ts": "export const cart: string[] = ['z'];\n" }, "cart z");
+    const r = await runJob({ job: "land", trunk: { remote: w.trunk }, fork: { remote: f, sha: head }, rebased: { sha: head, onto: "0".repeat(40), layer: "none" } }, { log: () => {} });
+    expect(r.status).toBe("landed");
+    expect(r.reused).toBeUndefined();
+    expect(r.after).toBe(head);
+  });
 });
 
 describe("weft-job helpers", () => {

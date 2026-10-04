@@ -401,7 +401,9 @@ async function landJob(job) {
   const s = job.spec;
   const branch = s.trunk.branch ?? "main";
   const onto = await job.fetch("trunk", s.trunk.remote, branch);
-  const tip = await job.fetch("fork", s.fork.remote, s.fork.branch ?? "main", s.rebased ? [`+refs/heads/weft/rebased:refs/weft/rebased`] : []);
+  const tip = await job.fetch("fork", s.fork.remote, s.fork.branch ?? "main");
+  // A resolver's earlier result (ProcessRevision pushed it); optional — absent when the change was already up to date.
+  if (s.rebased) await job.fetch("rebased", s.fork.remote, "weft/rebased").catch(() => null);
   const head = s.fork.sha ?? tip;
   if (!head || (await job.rev(head)) === null) return { job: "land", status: "error", error: `change head ${s.fork.sha ?? "(branch)"} not found in the fork` };
   if (s.expected_trunk && onto !== s.expected_trunk && s.strict_expected) return { job: "land", status: "stale_trunk", expected: s.expected_trunk, current: onto };
