@@ -1,0 +1,13 @@
+name = "weft-artifacts-spike"
+main = "src/index.ts"
+compatibility_date = "2026-10-03"
+
+[[artifacts]]
+binding = "ARTIFACTS"
+namespace = "weft-spike"
+remote = true
+
+[[queues.consumers]]
+queue = "weft-artifacts-events"
+max_batch_size = 10
+max_batch_timeout = 5
