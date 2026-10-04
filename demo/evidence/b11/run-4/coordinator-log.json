@@ -1,0 +1,874 @@
+{
+  "url": "http://127.0.0.1:8799",
+  "repo": "demo-b11-20261004-081134-r4",
+  "events": [
+    {
+      "seq": 1,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T08:11:35.497Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-b",
+        "harness": "claude-code"
+      },
+      "agent": "claude-b",
+      "task": "T-2",
+      "change": "I6867de43fc83c66c84e98fbd2208f3ec1ef785d4",
+      "session": "s1",
+      "base_seq": 0,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-b joined (claude-code, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 2,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T08:11:36.004Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "session": "s2",
+      "base_seq": 1,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-a joined (claude-code, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 3,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T08:11:52.884Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "session": "s2",
+      "base_seq": 2,
+      "mode": "commit",
+      "files": [
+        "src/auth/session.ts"
+      ],
+      "reads": [],
+      "writes": [
+        {
+          "key": "src/auth/session.ts#createSession",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#createSession.createdAt",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#createSession.session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#getSession",
+          "kind": "body"
+        },
+        {
+          "key": "src/auth/session.ts#getSession.session",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#Session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#SessionOptions",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/auth/session.ts b/src/auth/session.ts\n--- a/src/auth/session.ts\n+++ b/src/auth/session.ts\n@@ -1,19 +1,32 @@\n import { randomBytes } from \"node:crypto\";\n \n-export type Session = { token: string; userId: string; createdAt: number };\n+export type SessionOptions = { ttlMs: number };\n \n+export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };\n+\n const sessions = new Map<string, Session>();\n \n /** Start a session for a user and return it (the token is the bearer credential). */\n-export function createSession(userId: string): Session {\n-  const session: Session = { token: randomBytes(24).toString(\"base64url\"), userId, createdAt: Date.now() };\n+export function createSession(userId: string, opts: SessionOptions): Session {\n+  const createdAt = Date.now();\n+  const session: Session = {\n+    token: randomBytes(24).toString(\"base64url\"),\n+    userId,\n+    createdAt,\n+    expiresAt: createdAt + opts.ttlMs,\n+  };\n   sessions.set(session.token, session);\n   return session;\n }\n \n-/** The live session for a token, or undefined. */\n+/** The live session for a token, or undefined. Expired sessions are forgotten. */\n export function getSession(token: string): Session | undefined {\n-  return sessions.get(token);\n+  const session = sessions.get(token);\n+  if (session && Date.now() >= session.expiresAt) {\n+    sessions.delete(token);\n+    return undefined;\n+  }\n+  return session;\n }\n \n export function revokeSession(token: string): boolean {\n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of createSession, createSession.session +1 more, edited getSession, added createSession.createdAt, getSession.se…",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "toolu_01RFPNXW8ErjQCGcANyNLBBW",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 4,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T08:11:55.601Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "session": "s2",
+      "base_seq": 2,
+      "mode": "commit",
+      "files": [
+        "src/api/routes.ts"
+      ],
+      "reads": [
+        "src/api/account.ts#accountRoutes",
+        "src/api/router.ts#Route",
+        "src/api/router.ts#createRouter",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/auth/session.ts#createSession",
+        "src/auth/users.ts#authenticate",
+        "src/ui/pages.ts#loginPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/routes.ts#login",
+          "kind": "body"
+        },
+        {
+          "key": "src/api/routes.ts#login.session",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/src/api/routes.ts b/src/api/routes.ts\n--- a/src/api/routes.ts\n+++ b/src/api/routes.ts\n@@ -8,7 +8,7 @@\n export function login(email: string, password: string): { token: string } | undefined {\n   const user = authenticate(email, password);\n   if (!user) return undefined;\n-  const session = createSession(user.id);\n+  const session = createSession(user.id, { ttlMs: 60 * 60 * 1000 });\n   return { token: session.token };\n }\n \n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of login.session, edited login in src/api/routes.ts — Session expiry",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "toolu_01Bn7zQnw5tSvSMEgUYpEkGz",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 5,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T08:11:55.908Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-b",
+        "harness": "claude-code"
+      },
+      "agent": "claude-b",
+      "task": "T-2",
+      "change": "I6867de43fc83c66c84e98fbd2208f3ec1ef785d4",
+      "session": "s1",
+      "base_seq": 4,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "claude-code session end: other",
+      "summary": "claude-b left — claude-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 6,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T08:11:57.093Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-b",
+        "harness": "claude-code"
+      },
+      "agent": "claude-b",
+      "task": "T-2",
+      "change": "I6867de43fc83c66c84e98fbd2208f3ec1ef785d4",
+      "session": "s3",
+      "base_seq": 5,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-b joined (claude-code, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 7,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T08:12:01.318Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "session": "s2",
+      "base_seq": 2,
+      "mode": "commit",
+      "files": [
+        "test/session.test.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#resetSessions",
+        "src/auth/session.ts#revokeSession"
+      ],
+      "writes": [
+        {
+          "key": "test/session.test.ts#a",
+          "kind": "signature"
+        },
+        {
+          "key": "test/session.test.ts#b",
+          "kind": "signature"
+        },
+        {
+          "key": "test/session.test.ts#opts",
+          "kind": "new"
+        },
+        {
+          "key": "test/session.test.ts#s",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/test/session.test.ts b/test/session.test.ts\n--- a/test/session.test.ts\n+++ b/test/session.test.ts\n@@ -2,18 +2,31 @@\n import assert from \"node:assert/strict\";\n import { createSession, getSession, resetSessions, revokeSession } from \"../src/auth/session.ts\";\n \n+const opts = { ttlMs: 60_000 };\n+\n beforeEach(() => resetSessions());\n \n test(\"createSession issues a unique token bound to the user\", () => {\n-  const a = createSession(\"u_1\");\n-  const b = createSession(\"u_1\");\n+  const a = createSession(\"u_1\", opts);\n+  const b = createSession(\"u_1\", opts);\n   assert.equal(a.userId, \"u_1\");\n   assert.notEqual(a.token, b.token);\n+  assert.equal(a.expiresAt, a.createdAt + opts.ttlMs);\n   assert.equal(getSession(a.token)?.userId, \"u_1\");\n });\n \n test(\"revokeSession ends the session\", () => {\n-  const s = createSession(\"u_2\");\n+  const s = createSession(\"u_2\", opts);\n   assert.equal(revokeSession(s.token), true);\n   assert.equal(getSession(s.token), undefined);\n+});\n+\n+test(\"getSession forgets a session once it expires\", (t) => {\n+  t.mock.timers.enable({ apis: [\"Date\"], now: 1_000 });\n+  const s = createSession(\"u_3\", opts);\n+  t.mock.timers.tick(opts.ttlMs - 1);\n+  assert.equal(getSession(s.token)?.userId, \"u_3\");\n+  t.mock.timers.tick(1);\n+  assert.equal(getSession(s.token), undefined);\n+  assert.equal(revokeSession(s.token), false);\n });\n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of a, b +1 more, added opts in test/session.test.ts — Session expiry",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "toolu_01L4FCUFvXuQzu4qbL51oEwv",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 8,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T08:12:04.879Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "session": "s2",
+      "base_seq": 7,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "claude-code session end: other",
+      "summary": "claude-a left — claude-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 9,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "rejected",
+      "kind": "edit",
+      "ts": "2026-10-04T08:12:08.840Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-b",
+        "harness": "claude-code"
+      },
+      "agent": "claude-b",
+      "task": "T-2",
+      "change": "I6867de43fc83c66c84e98fbd2208f3ec1ef785d4",
+      "session": "s3",
+      "base_seq": 1,
+      "mode": "check",
+      "files": [
+        "src/api/account.ts"
+      ],
+      "reads": [
+        "src/api/router.ts#Route",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/api/router.ts#sessionOf",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#revokeSession",
+        "src/auth/users.ts#UserError",
+        "src/auth/users.ts#createUser",
+        "src/auth/users.ts#getUser",
+        "src/auth/users.ts#publicUser",
+        "src/ui/pages.ts#accountPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/account.ts#accountRoutes",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.email",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.err",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.password",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.user",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/src/api/account.ts b/src/api/account.ts\n--- a/src/api/account.ts\n+++ b/src/api/account.ts\n@@ -32,4 +32,21 @@\n       return json(200, { ok: field(req.body, \"reason\") ?? true });\n     },\n   },\n+  {\n+    method: \"POST\",\n+    path: \"/api/signup\",\n+    handler: (req) => {\n+      const email = field(req.body, \"email\");\n+      const password = field(req.body, \"password\");\n+      if (!email || !password) return json(400, { error: \"email and password are required\" });\n+      try {\n+        const user = createUser(email, field(req.body, \"name\") ?? \"\", password);\n+        const session = createSession(user.id);\n+        return json(201, { token: session.token, user: publicUser(user) });\n+      } catch (err) {\n+        if (err instanceof UserError) return json(400, { error: err.message });\n+        throw err;\n+      }\n+    },\n+  },\n ];\n",
+      "intent": "T-2: Signup endpoint",
+      "summary": "Blocked: claude-b changed signature of accountRoutes, accountRoutes.session +1 more, added accountRoutes.email, accountRoutes.err +1 more i…",
+      "diagnostics": [
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#createSession",
+          "message": "You use src/auth/session.ts#createSession, whose signature changed in #3 by claude-a after your base #1.",
+          "suggestion": "Read the new src/auth/session.ts#createSession (event #3) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 3,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        }
+      ],
+      "tool": {
+        "name": "Edit",
+        "call_id": "toolu_01LWCDfyJbKNmjVmVhy33Xho",
+        "harness_event": "PreToolUse"
+      }
+    },
+    {
+      "seq": 10,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "negotiate.propose",
+      "ts": "2026-10-04T08:12:12.083Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-b",
+        "harness": "claude-code"
+      },
+      "agent": "claude-b",
+      "task": "T-2",
+      "change": "I6867de43fc83c66c84e98fbd2208f3ec1ef785d4",
+      "session": "s3",
+      "base_seq": 9,
+      "mode": "commit",
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-b → I74effe81fe29fe3003f87a4f25ae20272b2ae640: proposes overload on createSession",
+      "diagnostics": [],
+      "payload": {
+        "to": {
+          "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640"
+        },
+        "keys": [
+          "src/auth/session.ts#createSession"
+        ],
+        "terms": {
+          "kind": "overload",
+          "text": "Please keep createSession(userId) (no options) working as an overload that applies the platform's default session lifetime. T-2's /api/signup must call createSession(user.id) exactly as login originally did and must not choose session options itself (product rule)."
+        }
+      },
+      "tool": {
+        "name": "weft-cli",
+        "harness_event": "Bash"
+      }
+    },
+    {
+      "seq": 11,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T08:12:13.696Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "session": "s4",
+      "base_seq": 10,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-a joined (claude-code, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 12,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T08:12:20.034Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "session": "s4",
+      "base_seq": 11,
+      "mode": "commit",
+      "files": [
+        "src/auth/session.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#Session",
+        "src/auth/session.ts#SessionOptions"
+      ],
+      "writes": [
+        {
+          "key": "src/auth/session.ts#createSession",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#DEFAULT_SESSION_OPTIONS",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/auth/session.ts b/src/auth/session.ts\n--- a/src/auth/session.ts\n+++ b/src/auth/session.ts\n@@ -6,8 +6,13 @@\n \n const sessions = new Map<string, Session>();\n \n+/** The platform's default session lifetime (one hour). */\n+export const DEFAULT_SESSION_OPTIONS: SessionOptions = { ttlMs: 60 * 60 * 1000 };\n+\n /** Start a session for a user and return it (the token is the bearer credential). */\n-export function createSession(userId: string, opts: SessionOptions): Session {\n+export function createSession(userId: string): Session;\n+export function createSession(userId: string, opts: SessionOptions): Session;\n+export function createSession(userId: string, opts: SessionOptions = DEFAULT_SESSION_OPTIONS): Session {\n   const createdAt = Date.now();\n   const session: Session = {\n     token: randomBytes(24).toString(\"base64url\"),\n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of createSession, added DEFAULT_SESSION_OPTIONS in src/auth/session.ts — Session expiry",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "toolu_01Ev5kfW6fHZaYqiZFH89TRA",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 13,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "negotiate.accept",
+      "ts": "2026-10-04T08:12:20.875Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "session": "s4",
+      "base_seq": 11,
+      "mode": "commit",
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-a accepted #10",
+      "diagnostics": [],
+      "payload": {
+        "reply_to": 10
+      },
+      "tool": {
+        "name": "weft-cli",
+        "harness_event": "Bash"
+      }
+    },
+    {
+      "seq": 14,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T08:12:23.352Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "session": "s4",
+      "base_seq": 13,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "claude-code session end: other",
+      "summary": "claude-a left — claude-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 15,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T08:12:25.442Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-b",
+        "harness": "claude-code"
+      },
+      "agent": "claude-b",
+      "task": "T-2",
+      "change": "I6867de43fc83c66c84e98fbd2208f3ec1ef785d4",
+      "session": "s3",
+      "base_seq": 13,
+      "mode": "commit",
+      "files": [
+        "src/api/account.ts"
+      ],
+      "reads": [
+        "src/api/router.ts#Route",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/api/router.ts#sessionOf",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#revokeSession",
+        "src/auth/users.ts#UserError",
+        "src/auth/users.ts#createUser",
+        "src/auth/users.ts#getUser",
+        "src/auth/users.ts#publicUser",
+        "src/ui/pages.ts#accountPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/account.ts#accountRoutes",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.email",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.err",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.password",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.user",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/src/api/account.ts b/src/api/account.ts\n--- a/src/api/account.ts\n+++ b/src/api/account.ts\n@@ -32,4 +32,21 @@\n       return json(200, { ok: field(req.body, \"reason\") ?? true });\n     },\n   },\n+  {\n+    method: \"POST\",\n+    path: \"/api/signup\",\n+    handler: (req) => {\n+      const email = field(req.body, \"email\");\n+      const password = field(req.body, \"password\");\n+      if (!email || !password) return json(400, { error: \"email and password are required\" });\n+      try {\n+        const user = createUser(email, field(req.body, \"name\") ?? \"\", password);\n+        const session = createSession(user.id);\n+        return json(201, { token: session.token, user: publicUser(user) });\n+      } catch (err) {\n+        if (err instanceof UserError) return json(400, { error: err.message });\n+        throw err;\n+      }\n+    },\n+  },\n ];\n",
+      "intent": "T-2: Signup endpoint",
+      "summary": "claude-b changed signature of accountRoutes, accountRoutes.session +1 more, added accountRoutes.email, accountRoutes.err +1 more in src/api…",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "toolu_0134cmkPM1e3XqkQNKVJzqTg",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 16,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T08:12:33.638Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-b",
+        "harness": "claude-code"
+      },
+      "agent": "claude-b",
+      "task": "T-2",
+      "change": "I6867de43fc83c66c84e98fbd2208f3ec1ef785d4",
+      "session": "s3",
+      "base_seq": 13,
+      "mode": "commit",
+      "files": [
+        "test/signup.test.ts"
+      ],
+      "reads": [
+        "src/api/routes.ts#app",
+        "src/auth/session.ts#resetSessions",
+        "src/auth/users.ts#createUser",
+        "src/auth/users.ts#resetUsers"
+      ],
+      "writes": [
+        {
+          "key": "test/signup.test.ts#bad",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#call",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#dup",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#me",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#res",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#short",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/test/signup.test.ts b/test/signup.test.ts\n--- /dev/null\n+++ b/test/signup.test.ts\n@@ -0,0 +1,45 @@\n+import { test, beforeEach } from \"node:test\";\n+import assert from \"node:assert/strict\";\n+import { app } from \"../src/api/routes.ts\";\n+import { createUser, resetUsers } from \"../src/auth/users.ts\";\n+import { resetSessions } from \"../src/auth/session.ts\";\n+\n+const call = (method: string, path: string, body?: unknown, token?: string) =>\n+  app({ method, path, body, headers: token ? { authorization: `Bearer ${token}` } : {} });\n+\n+beforeEach(() => {\n+  resetUsers();\n+  resetSessions();\n+});\n+\n+test(\"signup creates the user and returns a working session token\", async () => {\n+  const res = await call(\"POST\", \"/api/signup\", { email: \"Grace@Example.com\", name: \"Grace\", password: \"[REDACTED:assignment]\" });\n+  assert.equal(res.status, 201);\n+  const { token, user } = res.body as { token: string; user: { id: string; email: string; name: string } };\n+  assert.deepEqual(user, { id: user.id, email: \"grace@example.com\", name: \"Grace\" });\n+  assert.equal(\"passwordHash\" in user, false);\n+  const me = await call(\"GET\", \"/api/me\", undefined, token);\n+  assert.equal(me.status, 200);\n+  assert.deepEqual(me.body, user);\n+});\n+\n+test(\"signed-up user can log in with the same password\", async () => {\n+  await call(\"POST\", \"/api/signup\", { email: \"grace@example.com\", name: \"Grace\", password: \"[REDACTED:assignment]\" });\n+  const res = await call(\"POST\", \"/api/login\", { email: \"grace@example.com\", password: \"[REDACTED:assignment]\" });\n+  assert.equal(res.status, 200);\n+});\n+\n+test(\"signup maps UserError to 400\", async () => {\n+  createUser(\"ada@example.com\", \"Ada\", \"correct horse\");\n+  const dup = await call(\"POST\", \"/api/signup\", { email: \"ADA@example.com\", name: \"Ada\", password: \"correct horse\" });\n+  assert.deepEqual([dup.status, dup.body], [400, { error: \"email already registered\" }]);\n+  const short = await call(\"POST\", \"/api/signup\", { email: \"b@example.com\", name: \"B\", password: \"short\" });\n+  assert.deepEqual([short.status, short.body], [400, { error: \"password must be at least 8 characters\" }]);\n+  const bad = await call(\"POST\", \"/api/signup\", { email: \"not-an-email\", name: \"C\", password: \"long enough\" });\n+  assert.deepEqual([bad.status, bad.body], [400, { error: \"invalid email\" }]);\n+});\n+\n+test(\"signup requires email and password\", async () => {\n+  assert.equal((await call(\"POST\", \"/api/signup\", { email: \"d@example.com\" })).status, 400);\n+  assert.equal((await call(\"POST\", \"/api/signup\", { password: \"long enough\" })).status, 400);\n+});\n",
+      "intent": "T-2: Signup endpoint",
+      "summary": "claude-b added bad, call +4 more in test/signup.test.ts — Signup endpoint",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "toolu_01G6tmcWoBEMFrTt7Y7qBk9u",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 17,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T08:12:41.340Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-b",
+        "harness": "claude-code"
+      },
+      "agent": "claude-b",
+      "task": "T-2",
+      "change": "I6867de43fc83c66c84e98fbd2208f3ec1ef785d4",
+      "session": "s3",
+      "base_seq": 16,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "claude-code session end: other",
+      "summary": "claude-b left — claude-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 18,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "land",
+      "ts": "2026-10-04T08:12:44.117Z",
+      "actor": {
+        "type": "system",
+        "id": "weft-landing-queue"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I74effe81fe29fe3003f87a4f25ae20272b2ae640",
+      "base_seq": 17,
+      "files": [
+        "src/auth/session.ts",
+        "src/api/routes.ts",
+        "test/session.test.ts"
+      ],
+      "reads": [],
+      "writes": [
+        {
+          "key": "src/auth/session.ts#createSession",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#createSession.createdAt",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#createSession.session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#getSession",
+          "kind": "body"
+        },
+        {
+          "key": "src/auth/session.ts#getSession.session",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#Session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#SessionOptions",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/routes.ts#login",
+          "kind": "body"
+        },
+        {
+          "key": "src/api/routes.ts#login.session",
+          "kind": "signature"
+        },
+        {
+          "key": "test/session.test.ts#a",
+          "kind": "signature"
+        },
+        {
+          "key": "test/session.test.ts#b",
+          "kind": "signature"
+        },
+        {
+          "key": "test/session.test.ts#opts",
+          "kind": "new"
+        },
+        {
+          "key": "test/session.test.ts#s",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#DEFAULT_SESSION_OPTIONS",
+          "kind": "new"
+        }
+      ],
+      "summary": "claude-a landed I74effe81fe29fe3003f87a4f25ae20272b2ae640 (14 symbols)",
+      "diagnostics": [],
+      "payload": {
+        "sha": "48d0bdc34cbee1046950b5ba638bab99df9e89e4",
+        "op_id": "b11-20261004-081134-agent-a",
+        "trunk_ref": "refs/heads/main"
+      }
+    },
+    {
+      "seq": 19,
+      "repo": "demo-b11-20261004-081134-r4",
+      "status": "accepted",
+      "kind": "land",
+      "ts": "2026-10-04T08:12:44.148Z",
+      "actor": {
+        "type": "system",
+        "id": "weft-landing-queue"
+      },
+      "agent": "claude-b",
+      "task": "T-2",
+      "change": "I6867de43fc83c66c84e98fbd2208f3ec1ef785d4",
+      "base_seq": 18,
+      "files": [
+        "src/api/account.ts",
+        "test/signup.test.ts"
+      ],
+      "reads": [],
+      "writes": [
+        {
+          "key": "src/api/account.ts#accountRoutes",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.email",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.err",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.password",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.user",
+          "kind": "signature"
+        },
+        {
+          "key": "test/signup.test.ts#bad",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#call",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#dup",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#me",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#res",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#short",
+          "kind": "new"
+        }
+      ],
+      "summary": "claude-b landed I6867de43fc83c66c84e98fbd2208f3ec1ef785d4 (12 symbols)",
+      "diagnostics": [],
+      "payload": {
+        "sha": "fe62eb1c9a0f42a43693175774a46366468c5d04",
+        "op_id": "b11-20261004-081134-agent-b",
+        "trunk_ref": "refs/heads/main"
+      }
+    }
+  ]
+}

@@ -1,4 +1,5 @@
 > M1 (Claude Code + Codex, one coordinator): see `m1-report.md` and `m1/`.
+> B11 (negotiation: B proposes an overload, A accepts, both land): see `b11/README.md`.
 
 # Evidence: two real Claude Code sessions vs one Weft coordinator
 

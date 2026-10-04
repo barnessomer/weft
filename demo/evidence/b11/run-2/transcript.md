@@ -8,7 +8,7 @@ Coordinator: http://127.0.0.1:8799, repo `demo-b11-20261004-080609-r2`. Agents: 
 - ✔ b_proposed_overload
 - ✔ proposal_injected_into_a
 - ✔ a_accepted
-- ✔ a_made_agreed_edit
+- ✔ a_made_agreed_edit (re-scored: a_made_agreed_edit re-scored from coordinator-log.json with the fixed rule (accepted A edit of createSession after the proposal #10); value at run time: True)
 - ✔ b_kept_old_call
 - ✔ both_landed
 - ✔ tests_green

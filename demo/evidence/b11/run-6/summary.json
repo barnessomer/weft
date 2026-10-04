@@ -1,0 +1,73 @@
+{
+  "run": 6,
+  "repo": "demo-b11-20261004-081653-r6",
+  "url": "http://127.0.0.1:8799",
+  "pass": true,
+  "criteria": {
+    "b_denied_at_edit_time_by_a": true,
+    "b_proposed_overload": true,
+    "proposal_injected_into_a": true,
+    "a_accepted": true,
+    "a_made_agreed_edit": true,
+    "b_kept_old_call": true,
+    "both_landed": true,
+    "tests_green": true
+  },
+  "seqs": {
+    "a_signature": 3,
+    "b_rejected": 12,
+    "propose": 14,
+    "accept": 17,
+    "a_fulfil": 16,
+    "lands": [
+      22,
+      23
+    ]
+  },
+  "a_running_when_b2_started": true,
+  "a_resumed_for_proposal": true,
+  "proposal_reached_a_via": "SessionStart",
+  "signup_createSession_args": "user.id",
+  "timeline_ms": {
+    "b_joined": 517,
+    "a_started": 518,
+    "a_signature_accepted": 12624,
+    "b2_started": 23351,
+    "a_done": 37745,
+    "b_proposed": 39919,
+    "a_resumed": 39919,
+    "a_resume_done": 54169,
+    "b2_done": 74203
+  },
+  "harness_exit": {
+    "a": {
+      "code": 0,
+      "result": "success",
+      "ms": 37228,
+      "tokens": 164815,
+      "cost_usd": 0.23076439999999995
+    },
+    "a_resume": {
+      "code": 0,
+      "result": "success",
+      "ms": 14250,
+      "tokens": 95646,
+      "cost_usd": 0.2875316
+    },
+    "b1": {
+      "code": 0,
+      "result": "success",
+      "ms": 23350,
+      "tokens": 72820,
+      "cost_usd": 0.1743626
+    },
+    "b2": {
+      "code": 0,
+      "result": "success",
+      "ms": 50852,
+      "tokens": 194441,
+      "cost_usd": 0.33836940000000004
+    }
+  },
+  "work": "/Users/john/.hermes/cache/scratch/weft-b11-20261004-081653-r6"
+}

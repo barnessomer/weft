@@ -1,6 +1,6 @@
 {
-  "run": 2,
-  "repo": "demo-b11-20261004-080609-r2",
+  "run": 3,
+  "repo": "demo-b11-20261004-081018-r3",
   "url": "http://127.0.0.1:8799",
   "pass": true,
   "criteria": {
@@ -17,11 +17,11 @@
     "a_signature": 3,
     "b_rejected": 9,
     "propose": 10,
-    "accept": 13,
-    "a_fulfil": 12,
+    "accept": 12,
+    "a_fulfil": 13,
     "lands": [
-      20,
-      21
+      19,
+      20
     ]
   },
   "a_running_when_b2_started": false,
@@ -30,45 +30,45 @@
   "signup_createSession_args": "user.id",
   "timeline_ms": {
     "b_joined": 511,
-    "a_started": 512,
-    "a_signature_accepted": 11588,
-    "a_done": 22604,
-    "b2_started": 24461,
-    "b_proposed": 36534,
-    "a_resumed": 36534,
-    "b2_done": 71982,
-    "a_resume_done": 173046
+    "a_started": 511,
+    "a_signature_accepted": 9563,
+    "a_done": 20678,
+    "b2_started": 22414,
+    "b_proposed": 37482,
+    "a_resumed": 37482,
+    "a_resume_done": 55976,
+    "b2_done": 72959
   },
   "harness_exit": {
     "a": {
       "code": 0,
       "result": "success",
-      "ms": 22093,
-      "tokens": 127292,
-      "cost_usd": 0.173079
+      "ms": 20167,
+      "tokens": 96387,
+      "cost_usd": 0.16804899999999998
     },
     "a_resume": {
       "code": 0,
       "result": "success",
-      "ms": 136512,
-      "tokens": 799954,
-      "cost_usd": 0.6345534
+      "ms": 18494,
+      "tokens": 86456,
+      "cost_usd": 0.22937719999999998
     },
     "b1": {
       "code": 0,
       "result": "success",
-      "ms": 24461,
-      "tokens": 77350,
-      "cost_usd": 0.1788248
+      "ms": 22414,
+      "tokens": 77865,
+      "cost_usd": 0.1642026
     },
     "b2": {
       "code": 0,
       "result": "success",
-      "ms": 47521,
-      "tokens": 162492,
-      "cost_usd": 0.326374
+      "ms": 50545,
+      "tokens": 231500,
+      "cost_usd": 0.3536078
     }
   },
-  "work": "/Users/john/.hermes/cache/scratch/weft-b11-20261004-080609-r2",
+  "work": "/Users/john/.hermes/cache/scratch/weft-b11-20261004-081018-r3",
   "rescored": "a_made_agreed_edit re-scored from coordinator-log.json with the fixed rule (accepted A edit of createSession after the proposal #10); value at run time: True"
 }

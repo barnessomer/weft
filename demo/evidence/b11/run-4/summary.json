@@ -1,6 +1,6 @@
 {
-  "run": 2,
-  "repo": "demo-b11-20261004-080609-r2",
+  "run": 4,
+  "repo": "demo-b11-20261004-081134-r4",
   "url": "http://127.0.0.1:8799",
   "pass": true,
   "criteria": {
@@ -20,55 +20,55 @@
     "accept": 13,
     "a_fulfil": 12,
     "lands": [
-      20,
-      21
+      18,
+      19
     ]
   },
-  "a_running_when_b2_started": false,
+  "a_running_when_b2_started": true,
   "a_resumed_for_proposal": true,
   "proposal_reached_a_via": "SessionStart",
   "signup_createSession_args": "user.id",
   "timeline_ms": {
-    "b_joined": 511,
-    "a_started": 512,
-    "a_signature_accepted": 11588,
-    "a_done": 22604,
-    "b2_started": 24461,
-    "b_proposed": 36534,
-    "a_resumed": 36534,
-    "b2_done": 71982,
-    "a_resume_done": 173046
+    "b_joined": 509,
+    "a_started": 510,
+    "a_signature_accepted": 18652,
+    "b2_started": 21226,
+    "a_done": 30097,
+    "b_proposed": 37821,
+    "a_resumed": 37821,
+    "a_resume_done": 48491,
+    "b2_done": 66471
   },
   "harness_exit": {
     "a": {
       "code": 0,
       "result": "success",
-      "ms": 22093,
-      "tokens": 127292,
-      "cost_usd": 0.173079
+      "ms": 29588,
+      "tokens": 182718,
+      "cost_usd": 0.22415020000000002
     },
     "a_resume": {
       "code": 0,
       "result": "success",
-      "ms": 136512,
-      "tokens": 799954,
-      "cost_usd": 0.6345534
+      "ms": 10669,
+      "tokens": 61934,
+      "cost_usd": 0.264976
     },
     "b1": {
       "code": 0,
       "result": "success",
-      "ms": 24461,
-      "tokens": 77350,
-      "cost_usd": 0.1788248
+      "ms": 21226,
+      "tokens": 72879,
+      "cost_usd": 0.1770546
     },
     "b2": {
       "code": 0,
       "result": "success",
-      "ms": 47521,
-      "tokens": 162492,
-      "cost_usd": 0.326374
+      "ms": 45245,
+      "tokens": 224521,
+      "cost_usd": 0.34357139999999997
     }
   },
-  "work": "/Users/john/.hermes/cache/scratch/weft-b11-20261004-080609-r2",
-  "rescored": "a_made_agreed_edit re-scored from coordinator-log.json with the fixed rule (accepted A edit of createSession after the proposal #10); value at run time: True"
+  "work": "/Users/john/.hermes/cache/scratch/weft-b11-20261004-081134-r4",
+  "rescored": "a_made_agreed_edit re-scored from coordinator-log.json with the fixed rule (accepted A edit of createSession after the proposal #10); value at run time: False"
 }

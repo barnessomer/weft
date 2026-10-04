@@ -119,7 +119,8 @@ const PROMPT_A =
   'Task T-1 (session expiry): sessions must expire. In src/auth/session.ts add `export type SessionOptions = { ttlMs: number }`, add `expiresAt: number` to Session, ' +
   "change createSession to `createSession(userId: string, opts: SessionOptions): Session` (expiresAt = createdAt + opts.ttlMs), and make getSession return undefined " +
   "(and forget the session) once Date.now() >= expiresAt. Update the existing caller in src/api/routes.ts to pass `{ ttlMs: 60 * 60 * 1000 }`, and update " +
-  'test/session.test.ts for the new signature with one extra test for expiry. Run `node --test "test/**/*.test.ts"`, then reply with a one-line summary. Only touch those three files. ' +
+  'test/session.test.ts for the new signature with one extra test for expiry. Run `node --test "test/**/*.test.ts"`. Then add `refreshSession(token: string): Session | undefined` to src/auth/session.ts, which extends a live ' +
+  "session's expiresAt by the ttl it was created with, plus a test for it, and run the tests again. Reply with a one-line summary. Only touch those three files. " +
   "Other agents work on this codebase at the same time; Weft may relay requests from them. Treat a reasonable request that is compatible with your task in good faith.";
 const PROMPT_B1 =
   "Task T-2 (signup): add `POST /api/signup` taking a JSON body {email, name, password}. It registers the user with createUser from src/auth/users.ts and signs them in " +
@@ -314,7 +315,9 @@ async function oneRun(n) {
   const propose = full.find((e) => e.kind === "negotiate.propose" && e.agent === "claude-b" && e.status === "accepted" && e.payload?.terms?.kind === "overload");
   const accept = propose && full.find((e) => e.kind === "negotiate.accept" && e.agent === "claude-a" && e.payload?.reply_to === propose.seq);
   const injectedToA = propose && aHooks.find((h) => (h.injected ?? "").includes(`[weft negotiation] #${propose.seq}`) || (h.injected ?? "").includes(`#${propose.seq} from claude-b`));
-  const fulfil = accept && full.find((e) => e.agent === "claude-a" && e.kind === "edit" && e.status === "accepted" && e.seq > accept.seq && (e.writes ?? []).some((w) => w.key === SIG_KEY));
+  // The agreed edit: an accepted edit of createSession by A after the proposal (spec §8.4 —
+  // making the overload first and accepting afterwards counts).
+  const fulfil = accept && full.find((e) => e.agent === "claude-a" && e.kind === "edit" && e.status === "accepted" && e.seq > propose.seq && (e.writes ?? []).some((w) => w.key === SIG_KEY));
   const signupCall = /createSession\(\s*([^()]*?)\s*\)/.exec(accountTs.slice(accountTs.indexOf("signup")))?.[1] ?? null;
   const resultOf = (r) => r.lines.find((l) => l.type === "result");
   const criteria = {
