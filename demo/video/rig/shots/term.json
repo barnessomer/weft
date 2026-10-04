@@ -1,0 +1,132 @@
+{
+  "comment": "Terminal shots: recorded transcripts replayed by play.mjs and filmed by VHS (render-term.mjs). Banners say what is shown and from which run; nothing here is re-enacted. 'exec' shots run a real command live.",
+  "cols": 108,
+  "shots": [
+    {
+      "id": "S03b",
+      "note": "What Codex saw: the PreToolUse deny for its apply_patch, with Claude's diff quoted.",
+      "lineMs": 70,
+      "hold": 4000,
+      "blocks": [
+        {
+          "banner": "codex-b (Codex CLI) · tool result from the Weft pre-edit hook · M1 run 1"
+        },
+        {
+          "pause": 600
+        },
+        {
+          "jsonl": "demo/evidence/m1/run-1/b-hooks.jsonl",
+          "match": {
+            "event": "PreToolUse"
+          },
+          "field": "injected",
+          "contains": "stale_assumption",
+          "max": 21
+        }
+      ]
+    },
+    {
+      "id": "S03c",
+      "note": "Codex reroutes: its own messages, then the accepted edit.",
+      "lineMs": 120,
+      "hold": 3500,
+      "blocks": [
+        {
+          "banner": "codex-b (Codex CLI) · agent messages after the deny · M1 run 1"
+        },
+        {
+          "pause": 500
+        },
+        {
+          "codexMessages": "demo/evidence/m1/run-1/b2-implement.jsonl",
+          "skip": 1,
+          "take": 1
+        },
+        {
+          "pause": 900
+        },
+        {
+          "text": "\n[weft] log #10  accepted edit  codex-b  src/api/account.ts, test/signup.test.ts"
+        },
+        {
+          "pause": 900
+        },
+        {
+          "codexMessages": "demo/evidence/m1/run-1/b2-implement.jsonl",
+          "skip": 3,
+          "take": 1
+        }
+      ],
+      "fontSize": 32,
+      "cols": 86
+    },
+    {
+      "id": "S03d",
+      "note": "Landing: B alone fails tsc (coded against A's in-flight signature); main after both merges is green.",
+      "lineMs": 110,
+      "hold": 4000,
+      "blocks": [
+        {
+          "banner": "M1 run 1 · landing.txt (merge of both agents' branches)"
+        },
+        {
+          "file": "demo/evidence/m1/run-1/landing.txt",
+          "from": "^--- agent-a alone",
+          "to": "^--- main after both merges"
+        },
+        {
+          "file": "demo/evidence/m1/run-1/landing.txt",
+          "from": "^--- main: node --test",
+          "to": "^ℹ tests"
+        }
+      ]
+    },
+    {
+      "id": "S04b",
+      "note": "Negotiation: the proposal as injected into claude-a's next tool call (B11 run 5).",
+      "lineMs": 90,
+      "hold": 4500,
+      "blocks": [
+        {
+          "banner": "claude-a (Claude Code) · injected at its next PreToolUse:Edit · B11 run 5"
+        },
+        {
+          "pause": 500
+        },
+        {
+          "file": "demo/evidence/b11/run-5/transcript.md",
+          "from": "^\\[weft negotiation\\] #11",
+          "to": "Answer from the shell"
+        }
+      ],
+      "fontSize": 30,
+      "cols": 92
+    },
+    {
+      "id": "S06c",
+      "note": "B13 timeline from run.json (the live run's own samples).",
+      "lineMs": 450,
+      "hold": 4000,
+      "blocks": [
+        {
+          "banner": "B13 live run · planted bug → production errors → auto-revert (run.json)"
+        },
+        {
+          "pause": 500
+        },
+        {
+          "json": "demo/evidence/b13-auto-revert-live/run.json",
+          "expr": "const land = d.steps.find(s => s.name.startsWith('landed')).at_s; const f = s => `t+${(s.at_s - land).toFixed(0).padStart(3)} s  ${s.name}`; return d.steps.filter(s => s.at_s >= land).map(s => f(s) + (s.sample ? `   GET /quote → ${s.sample.status}` : '') + (s.statuses ? `   ${s.statuses.length} requests → ${[...new Set(s.statuses)].join(',')}` : ''));"
+        }
+      ],
+      "fontSize": 34,
+      "cols": 80
+    },
+    {
+      "id": "S10c",
+      "note": "Live command: the WCP conformance + protocol test suite.",
+      "exec": "pnpm --filter @weft/protocol test 2>&1 | tail -n 14",
+      "hold": 4000
+    }
+  ]
+}

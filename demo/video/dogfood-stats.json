@@ -1,0 +1,22 @@
+{
+  "repo": "weft",
+  "as_of": "2026-10-04T13:04:05.430Z",
+  "first_event": "2026-10-04T03:24:04.847Z",
+  "hours": 9.7,
+  "records": 571,
+  "edits": 420,
+  "checkpoints": 66,
+  "lands": 18,
+  "reverts": 0,
+  "rejected": 0,
+  "agents": 3,
+  "tasks": 22,
+  "files": 663,
+  "records_with_diagnostics": 31,
+  "diagnostics": 61,
+  "by_code": {
+    "warning:claim_wait": 59,
+    "info:claim_contended": 2
+  },
+  "sentence": "In ten hours, its own log recorded 571 events: 420 edits from three agent profiles across 22 tasks, 66 checkpoints and 18 landings, with 59 warnings that told one agent to wait for another."
+}

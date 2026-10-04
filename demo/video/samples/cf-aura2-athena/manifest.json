@@ -1,0 +1,24 @@
+{
+  "provider": "cf-aura2",
+  "voice": "athena",
+  "model": null,
+  "rendered_at": "2026-10-04T12:40:24.704Z",
+  "sections": [
+    {
+      "id": "00",
+      "title": "Cold open",
+      "file": "00.mp3",
+      "seconds": 12.53,
+      "words": 38,
+      "wpm": 182
+    },
+    {
+      "id": "01",
+      "title": "The problem",
+      "file": "01.mp3",
+      "seconds": 31,
+      "words": 96,
+      "wpm": 186
+    }
+  ]
+}

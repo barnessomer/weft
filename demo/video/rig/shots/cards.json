@@ -1,0 +1,25 @@
+{
+  "comment": "Slides rendered by render-cards.mjs. lines = [left, right, class?]. Diagram slides are first cuts; R3 may replace them with animated HTML (same ids).",
+  "cards": [
+    { "id": "S00b", "seconds": 4, "mark": true, "kicker": "Weft Coordination Protocol", "title": "Weft", "big": true, "sub": "Coordination at edit time, for many agents on one codebase. Built on Cloudflare." },
+    { "id": "S01a", "seconds": 6, "kicker": "The problem", "title": "Git coordinates at merge time. Agents need edit time.",
+      "lines": [["GitHub", "branch → work for a day → pull request → conflict found", "warn"], ["agents", "10 agents · same function · same minute · own checkouts", ""], ["result", "branches merge cleanly — and do not compile", "err"], ["Weft", "every edit checked against the others while it is written", "ok"]] },
+    { "id": "S02a", "seconds": 7, "kicker": "How it works", "title": "One ordered log per repo. Diagnostics back into the agent.",
+      "lines": [["agent", "Claude Code · Codex · OpenCode · Hermes · file watcher"], ["adapter", "native hooks → WCP: check before the edit, commit after"], ["sequencer", "one Durable Object per repo: order, validate, arbitrate"], ["verdict", "allow · warn · deny, with the cause and the other side's diff", "err"]],
+      "source": "docs/design.md §1, §4 · docs/protocol/wcp-v0.md" },
+    { "id": "S04c", "seconds": 5, "kicker": "Negotiated: an overload", "title": "Both callers keep working",
+      "lines": [["claude-a", "export function createSession(userId: string): Session;", "ok"], ["claude-a", "export function createSession(userId: string, opts: SessionOptions): Session;", "ok"], ["claude-b", "createSession(user.id)   // signup, unchanged", ""]],
+      "source": "demo/evidence/b11/run-5 · 5/5 valid runs" },
+    { "id": "S06a", "seconds": 7, "kicker": "Planted bug → auto-revert", "title": "43 seconds, no human",
+      "lines": [["t + 0 s", "change lands on trunk (Artifacts)", ""], ["t + 6 s", "Workers Builds deployed it · GET /quote → 500", "err"], ["t + 15 s", "Tail Worker → detector → RevertOperation", "warn"], ["t + 43 s", "revert deployed · GET /quote → 200 · task reopened with the stack trace", "ok"]],
+      "source": "demo/evidence/b13-auto-revert-live/run.json" },
+    { "id": "S07c", "seconds": 5, "kicker": "Adapter capability levels", "title": "What a harness can do",
+      "lines": [["L0 observe", "file watcher: report edits after the fact, gate commits"], ["L1 inject", "diagnostics into the model's context"], ["L2 block", "deny an edit before it touches disk", "err"], ["L3 gate", "refuse to finish while an error is open", "warn"]] },
+    { "id": "S09c", "seconds": 5, "kicker": "Weft was built under Weft", "title": "Its own change log", "statsFrom": "demo/video/dogfood-stats.json" },
+    { "id": "S10a", "seconds": 6, "kicker": "Agent Plugins 1.0", "quote": "“…agents, commands, hooks, rules, and user-interface extensions. These concepts do not yet have consistent semantics or security models across clients, so they are not portable component types in 1.0.”",
+      "source": "aaif.io/blog/from-skills-and-tools-to-portable-agent-plugins (Agent Plugins Technical Steering Committee)" },
+    { "id": "S11a", "seconds": 8, "kicker": "Every product carries weight", "title": "Weft on Cloudflare",
+      "lines": [["Artifacts", "repos, forks, previews straight from a commit"], ["Durable Objects", "one sequencer per repo"], ["Workflows", "rebase · land · revert · best-of-N"], ["Containers", "agents and git, no secrets inside"], ["Queues · Tail Workers", "pushes and production errors"], ["Browser Rendering", "screenshots + pixel diff"], ["Workers AI · AI Gateway", "review agent, risk, cost metadata"], ["D1 · R2 · Access", "index, evidence, humans"]] },
+    { "id": "S11b", "seconds": 6, "mark": true, "kicker": "Open source · MIT", "title": "github.com/celador/weft", "big": true, "sub": "Weft Coordination Protocol (WCP) v0.1 · an Atelier project · elier.ai" }
+  ]
+}

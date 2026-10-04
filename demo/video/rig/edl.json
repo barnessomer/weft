@@ -1,0 +1,19 @@
+{
+  "comment": "Edit decision list for assemble.mjs. Per script section: shots in order. 'cue' = the shot starts when these narration words are spoken (whisper word timestamps). Between cues, 'sec' = fixed share and shots without 'sec' split the rest; each group is fitted exactly to its span. A clip shorter than its slot holds its last frame; a longer one is cut (or sped up with 'fit': 'speed'). 'from' skips into a clip. Clip lookup: clips/{web,term,sim,cards}/<id>.mp4.",
+  "lead": 0.4,
+  "tail": 0.7,
+  "sections": [
+    { "id": "00", "shots": [{ "id": "S00a" }, { "id": "S00b", "cue": "This is Weft" }] },
+    { "id": "01", "shots": [{ "id": "S01a" }, { "id": "S01c", "cue": "Agents are not slow" }] },
+    { "id": "02", "shots": [{ "id": "S02a" }, { "id": "S02b", "cue": "The verdict goes straight back" }] },
+    { "id": "03", "shots": [{ "id": "S03a" }, { "id": "S03b", "cue": "Codex gets the reason" }, { "id": "S03c", "cue": "Codex reads it" }, { "id": "S03d", "cue": "Both branches merge" }] },
+    { "id": "04", "shots": [{ "id": "S04a" }, { "id": "S04b", "cue": "The proposal is injected" }, { "id": "S04c", "cue": "writes real TypeScript overloads" }] },
+    { "id": "05", "shots": [{ "id": "S05a" }, { "id": "S05b", "cue": "Every push is rebased" }, { "id": "S05c", "cue": "Weft landed the right one" }] },
+    { "id": "06", "shots": [{ "id": "S06a" }, { "id": "S06c", "cue": "Six seconds later" }, { "id": "S05c", "cue": "Forty-three seconds after the land" }, { "id": "S06d", "cue": "the task reopened" }] },
+    { "id": "07", "shots": [{ "id": "S07b" }, { "id": "S07c", "cue": "Adapters declare what they can do" }] },
+    { "id": "08", "shots": [{ "id": "S08a" }, { "id": "S08b", "cue": "Tap a squiggle" }] },
+    { "id": "09", "shots": [{ "id": "S09a" }, { "id": "S09c", "cue": "its own log recorded" }, { "id": "S09b", "cue": "The first time two workers" }] },
+    { "id": "10", "shots": [{ "id": "S10a" }, { "id": "S10c", "cue": "WCP is our answer" }] },
+    { "id": "11", "shots": [{ "id": "S11a" }, { "id": "S11b", "cue": "Weft. Coordination at edit time" }], "tail": 3.0 }
+  ]
+}

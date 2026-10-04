@@ -1,0 +1,9 @@
+{
+  "name": "weft-video-rig",
+  "private": true,
+  "type": "module",
+  "description": "Recording rig for the Weft demo video (not part of the pnpm workspace). npm ci here.",
+  "dependencies": {
+    "playwright": "1.63.0"
+  }
+}
