@@ -73,7 +73,7 @@ with exit 2. That is the merge-time failure this milestone exists to prevent.
 ## Results
 
 <!-- m1-generated:start -->
-**Pass rate: 2/2** valid runs (2 aborted by the Codex model backend, not counted).
+**Pass rate: 2/3** valid runs (2 aborted by the Codex model backend, not counted).
 
 | run | coordinator repo | Codex backend | A sig. event | B denied (check) | B accepted after | A running at B2 | diag → B | B rerouted | both finished | merge clean | tsc+tests on merge | result |
 |---|---|---|---|---|---|---|---|---|---|---|---|---|
@@ -81,6 +81,42 @@ with exit 2. That is the merge-time failure this milestone exists to prevent.
 | [2](m1/run-2/) | `demo-m1-20261004-064442-r1` | provider openrouter, model openai/gpt-6-sol | #3 | #9 | #10 | no | yes | yes | yes | yes | yes | **PASS** |
 | [3](m1/run-3-aborted/) | `demo-m1-20261004-064702-r2` | provider openrouter, model openai/gpt-6-sol | #3 | – | – | no | **no** | **no** | **no** | yes | yes | aborted (aborted: Codex model backend refused every request (OpenRouter 403 "Budget limit exceeded …) |
 | [4](m1/run-4-aborted/) | `demo-m1-20261004-064805-r3` | provider openrouter, model openai/gpt-6-sol | #4 | – | – | yes | **no** | **no** | **no** | yes | yes | aborted (aborted: Codex model backend refused every request (OpenRouter 403 "Budget limit exceeded …) |
+| [5](m1/run-5/) | `demo-m1-20261004-110555-r5` | provider chatgpt | #– | – | – | no | **no** | **no** | **no** | yes | yes | **FAIL** |
+
+Hook round-trip (whole hook process: node start → JSON on stdout; coordinator = each HTTP call to the preview gateway):
+
+| hook | n | total p50 ms | total p95 ms | total max ms | coordinator calls | call p50 ms | call p95 ms |
+|---|---|---|---|---|---|---|---|
+| Claude Code PostToolUse:Bash (drain) | 1 | 311 | 311 | 311 | 1 | 283 | 283 |
+| Claude Code PostToolUse:Grep (drain) | 1 | 305 | 305 | 305 | 1 | 282 | 282 |
+| Claude Code PostToolUse:Read (drain) | 2 | 312 | 312 | 312 | 2 | 291 | 291 |
+| Claude Code PostToolUse:edit | 6 | 563 | 589 | 589 | 6 | 412 | 446 |
+| Claude Code PostToolUse:other (no coordinator call) | 5 | 23 | 25 | 25 | 0 | – | – |
+| Claude Code PreToolUse:edit | 6 | 557 | 568 | 568 | 6 | 392 | 415 |
+| Claude Code PreToolUse:other (no coordinator call) | 2 | 27 | 27 | 27 | 0 | – | – |
+| Claude Code SessionEnd | 3 | 595 | 667 | 667 | 6 | 281 | 474 |
+| Claude Code SessionStart | 3 | 809 | 893 | 893 | 6 | 387 | 494 |
+| Claude Code Stop | 2 | 303 | 303 | 303 | 2 | 283 | 283 |
+| Claude Code UserPromptSubmit | 3 | 421 | 462 | 462 | 3 | 403 | 442 |
+| Codex PostToolUse:Bash (drain) | 13 | 428 | 452 | 452 | 13 | 401 | 426 |
+| Codex PostToolUse:edit | 1 | 540 | 540 | 540 | 1 | 387 | 387 |
+| Codex PostToolUse:other (no coordinator call) | 4 | 26 | 132 | 132 | 0 | – | – |
+| Codex PreToolUse:edit | 7 | 583 | 753 | 753 | 9 | 390 | 433 |
+| Codex PreToolUse:other (no coordinator call) | 15 | 30 | 81 | 81 | 0 | – | – |
+| Codex SessionEnd | 6 | 604 | 625 | 625 | 12 | 272 | 419 |
+| Codex SessionStart | 6 | 841 | 878 | 878 | 12 | 398 | 443 |
+| Codex Stop | 6 | 418 | 441 | 441 | 6 | 396 | 419 |
+| Codex UserPromptSubmit | 6 | 314 | 432 | 432 | 6 | 295 | 411 |
+
+All coordinated hooks: n=72, total p50 452 ms / p95 841 ms; pre-edit checks (the edit-time squiggle path): n=13, p50 558 ms / max 753 ms; single coordinator call p50 387 ms / p95 442 ms (n=92).
+
+Token overhead of injected Weft text (chars/4 estimate; model totals are the harness-reported tokens for the whole run, cached input included):
+
+| run | A injected (≈tok) | B injected (≈tok) | of which B's deny (≈tok) | A model tokens | B model tokens | B overhead vs B input |
+|---|---|---|---|---|---|---|
+| 1 | 544 (136) | 3166 (792) | 2078 (520) | 131077 | 977133 | 0.08 % |
+| 2 | 544 (136) | 3166 (792) | 2078 (520) | 102801 | 1135235 | 0.07 % |
+| 5 | 544 (136) | 1088 (272) | 0 (0) | 0 | 233022 | 0.12 % |
 <!-- m1-generated:end -->
 
 Concurrency. In every run, A ran entirely inside B's first turn: A took about 28 s, starting
