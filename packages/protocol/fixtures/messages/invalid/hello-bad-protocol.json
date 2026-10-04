@@ -1,0 +1,20 @@
+{
+  "schema": "Hello",
+  "expect_issue_path": "/protocol",
+  "value": {
+    "type": "hello",
+    "protocol": "wcp-1",
+    "agent": {
+      "id": "a",
+      "harness": "x"
+    },
+    "capabilities": {
+      "level": 0,
+      "observe": "async",
+      "inject": false,
+      "deny_edit": false,
+      "refuse_stop": false,
+      "commit_gate": false
+    }
+  }
+}

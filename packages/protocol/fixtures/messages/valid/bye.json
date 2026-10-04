@@ -1,0 +1,7 @@
+{
+  "schema": "Bye",
+  "value": {
+    "type": "bye",
+    "reason": "task complete"
+  }
+}

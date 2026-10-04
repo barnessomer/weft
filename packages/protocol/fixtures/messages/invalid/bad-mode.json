@@ -1,0 +1,12 @@
+{
+  "schema": "Submit",
+  "expect_issue_path": "/mode",
+  "value": {
+    "type": "submit",
+    "mode": "dry-run",
+    "event": {
+      "kind": "intent",
+      "base_seq": 1
+    }
+  }
+}

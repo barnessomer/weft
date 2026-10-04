@@ -1,0 +1,13 @@
+{
+  "schema": "Verdict",
+  "value": {
+    "type": "verdict",
+    "verdict": "accept",
+    "mode": "check",
+    "seq": null,
+    "head_seq": 12,
+    "diagnostics": [],
+    "inbox": [],
+    "delivered_through": 12
+  }
+}

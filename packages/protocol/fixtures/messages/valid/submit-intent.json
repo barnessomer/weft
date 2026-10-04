@@ -1,0 +1,15 @@
+{
+  "schema": "Submit",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "intent",
+      "base_seq": 0,
+      "intent": "Add retry budget; touch session.ts refreshToken only",
+      "reads": [
+        "src/auth/session.ts#refreshToken"
+      ]
+    }
+  }
+}

@@ -1,0 +1,432 @@
+{
+  "name": "negotiation",
+  "description": "§7.4: propose/accept round-trip delivered through inboxes; only the addressee may reply; an accepted transfer moves the claim so the proposer edits without arbitration.",
+  "covers": [
+    "7.4",
+    "6.3",
+    "11"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#refreshToken"
+          ]
+        }
+      },
+      "expect": {
+        "seq": 3
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "signature"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "seq": 4
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.propose",
+          "base_seq": 3,
+          "payload": {
+            "to": {
+              "agent": "claude-a"
+            },
+            "keys": [
+              "src/auth/session.ts#refreshToken"
+            ],
+            "terms": {
+              "kind": "overload",
+              "text": "Keep refreshToken(token) as an overload."
+            }
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 5,
+        "summary": "codex-b → claude-a: proposes overload on refreshToken",
+        "inbox": [
+          {
+            "id": 1,
+            "seq": 4,
+            "diagnostic": {
+              "code": "contract_changed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A",
+      "expect": {
+        "items": [
+          {
+            "id": 1,
+            "seq": 5,
+            "kind": "negotiation",
+            "record": {
+              "kind": "negotiate.propose",
+              "agent": "codex-b"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "hello",
+      "as": "C",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "gemini-c",
+          "harness": "gemini-cli"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-3",
+          "priority": 5
+        },
+        "change": "I-c"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s3",
+        "head_seq": 6,
+        "delivered_through": 6
+      }
+    },
+    {
+      "op": "submit",
+      "as": "C",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.accept",
+          "base_seq": 6,
+          "payload": {
+            "reply_to": 5
+          }
+        }
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "invalid_reference"
+        }
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.accept",
+          "base_seq": 5,
+          "payload": {
+            "reply_to": 4
+          }
+        }
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "invalid_reference"
+        }
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.accept",
+          "base_seq": 5,
+          "payload": {
+            "reply_to": 5
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 7,
+        "summary": "claude-a accepted #5"
+      }
+    },
+    {
+      "op": "drain",
+      "as": "B",
+      "ack": "last",
+      "expect": {
+        "items": [
+          {
+            "seq": 7,
+            "kind": "negotiation",
+            "record": {
+              "kind": "negotiate.accept",
+              "payload": {
+                "reply_to": 5
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.propose",
+          "base_seq": 7,
+          "payload": {
+            "to": {
+              "change": "I-a"
+            },
+            "keys": [
+              "src/auth/session.ts#refreshToken"
+            ],
+            "terms": {
+              "kind": "transfer",
+              "text": "Hand refreshToken to me; I'll own the migration."
+            }
+          }
+        }
+      },
+      "expect": {
+        "seq": 8
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.counter",
+          "base_seq": 8,
+          "payload": {
+            "reply_to": 8,
+            "terms": {
+              "kind": "transfer",
+              "text": "Fine, after my checkpoint."
+            }
+          }
+        }
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "base_ahead"
+        }
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A",
+      "ack": "last",
+      "expect": {
+        "items": [
+          {
+            "seq": 8,
+            "kind": "negotiation"
+          }
+        ],
+        "delivered_through": 8
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.counter",
+          "base_seq": 8,
+          "payload": {
+            "reply_to": 8,
+            "terms": {
+              "kind": "transfer",
+              "text": "Fine, after my checkpoint."
+            }
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 9,
+        "summary": "claude-a countered #8"
+      }
+    },
+    {
+      "op": "drain",
+      "as": "B",
+      "ack": "last",
+      "expect": {
+        "items": [
+          {
+            "seq": 9,
+            "record": {
+              "kind": "negotiate.counter"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.accept",
+          "base_seq": 9,
+          "payload": {
+            "reply_to": 9
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 10
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 10,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 11,
+        "diagnostics": []
+      }
+    }
+  ]
+}

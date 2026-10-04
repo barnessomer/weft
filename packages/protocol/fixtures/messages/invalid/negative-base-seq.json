@@ -1,0 +1,12 @@
+{
+  "schema": "Submit",
+  "expect_issue_path": "/event/base_seq",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "intent",
+      "base_seq": -1
+    }
+  }
+}

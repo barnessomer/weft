@@ -1,0 +1,7 @@
+{
+  "schema": "Gate",
+  "value": {
+    "type": "gate",
+    "gate": "stop"
+  }
+}

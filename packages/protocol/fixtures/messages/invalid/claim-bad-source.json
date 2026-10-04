@@ -1,0 +1,22 @@
+{
+  "schema": "Submit",
+  "expect_issue_path": "/event/payload/source",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "claim",
+      "base_seq": 1,
+      "writes": [
+        {
+          "key": "a.ts#f",
+          "kind": "body"
+        }
+      ],
+      "payload": {
+        "firm": true,
+        "source": "planner"
+      }
+    }
+  }
+}

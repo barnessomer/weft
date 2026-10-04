@@ -1,0 +1,12 @@
+{
+  "schema": "WcpError",
+  "expect_issue_path": "/error/code",
+  "value": {
+    "type": "error",
+    "error": {
+      "code": "teapot",
+      "message": "x",
+      "retryable": false
+    }
+  }
+}

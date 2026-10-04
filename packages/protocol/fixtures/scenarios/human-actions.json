@@ -1,0 +1,355 @@
+{
+  "name": "human-actions",
+  "description": "§9.6: pause blocks edits (agent_paused) but lets the agent stop; message and resume reach the inbox; approve/undo are logged as control events; bad targets are invalid_reference.",
+  "covers": [
+    "9.6",
+    "8.4",
+    "6.4"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "seq": 3
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "pause",
+        "agent": "codex-b",
+        "reason": "wrong approach"
+      },
+      "expect": {
+        "type": "action.result",
+        "seq": 4,
+        "record": {
+          "kind": "control",
+          "actor": {
+            "type": "human",
+            "id": "john"
+          },
+          "summary": "john paused codex-b"
+        }
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "check",
+        "event": {
+          "kind": "edit",
+          "base_seq": 3,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "reject",
+        "seq": 5,
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "agent_paused",
+            "caused_by_seq": 4,
+            "caused_by_agent": "john"
+          }
+        ],
+        "inbox": [
+          {
+            "id": 1,
+            "seq": 4,
+            "kind": "control"
+          }
+        ]
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": true
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "message",
+        "to": {
+          "agent": "codex-b"
+        },
+        "text": "Use the overload",
+        "intent": "steer"
+      },
+      "expect": {
+        "seq": 6,
+        "record": {
+          "kind": "message",
+          "summary": "john → codex-b: Use the overload"
+        }
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "resume",
+        "agent": "codex-b"
+      },
+      "expect": {
+        "seq": 7
+      }
+    },
+    {
+      "op": "drain",
+      "as": "B",
+      "ack": "last",
+      "expect": {
+        "paused": false,
+        "items": [
+          {
+            "seq": 6,
+            "kind": "message"
+          },
+          {
+            "seq": 7,
+            "kind": "control"
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 7,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 8
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "approve",
+        "change": "I-b"
+      },
+      "expect": {
+        "seq": 9,
+        "record": {
+          "summary": "john approved I-b",
+          "payload": {
+            "action": "approve",
+            "target": {
+              "change": "I-b"
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "system",
+      "draft": {
+        "kind": "land",
+        "base_seq": 9,
+        "change": "I-b",
+        "payload": {
+          "sha": "abcdef12",
+          "op_id": "op_7"
+        }
+      },
+      "expect": {
+        "seq": 10,
+        "status": "accepted"
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "undo",
+        "seq": 3,
+        "reason": "x"
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "invalid_reference"
+        }
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "pause",
+        "agent": "nobody"
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "invalid_reference"
+        }
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "undo",
+        "op_id": "op_7",
+        "reason": "error spike"
+      },
+      "expect": {
+        "seq": 11,
+        "record": {
+          "summary": "john requested undo of #10",
+          "payload": {
+            "target": {
+              "seq": 10,
+              "op_id": "op_7"
+            }
+          }
+        }
+      }
+    },
+    {
+      "op": "system",
+      "actor": {
+        "type": "system",
+        "id": "revert-workflow"
+      },
+      "draft": {
+        "kind": "revert",
+        "base_seq": 11,
+        "change": "I-b",
+        "writes": [
+          {
+            "key": "src/api/client.ts#fetchWithAuth",
+            "kind": "body"
+          }
+        ],
+        "payload": {
+          "op_id": "op_8",
+          "reverts_seq": 10,
+          "reason": "error spike",
+          "requested_by": {
+            "type": "human",
+            "id": "john"
+          }
+        }
+      },
+      "expect": {
+        "seq": 12,
+        "kind": "revert",
+        "summary": "reverted #10: error spike"
+      }
+    }
+  ]
+}

@@ -1,6 +1,38 @@
 name = "weft-gateway"
 main = "src/index.ts"
 compatibility_date = "2025-09-06"
+workers_dev = true
+
+# One RepoCoordinator per repo (THE ordered log) + one Registry (repos, tokens).
+[[durable_objects.bindings]]
+name = "WEFT_REPO"
+class_name = "RepoCoordinator"
+
+[[durable_objects.bindings]]
+name = "WEFT_REGISTRY"
+class_name = "Registry"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RepoCoordinator", "Registry"]
+
+[observability]
+enabled = true
+
+# Secrets (wrangler secret put WEFT_ADMIN_TOKEN [--env preview]): WEFT_ADMIN_TOKEN
 
 [env.preview]
 name = "weft-gateway-preview"
+workers_dev = true
+
+[[env.preview.durable_objects.bindings]]
+name = "WEFT_REPO"
+class_name = "RepoCoordinator"
+
+[[env.preview.durable_objects.bindings]]
+name = "WEFT_REGISTRY"
+class_name = "Registry"
+
+[[env.preview.migrations]]
+tag = "v1"
+new_sqlite_classes = ["RepoCoordinator", "Registry"]

@@ -1,0 +1,14 @@
+{
+  "schema": "WcpError",
+  "value": {
+    "type": "error",
+    "error": {
+      "code": "base_ahead",
+      "message": "base_seq 30 > delivered_through 20",
+      "retryable": false,
+      "details": {
+        "delivered_through": 20
+      }
+    }
+  }
+}

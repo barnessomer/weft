@@ -1,0 +1,9 @@
+{
+  "schema": "HeartbeatAck",
+  "value": {
+    "type": "heartbeat.ack",
+    "head_seq": 20,
+    "inbox_pending": 0,
+    "session_expires_at": "2026-10-05T14:08:12.000Z"
+  }
+}

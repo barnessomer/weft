@@ -1,0 +1,368 @@
+"""Regenerate fixtures/scenarios/*.json (behavioural conformance scenarios, spec §12).
+
+Run: python3 scripts/gen-scenarios.py
+
+Each scenario is a list of protocol operations with partial expectations (see
+src/conformance.ts for the matcher: partial objects, exact array length, "$any",
+"$absent", {"$len": n}, {"$contains": [...]}). The expectations are hand-derived from the
+normative rules in docs/protocol/wcp-v0.md, not snapshotted from an implementation.
+"""
+import json, os
+
+OUT = os.path.join(os.path.dirname(os.path.abspath(__file__)), "..", "fixtures", "scenarios")
+START = "2026-10-05T14:00:00.000Z"
+
+X = "src/auth/session.ts#refreshToken"
+Y = "src/api/client.ts#fetchWithAuth"
+Z = "src/auth/session.ts#SessionStore.get"
+
+L3 = {"level": 3, "observe": "sync", "inject": "immediate", "deny_edit": True, "refuse_stop": True, "commit_gate": "tool_interception"}
+
+
+def hello(agent, harness, task, change, priority=None):
+    t = {"id": task}
+    if priority is not None:
+        t["priority"] = priority
+    return {"type": "hello", "protocol": "wcp/0.1", "agent": {"id": agent, "harness": harness}, "capabilities": L3, "task": t, "change": change}
+
+
+A = lambda: hello("claude-a", "claude-code", "T-1", "I-a")
+B = lambda: hello("codex-b", "codex", "T-2", "I-b")
+C = lambda: hello("gemini-c", "gemini-cli", "T-3", "I-c", priority=5)
+
+
+def step_hello(as_, h, session, seq):
+    return {"op": "hello", "as": as_, "hello": h, "expect": {"type": "welcome", "session": session, "head_seq": seq, "delivered_through": seq}}
+
+
+def edit(base, writes, reads=None, intent=None, mode="commit", diff=None, ack=None):
+    ev = {"kind": "edit", "base_seq": base, "writes": [{"key": k, "kind": kd} for k, kd in writes]}
+    if reads:
+        ev["reads"] = reads
+    if intent:
+        ev["intent"] = intent
+    if diff:
+        ev["diff"] = diff
+    s = {"type": "submit", "mode": mode, "event": ev}
+    if ack is not None:
+        s["inbox_ack"] = ack
+    return s
+
+
+def submit(kind, base, payload=None, writes=None, mode="commit"):
+    ev = {"kind": kind, "base_seq": base}
+    if payload is not None:
+        ev["payload"] = payload
+    if writes:
+        ev["writes"] = [{"key": k, "kind": kd} for k, kd in writes]
+    return {"type": "submit", "mode": mode, "event": ev}
+
+
+def diag(severity, code, symbol, seq, agent, **kw):
+    d = {"severity": severity, "code": code, "symbol": symbol, "caused_by_seq": seq, "caused_by_agent": agent}
+    d.update(kw)
+    return d
+
+
+def err(code):
+    return {"type": "error", "error": {"code": code}}
+
+
+scenarios = []
+
+# ------------------------------------------------------------------ 1
+scenarios.append({
+    "name": "accept-and-observe",
+    "description": "A clean edit is accepted, sequenced, summarized and visible to observers; a passing check appends nothing.",
+    "covers": ["5.1", "5.3", "6.4", "9.3"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "body")], intent="retry 401 once", diff="--- a\n+++ b\n"),
+         "expect": {"verdict": "accept", "mode": "commit", "seq": 2, "head_seq": 2, "diagnostics": [], "inbox": [], "delivered_through": 2,
+                    "summary": "claude-a edited refreshToken in src/auth/session.ts — retry 401 once"}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "body")], mode="check"),
+         "expect": {"verdict": "accept", "mode": "check", "seq": None, "head_seq": 2}},
+        {"op": "events", "after": 0,
+         "expect": {"type": "events", "repo": "demo", "head_seq": 2, "next_after": 2, "has_more": False, "events": [
+             {"seq": 1, "kind": "join", "status": "accepted", "actor": {"type": "agent", "id": "claude-a"}, "summary": "claude-a joined (claude-code, L3)"},
+             {"seq": 2, "kind": "edit", "status": "accepted", "has_diff": True, "diff": "$absent", "files": ["src/auth/session.ts"],
+              "task": "T-1", "change": "I-a", "base_seq": 1, "mode": "commit"}]}},
+        {"op": "events", "after": 0, "limit": 1, "expect": {"next_after": 1, "has_more": True, "events": {"$len": 1}}},
+        {"op": "events", "tail": True, "limit": 1, "expect": {"next_after": 2, "has_more": False, "events": [{"seq": 2}]}},
+        {"op": "events", "before": 2, "limit": 5, "expect": {"events": [{"seq": 1}]}},
+        {"op": "event", "seq": 2, "expect": {"seq": 2, "diff": "--- a\n+++ b\n", "intent": "retry 401 once"}},
+        {"op": "event", "seq": 3, "expect": err("not_found")},
+    ],
+})
+
+# ------------------------------------------------------------------ 2
+scenarios.append({
+    "name": "stale-overwrite",
+    "description": "R1: writing a symbol that landed on trunk after the writer's base is an error; rebasing (higher base) clears it and the stop gate opens.",
+    "covers": ["6.2 R1", "6.5", "8.4"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "signature")]), "expect": {"verdict": "accept", "seq": 3}},
+        {"op": "system", "draft": {"kind": "land", "base_seq": 3, "change": "I-a", "payload": {"sha": "9e1b77a0", "op_id": "op_1"}},
+         "expect": {"seq": 4, "kind": "land", "status": "accepted", "agent": "claude-a", "writes": [{"key": X, "kind": "signature"}],
+                    "summary": "claude-a landed I-a (1 symbol)"}},
+        {"op": "submit", "as": "B", "submit": edit(2, [(X, "body")], intent="tweak refresh"),
+         "expect": {"verdict": "reject", "seq": 5, "summary": "Blocked: codex-b edited refreshToken in src/auth/session.ts — tweak refresh",
+                    "diagnostics": [diag("error", "stale_overwrite", X, 4, "claude-a", caused_by_task="T-1", file="src/auth/session.ts")]}},
+        {"op": "event", "seq": 5, "expect": {"status": "rejected", "mode": "commit"}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": False, "open_errors": [{"code": "stale_overwrite"}]}},
+        {"op": "submit", "as": "B", "submit": edit(5, [(X, "body")]), "expect": {"verdict": "accept", "seq": 6, "diagnostics": []}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": True, "open_errors": []}},
+    ],
+})
+
+# ------------------------------------------------------------------ 3
+scenarios.append({
+    "name": "signature-read-error",
+    "description": "R2: B calls X; A changes X's signature. B is told (contract_changed warning) and B's next edit based before the change is rejected at check time (L2 deny) with stale_assumption; after draining (higher base) the same edit is accepted.",
+    "covers": ["6.2 R2", "6.3", "5.2", "8.3", "8.4"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"verdict": "accept", "seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "signature")]), "expect": {"verdict": "accept", "seq": 4, "diagnostics": []}},
+        {"op": "submit", "as": "B", "submit": edit(3, [(Y, "body")], reads=[X], mode="check"),
+         "expect": {"verdict": "reject", "mode": "check", "seq": 5, "head_seq": 5,
+                    "diagnostics": [diag("error", "stale_assumption", X, 4, "claude-a", caused_by_task="T-1")],
+                    "inbox": [{"id": 1, "seq": 4, "kind": "diagnostic", "diagnostic": diag("warning", "contract_changed", X, 4, "claude-a")}],
+                    "context": "$any"}},
+        {"op": "event", "seq": 5, "expect": {"status": "rejected", "mode": "check", "kind": "edit"}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": False, "open_errors": [{"code": "stale_assumption", "symbol": X}]}},
+        {"op": "drain", "as": "B", "ack": "last", "expect": {"items": [], "delivered_through": 5, "open_errors": {"$len": 1}, "paused": False}},
+        {"op": "submit", "as": "B", "submit": edit(5, [(Y, "body")], reads=[X]), "expect": {"verdict": "accept", "seq": 6, "diagnostics": []}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": True}},
+    ],
+})
+
+# ------------------------------------------------------------------ 4
+scenarios.append({
+    "name": "body-read-warning",
+    "description": "R2: a body-only change to a symbol the submitter reads yields a warning, never a rejection, and no contract_changed broadcast.",
+    "covers": ["6.2 R2", "6.3"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"verdict": "accept", "seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "body")]), "expect": {"verdict": "accept", "seq": 4}},
+        {"op": "submit", "as": "B", "submit": edit(3, [(Y, "body")], reads=[X]),
+         "expect": {"verdict": "accept", "seq": 5, "inbox": [], "diagnostics": [diag("warning", "stale_read", X, 4, "claude-a")]}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": True}},
+    ],
+})
+
+# ------------------------------------------------------------------ 5
+scenarios.append({
+    "name": "arbitration-wound-wait",
+    "description": "§7 asymmetry under wound-wait: the junior writer gets the diagnostic (warning on a soft claim, error on a firm one) and the holder only an info; a higher-priority writer wounds every holder.",
+    "covers": ["6.2 R3", "7.1", "7.2", "7.3", "8.4"],
+    "policy": "wound-wait",
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        step_hello("C", C(), "s3", 3),
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "body")]), "expect": {"verdict": "accept", "seq": 4, "diagnostics": []}},
+        {"op": "submit", "as": "B", "submit": edit(2, [(X, "body")]),
+         "expect": {"verdict": "accept", "seq": 5, "diagnostics": [diag("warning", "claim_wait", X, 4, "claude-a", arbitration={
+             "policy": "wound-wait", "outcome": "wait", "winner": {"agent": "claude-a", "change": "I-a"}, "loser": {"agent": "codex-b", "change": "I-b"}})]}},
+        {"op": "drain", "as": "A", "expect": {"items": [{"id": 1, "seq": 5, "kind": "diagnostic", "diagnostic": diag("info", "claim_contended", X, 5, "codex-b")}], "open_errors": []}},
+        {"op": "submit", "as": "A", "submit": submit("claim", 5, {"firm": True, "source": "explicit"}, writes=[(Z, "body")]),
+         "expect": {"verdict": "accept", "seq": 6, "summary": "claude-a firmly claimed SessionStore.get"}},
+        {"op": "submit", "as": "B", "submit": edit(5, [(Z, "body")]),
+         "expect": {"verdict": "reject", "seq": 7, "diagnostics": [diag("error", "claim_wait", Z, 6, "claude-a")]}},
+        {"op": "drain", "as": "A", "ack": "last", "expect": {"items": [], "open_errors": []}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": False}},
+        {"op": "submit", "as": "C", "submit": edit(3, [(X, "signature")]),
+         "expect": {"verdict": "accept", "seq": 8, "diagnostics": [diag("info", "claim_contended", X, 4, "claude-a", arbitration={
+             "outcome": "wound", "winner": {"agent": "gemini-c", "change": "I-c"}, "loser": {"agent": "claude-a", "change": "I-a"}})]}},
+        {"op": "drain", "as": "A", "ack": "last", "expect": {"items": [
+            {"seq": 8, "diagnostic": diag("error", "claim_wounded", X, 8, "gemini-c", caused_by_task="T-3", arbitration={"outcome": "wound", "loser": {"change": "I-a"}})},
+            {"seq": 8, "diagnostic": diag("warning", "contract_changed", X, 8, "gemini-c")}],
+            "open_errors": [{"code": "claim_wounded"}]}},
+        {"op": "drain", "as": "B", "expect": {"items": [
+            {"seq": 8, "diagnostic": {"code": "claim_wounded", "arbitration": {"loser": {"change": "I-b"}}}},
+            {"seq": 8, "diagnostic": {"code": "contract_changed"}}]}},
+        {"op": "gate", "as": "A", "gate": "stop", "expect": {"allow": False, "open_errors": [{"code": "claim_wounded", "symbol": X}]}},
+        {"op": "submit", "as": "A", "submit": submit("release", 8, {"keys": [X], "reason": "abandoned"}),
+         "expect": {"verdict": "accept", "seq": 9, "summary": "claude-a released refreshToken (abandoned)"}},
+        {"op": "gate", "as": "A", "gate": "stop", "expect": {"allow": True}},
+    ],
+})
+
+# ------------------------------------------------------------------ 6
+scenarios.append({
+    "name": "arbitration-wait-die",
+    "description": "§7 under wait-die: a junior writer dies (error) even on a soft claim; a senior (higher-priority) writer waits (warning) and the holder keeps the area.",
+    "covers": ["7.1", "7.2"],
+    "policy": "wait-die",
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        step_hello("C", C(), "s3", 3),
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "body")]), "expect": {"verdict": "accept", "seq": 4}},
+        {"op": "submit", "as": "B", "submit": edit(2, [(X, "body")]),
+         "expect": {"verdict": "reject", "seq": 5, "diagnostics": [diag("error", "claim_die", X, 4, "claude-a", arbitration={
+             "policy": "wait-die", "outcome": "die", "winner": {"change": "I-a"}, "loser": {"change": "I-b"}, "options": ["retreat", "negotiate", "escalate"]})]}},
+        {"op": "submit", "as": "C", "submit": edit(3, [(X, "body")]),
+         "expect": {"verdict": "accept", "seq": 6, "diagnostics": [diag("warning", "claim_wait", X, 4, "claude-a", arbitration={
+             "outcome": "wait", "winner": {"change": "I-a"}, "loser": {"change": "I-c"}})]}},
+        {"op": "drain", "as": "A", "expect": {"items": [{"seq": 6, "diagnostic": diag("info", "claim_contended", X, 6, "gemini-c")}], "open_errors": []}},
+    ],
+})
+
+# ------------------------------------------------------------------ 7
+scenarios.append({
+    "name": "negotiation",
+    "description": "§7.4: propose/accept round-trip delivered through inboxes; only the addressee may reply; an accepted transfer moves the claim so the proposer edits without arbitration.",
+    "covers": ["7.4", "6.3", "11"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "signature")]), "expect": {"seq": 4}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.propose", 3, {"to": {"agent": "claude-a"}, "keys": [X],
+            "terms": {"kind": "overload", "text": "Keep refreshToken(token) as an overload."}}),
+         "expect": {"verdict": "accept", "seq": 5, "summary": "codex-b → claude-a: proposes overload on refreshToken",
+                    "inbox": [{"id": 1, "seq": 4, "diagnostic": {"code": "contract_changed"}}]}},
+        {"op": "drain", "as": "A", "expect": {"items": [{"id": 1, "seq": 5, "kind": "negotiation", "record": {"kind": "negotiate.propose", "agent": "codex-b"}}]}},
+        step_hello("C", C(), "s3", 6),
+        {"op": "submit", "as": "C", "submit": submit("negotiate.accept", 6, {"reply_to": 5}), "expect": err("invalid_reference")},
+        {"op": "submit", "as": "A", "submit": submit("negotiate.accept", 5, {"reply_to": 4}), "expect": err("invalid_reference")},
+        {"op": "submit", "as": "A", "submit": submit("negotiate.accept", 5, {"reply_to": 5}),
+         "expect": {"verdict": "accept", "seq": 7, "summary": "claude-a accepted #5"}},
+        {"op": "drain", "as": "B", "ack": "last", "expect": {"items": [{"seq": 7, "kind": "negotiation", "record": {"kind": "negotiate.accept", "payload": {"reply_to": 5}}}]}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.propose", 7, {"to": {"change": "I-a"}, "keys": [X],
+            "terms": {"kind": "transfer", "text": "Hand refreshToken to me; I'll own the migration."}}), "expect": {"seq": 8}},
+        {"op": "submit", "as": "A", "submit": submit("negotiate.counter", 8, {"reply_to": 8,
+            "terms": {"kind": "transfer", "text": "Fine, after my checkpoint."}}), "expect": err("base_ahead")},
+        {"op": "drain", "as": "A", "ack": "last", "expect": {"items": [{"seq": 8, "kind": "negotiation"}], "delivered_through": 8}},
+        {"op": "submit", "as": "A", "submit": submit("negotiate.counter", 8, {"reply_to": 8,
+            "terms": {"kind": "transfer", "text": "Fine, after my checkpoint."}}), "expect": {"verdict": "accept", "seq": 9, "summary": "claude-a countered #8"}},
+        {"op": "drain", "as": "B", "ack": "last", "expect": {"items": [{"seq": 9, "record": {"kind": "negotiate.counter"}}]}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.accept", 9, {"reply_to": 9}), "expect": {"verdict": "accept", "seq": 10}},
+        {"op": "submit", "as": "B", "submit": edit(10, [(X, "body")]), "expect": {"verdict": "accept", "seq": 11, "diagnostics": []}},
+    ],
+})
+
+# ------------------------------------------------------------------ 8
+scenarios.append({
+    "name": "inbox-and-base",
+    "description": "§5.2: base_seq may not exceed what was delivered; inbox items are redelivered until acked; a rejecting check is logged, an accepting check is not.",
+    "covers": ["5.2", "5.4", "8.3", "11"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(99, [(Y, "body")]),
+         "expect": {"type": "error", "error": {"code": "base_ahead", "retryable": False, "details": {"delivered_through": 2}}}},
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "signature")]), "expect": {"seq": 4}},
+        {"op": "drain", "as": "B", "expect": {"items": [{"id": 1, "seq": 4}], "delivered_through": 4}},
+        {"op": "drain", "as": "B", "expect": {"items": [{"id": 1, "seq": 4}]}},
+        {"op": "drain", "as": "B", "ack": 1, "expect": {"items": []}},
+        {"op": "submit", "as": "B", "submit": edit(4, [(Y, "body")], reads=[X], mode="check"), "expect": {"verdict": "accept", "seq": None}},
+        {"op": "submit", "as": "B", "submit": edit(3, [(Y, "body")], reads=[X], mode="check"), "expect": {"verdict": "reject", "seq": 5}},
+        {"op": "events", "after": 4, "expect": {"events": [{"seq": 5, "status": "rejected", "mode": "check"}]}},
+        {"op": "submit", "as": "B", "submit": {"type": "submit", "mode": "commit", "event": {"kind": "land", "base_seq": 5, "payload": {"sha": "abcdef12", "op_id": "op_9"}}}, "expect": err("forbidden")},
+        {"op": "submit", "as": "B", "submit": {"type": "submit", "mode": "commit", "event": {"kind": "edit", "base_seq": 5}}, "expect": err("invalid_message")},
+    ],
+})
+
+# ------------------------------------------------------------------ 9
+scenarios.append({
+    "name": "human-actions",
+    "description": "§9.6: pause blocks edits (agent_paused) but lets the agent stop; message and resume reach the inbox; approve/undo are logged as control events; bad targets are invalid_reference.",
+    "covers": ["9.6", "8.4", "6.4"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")]), "expect": {"seq": 3}},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "pause", "agent": "codex-b", "reason": "wrong approach"},
+         "expect": {"type": "action.result", "seq": 4, "record": {"kind": "control", "actor": {"type": "human", "id": "john"}, "summary": "john paused codex-b"}}},
+        {"op": "submit", "as": "B", "submit": edit(3, [(Y, "body")], mode="check"),
+         "expect": {"verdict": "reject", "seq": 5, "diagnostics": [{"severity": "error", "code": "agent_paused", "caused_by_seq": 4, "caused_by_agent": "john"}],
+                    "inbox": [{"id": 1, "seq": 4, "kind": "control"}]}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": True}},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "message", "to": {"agent": "codex-b"}, "text": "Use the overload", "intent": "steer"},
+         "expect": {"seq": 6, "record": {"kind": "message", "summary": "john → codex-b: Use the overload"}}},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "resume", "agent": "codex-b"}, "expect": {"seq": 7}},
+        {"op": "drain", "as": "B", "ack": "last", "expect": {"paused": False, "items": [{"seq": 6, "kind": "message"}, {"seq": 7, "kind": "control"}]}},
+        {"op": "submit", "as": "B", "submit": edit(7, [(Y, "body")]), "expect": {"verdict": "accept", "seq": 8}},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "approve", "change": "I-b"},
+         "expect": {"seq": 9, "record": {"summary": "john approved I-b", "payload": {"action": "approve", "target": {"change": "I-b"}}}}},
+        {"op": "system", "draft": {"kind": "land", "base_seq": 9, "change": "I-b", "payload": {"sha": "abcdef12", "op_id": "op_7"}}, "expect": {"seq": 10, "status": "accepted"}},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "undo", "seq": 3, "reason": "x"}, "expect": err("invalid_reference")},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "pause", "agent": "nobody"}, "expect": err("invalid_reference")},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "undo", "op_id": "op_7", "reason": "error spike"},
+         "expect": {"seq": 11, "record": {"summary": "john requested undo of #10", "payload": {"target": {"seq": 10, "op_id": "op_7"}}}}},
+        {"op": "system", "actor": {"type": "system", "id": "revert-workflow"},
+         "draft": {"kind": "revert", "base_seq": 11, "change": "I-b", "writes": [{"key": Y, "kind": "body"}],
+                   "payload": {"op_id": "op_8", "reverts_seq": 10, "reason": "error spike", "requested_by": {"type": "human", "id": "john"}}},
+         "expect": {"seq": 12, "kind": "revert", "summary": "reverted #10: error spike"}},
+    ],
+})
+
+# ------------------------------------------------------------------ 10
+scenarios.append({
+    "name": "claim-ttl-and-session-expiry",
+    "description": "§7.5/§8.2: an expired claim is released by a system release event, unblocking others; idle sessions expire (leave) and further calls fail with session_expired.",
+    "covers": ["7.5", "8.2", "11"],
+    "claim_ttl_ms": 60000,
+    "session_ttl_ms": 300000,
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "A", "submit": submit("claim", 1, {"firm": True, "source": "explicit", "ttl_ms": 1000}, writes=[(X, "signature")]), "expect": {"seq": 3}},
+        {"op": "submit", "as": "B", "submit": edit(2, [(X, "body")]), "expect": {"verdict": "reject", "seq": 4, "diagnostics": [{"code": "claim_wait", "severity": "error"}]}},
+        {"op": "advance", "ms": 2000},
+        {"op": "tick", "expect": [{"seq": 5, "kind": "release", "actor": {"type": "system"}, "agent": "claude-a", "change": "I-a",
+                                   "payload": {"keys": [X], "reason": "expired"}, "summary": "claude-a released refreshToken (expired)"}]},
+        {"op": "submit", "as": "B", "submit": edit(4, [(X, "body")]), "expect": {"verdict": "accept", "seq": 6, "diagnostics": []}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": True}},
+        {"op": "heartbeat", "as": "A", "expect": {"type": "heartbeat.ack", "head_seq": 6}},
+        {"op": "advance", "ms": 400000},
+        {"op": "tick", "expect": [
+            {"seq": 7, "kind": "release", "change": "I-b", "payload": {"reason": "expired"}},
+            {"seq": 8, "kind": "leave", "agent": "claude-a"},
+            {"seq": 9, "kind": "leave", "agent": "codex-b"}]},
+        {"op": "submit", "as": "B", "submit": edit(6, [(Y, "body")]), "expect": err("session_expired")},
+    ],
+})
+
+# ------------------------------------------------------------------ 11
+scenarios.append({
+    "name": "trunk-advanced-and-predicted",
+    "description": "§6.3: a landing notifies every live change that reads/writes/claims a landed symbol (requires_rebase); predicted claims never arbitrate, they only inform.",
+    "covers": ["6.3", "7.5"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "body")]), "expect": {"seq": 4}},
+        {"op": "system", "draft": {"kind": "land", "base_seq": 4, "change": "I-a", "payload": {"sha": "0badc0de", "op_id": "op_1"}},
+         "expect": {"seq": 5, "status": "accepted", "writes": [{"key": X, "kind": "body"}]}},
+        {"op": "drain", "as": "B", "expect": {"items": [{"id": 1, "seq": 5, "kind": "trunk", "requires_rebase": True,
+            "diagnostic": diag("info", "trunk_advanced", X, 5, "claude-a")}]}},
+        step_hello("C", C(), "s3", 6),
+        {"op": "submit", "as": "C", "submit": submit("claim", 6, {"firm": False, "source": "predicted"}, writes=[(Y, "body")]),
+         "expect": {"verdict": "accept", "seq": 7, "summary": "gemini-c is predicted to touch fetchWithAuth",
+                    "diagnostics": [diag("info", "claim_predicted_overlap", Y, 3, "codex-b")]}},
+        {"op": "submit", "as": "B", "submit": edit(5, [(Y, "body")]), "expect": {"verdict": "accept", "seq": 8,
+            "diagnostics": [diag("info", "claim_predicted_overlap", Y, 7, "gemini-c")]}},
+    ],
+})
+
+os.makedirs(OUT, exist_ok=True)
+for f in os.listdir(OUT):
+    os.remove(os.path.join(OUT, f))
+for sc in scenarios:
+    sc = {"name": sc["name"], "description": sc["description"], "covers": sc["covers"], "repo": "demo", "start": START,
+          **{k: v for k, v in sc.items() if k not in ("name", "description", "covers")}}
+    with open(os.path.join(OUT, f"{sc['name']}.json"), "w") as fh:
+        json.dump(sc, fh, indent=2, ensure_ascii=False)
+        fh.write("\n")
+print(len(scenarios), "scenarios")

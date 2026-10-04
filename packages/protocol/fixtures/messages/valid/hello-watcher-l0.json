@@ -1,0 +1,19 @@
+{
+  "schema": "Hello",
+  "value": {
+    "type": "hello",
+    "protocol": "wcp/0.1",
+    "agent": {
+      "id": "watch-1",
+      "harness": "watcher"
+    },
+    "capabilities": {
+      "level": 0,
+      "observe": "async",
+      "inject": false,
+      "deny_edit": false,
+      "refuse_stop": false,
+      "commit_gate": false
+    }
+  }
+}

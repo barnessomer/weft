@@ -1,0 +1,9 @@
+{
+  "schema": "HumanAction",
+  "expect_issue_path": "/action",
+  "value": {
+    "type": "action",
+    "action": "merge",
+    "change": "I1"
+  }
+}

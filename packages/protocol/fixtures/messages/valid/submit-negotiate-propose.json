@@ -1,0 +1,23 @@
+{
+  "schema": "Submit",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "negotiate.propose",
+      "base_seq": 13,
+      "payload": {
+        "to": {
+          "agent": "claude-a"
+        },
+        "keys": [
+          "src/auth/session.ts#refreshToken"
+        ],
+        "terms": {
+          "kind": "overload",
+          "text": "Keep refreshToken(token) as an overload that forwards with default opts."
+        }
+      }
+    }
+  }
+}

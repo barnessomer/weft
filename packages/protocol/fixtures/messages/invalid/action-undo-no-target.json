@@ -1,0 +1,9 @@
+{
+  "schema": "HumanAction",
+  "expect_issue_path": "/seq",
+  "value": {
+    "type": "action",
+    "action": "undo",
+    "reason": "bad"
+  }
+}
