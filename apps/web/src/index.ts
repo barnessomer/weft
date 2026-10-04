@@ -17,6 +17,7 @@
 
 import { EmailMessage } from "cloudflare:email";
 import { accessConfigured, authenticate, mintSession, sessionCookie, timingSafeEqual, type AuthEnv, type Identity, type JwksFetcher } from "./auth";
+import { fixLegacyUrls } from "../public/lib/urls.js";
 import { emailBody, emailSubject, emailTaskId, evaluatePolicy, metric, validatePolicyInput, type AnalyticsEngine, type DispatchNamespace } from "./platform";
 
 export interface Env extends AuthEnv {
@@ -90,9 +91,13 @@ function gatewayWithToken(env: Env, path: string, token: string | undefined, ini
   return Promise.resolve(apiError(503, "unavailable", "no gateway configured (GATEWAY binding or GATEWAY_URL)"));
 }
 
-/** Relay a gateway response, keeping status + JSON body, dropping hop headers. */
+/** Relay a gateway response, keeping status + JSON body, dropping hop headers. JSON bodies get
+ *  legacy *.workers.dev previews origins rewritten (old x_evidence in the append-only log). */
 async function relay(res: Response): Promise<Response> {
-  return new Response(res.body, { status: res.status, headers: { "content-type": res.headers.get("content-type") ?? "application/json", "cache-control": "no-store" } });
+  const type = res.headers.get("content-type") ?? "application/json";
+  const headers = { "content-type": type, "cache-control": "no-store" };
+  if (!type.includes("json")) return new Response(res.body, { status: res.status, headers });
+  return new Response(fixLegacyUrls(await res.text()), { status: res.status, headers });
 }
 
 const pass = (u: URL, keys: string[]) => {
