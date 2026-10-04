@@ -610,7 +610,11 @@ async function finishRun(agents, head0, sigSeq) {
     const proof = join(ROOT, "demo/evidence/b13-auto-revert-live/run.json");
     const pr = existsSync(proof) ? JSON.parse(readFileSync(proof, "utf8")) : null;
     if (pr) writeFileSync(join(OUT, "auto-revert.json"), JSON.stringify(pr, null, 2) + "\n");
-    out.auto_revert = { exit: r.code, ...(pr ? { verdict: pr.verdict ?? pr.ok ?? pr.pass ?? null, duration_s: pr.duration_s ?? null, timings: pr.timings ?? null } : {}) };
+    const at = (re) => pr?.steps?.find((x) => re.test(x.name));
+    const timings = pr?.steps
+      ? { land_to_broken_s: at(/deployed trunk with the bug/)?.land_to_broken_s ?? null, land_to_revert_trigger_s: at(/detector started/)?.land_row_to_trigger_s ?? null, land_to_healed_s: at(/deployed the revert/)?.land_to_healed_s ?? null, push_event_replayed: !!pr.push_event_replayed }
+      : null;
+    out.auto_revert = { exit: r.code, ...(pr ? { verdict: r.code === 0 && at(/^final$/)?.change_status === "reverted" ? "reverted" : null, duration_s: pr.total_s ?? null, timings } : {}) };
     mark("auto_revert_done");
   }
 

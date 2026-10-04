@@ -222,6 +222,10 @@ async function prove() {
     await api("POST", `/v1/repos/${REPO}/sessions`, agentTok, hello, 201);
     step("task + candidate", { task, change: c.change, fork: c.fork.name });
 
+    // A push made seconds after its subscription is created is not delivered (run 3/4 of M2: the
+    // fork's event never arrived when pushed ~3 s after subscribing; agents that push minutes
+    // later always were). Let a fresh subscription settle first; the replay below is the backstop.
+    if (sub) await sleep(Number(process.env.WEFT_SUB_SETTLE_S ?? 45) * 1000);
     const d = mkdtempSync(join(tmpdir(), "weft-b13-agent-"));
     git(["clone", "-q", c.fork.remote, d], { token: c.token.plaintext });
     if (read(d, "src/worker.ts") !== WORKER) throw new Error("trunk src/worker.ts differs from the seeded target; run `seed` first");
