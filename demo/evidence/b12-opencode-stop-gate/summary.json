@@ -1,0 +1,46 @@
+{
+  "repo": "demo-b12-20261004-091436",
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "pass": false,
+  "criteria": {
+    "c_denied_at_edit_time_by_a": true,
+    "c_stop_refused": true,
+    "c_kept_working_after_refusal": false,
+    "c_finished": true
+  },
+  "a_signature_seq": 3,
+  "per_agent": {
+    "c": {
+      "rejected_seq": 4,
+      "deny_hook": true,
+      "accepted_after": []
+    }
+  },
+  "harnesses": {
+    "a": "scripted",
+    "c": "opencode run (opencode/big-pickle, + --session)"
+  },
+  "declared_capabilities": {
+    "opencode-c": {
+      "harness": "opencode",
+      "level": 3
+    },
+    "claude-a": {
+      "harness": "scripted",
+      "level": 0
+    }
+  },
+  "timeline_ms": {
+    "planners_joined": 2696,
+    "a_signature_accepted": 3287,
+    "plans_done": 32587,
+    "impl_started": 32587,
+    "impl_done": 81302
+  },
+  "durations_ms": {
+    "a": 0,
+    "c1": 31209,
+    "c2": 6662
+  },
+  "work": "/private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-091436"
+}
