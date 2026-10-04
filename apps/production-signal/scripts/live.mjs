@@ -72,10 +72,21 @@ async function waitWf(kind, id, until = ["complete", "errored", "terminated"], m
     await sleep(3000);
   }
 }
-async function cf(method, path, body) {
-  const tok = /oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(join(homedir(), "Library/Preferences/.wrangler/config/default.toml"), "utf8"))[1];
-  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}${path}`, { method, headers: { authorization: `Bearer ${tok}`, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
+const WRANGLER_TOML = join(homedir(), "Library/Preferences/.wrangler/config/default.toml");
+const oauthToken = () => /oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(WRANGLER_TOML, "utf8"))[1];
+/** wrangler's OAuth access token lives ~1 h; once it has expired `wrangler whoami` refreshes it. */
+function refreshOauth() {
+  const env = { ...process.env };
+  delete env.CLOUDFLARE_API_TOKEN;
+  spawnSync("npx", ["wrangler", "whoami"], { cwd: join(here, ".."), env, stdio: "ignore", timeout: 60_000 });
+}
+async function cf(method, path, body, retried = false) {
+  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}${path}`, { method, headers: { authorization: `Bearer ${oauthToken()}`, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const j = await r.json();
+  if (!j.success && !retried && (j.errors ?? []).some((e) => e.code === 10000 || e.code === 9109)) {
+    refreshOauth();
+    return cf(method, path, body, true);
+  }
   if (!j.success) throw new Error(`CF ${method} ${path}: ${JSON.stringify(j.errors)}`);
   return j.result;
 }
@@ -99,7 +110,7 @@ async function d1(sql, params = []) {
   return r[0]?.results ?? [];
 }
 async function aeSql(sql) {
-  const tok = /oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(join(homedir(), "Library/Preferences/.wrangler/config/default.toml"), "utf8"))[1];
+  const tok = oauthToken();
   const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/analytics_engine/sql`, { method: "POST", headers: { authorization: `Bearer ${tok}` }, body: sql });
   const t = await r.text();
   try { return JSON.parse(t).data; } catch { return { status: r.status, body: t.slice(0, 300) }; }

@@ -102,12 +102,26 @@ async function wf(kind, id, method = "GET", body) {
   const r = await fetch(`${WF}/v1/workflows/${kind}/${id}${body ? "/events" : ""}`, { method, headers: { authorization: `Bearer ${WFTOK}`, ...(body ? { "content-type": "application/json" } : {}) }, ...(body ? { body: JSON.stringify(body) } : {}) });
   return r.json();
 }
+let cfRefreshed = 0;
+/** wrangler's OAuth access token lives about an hour; `wrangler whoami` refreshes it. */
+function refreshCf(force = false) {
+  if (!force && Date.now() - cfRefreshed < 5 * 60_000) return;
+  const env = { ...process.env };
+  delete env.CLOUDFLARE_API_TOKEN;
+  spawnSync("npx", ["wrangler", "whoami"], { cwd: join(ROOT, "apps/gateway"), env, stdio: "ignore", timeout: 60_000 });
+  cfRefreshed = Date.now();
+}
 function cfToken() {
+  refreshCf();
   return /oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(join(homedir(), "Library/Preferences/.wrangler/config/default.toml"), "utf8"))[1];
 }
-async function cf(method, path, body) {
+async function cf(method, path, body, retried = false) {
   const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}${path}`, { method, headers: { authorization: `Bearer ${cfToken()}`, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const j = await r.json();
+  if (!j.success && !retried && (j.errors ?? []).some((e) => e.code === 10000 || e.code === 9109)) {
+    refreshCf(true);
+    return cf(method, path, body, true);
+  }
   if (!j.success) throw new Error(`CF ${method} ${path}: ${JSON.stringify(j.errors)}`);
   return j.result;
 }
@@ -386,7 +400,7 @@ async function createCandidates(stamp) {
   const agents = [];
   for (const t of TASKS) {
     t.id = `m2-${stamp}-${t.key}`;
-    const names = HARNESSES.map((h) => `${h}-${t.key}`);
+    const names = HARNESSES.map((h) => `${h}-${t.key}-r${RUN}`); // run-unique: agent -> change lookups never cross runs
     const created = await api("POST", `/v1/repos/${REPO}/tasks/${t.id}/candidates`, SYS, { count: 3, agents: names, title: t.title, acceptance: t.acceptance, ttl: 7200 }, 201);
     for (const [i, c] of created.candidates.entries()) {
       if (c.subscription.status !== "active") {
@@ -546,8 +560,10 @@ async function finishRun(agents, head0, sigSeq) {
       selections[t.key] = { status: "no candidates pushed" };
       continue;
     }
-    const sel = await api("POST", `/v1/repos/${REPO}/tasks/${t.id}/select`, SYS, { n: cands.length, risk: t.risk, poll_s: 10, approval_timeout_s: 1800 }, 202);
-    selections[t.key] = { workflow: sel.workflow, n: cands.length, risk: t.risk, started_at_s: secs() };
+    const prior = (out.steps.find((x) => x.name === "select started") ?? {})[t.key];
+    let wfId = prior?.workflow;
+    if (!wfId) wfId = (await api("POST", `/v1/repos/${REPO}/tasks/${t.id}/select`, SYS, { n: cands.length, risk: t.risk, poll_s: 10, approval_timeout_s: 1800 }, 202)).workflow;
+    selections[t.key] = { workflow: wfId, n: cands.length, risk: t.risk, started_at_s: prior?.started_at_s ?? secs() };
     await sleep(2000);
   }
   step("select started", selections);
@@ -563,6 +579,7 @@ async function finishRun(agents, head0, sigSeq) {
 
   // Phase G: planted bug -> production errors -> auto-revert (B13)
   if (!SKIP_REVERT) {
+    refreshCf(true);
     const r = tryRun(process.execPath, [join(ROOT, "apps/production-signal/scripts/live.mjs"), "prove"], ROOT, 15 * 60_000);
     writeFileSync(join(OUT, "auto-revert.log"), scrub(r.out));
     const proof = join(ROOT, "demo/evidence/b13-auto-revert-live/run.json");
@@ -663,7 +680,7 @@ async function settleSelection(t, s, pushed, negotiation) {
         const eligible = ranks.filter((r) => r.d.eligible !== false).sort((x, y) => (y.d.score ?? 0) - (x.d.score ?? 0));
         const acceptor = t.key === "t1" ? negotiation.find((n) => n.answer?.kind === "negotiate.accept")?.to_change : undefined;
         const pick = eligible.find((r) => r.a.cand.change === acceptor) ?? eligible[0] ?? ranks[0];
-        const res = await api("POST", `/v1/repos/${REPO}/actions`, HUMAN, { action: "approve", change: pick.a.cand.change, reason: `M2 run ${RUN}: human approval` }, [200, 201]);
+        const res = await api("POST", `/v1/repos/${REPO}/actions`, HUMAN, { type: "action", action: "approve", change: pick.a.cand.change, note: `M2 run ${RUN}: human approval` }, [200, 201]);
         s.approved = { by: "john (human token, as the web UI's Approve)", change: pick.a.cand.change, agent: pick.a.id, why: pick.a.cand.change === acceptor ? "honours the accepted overload agreement" : "highest-ranked eligible", forwarded_to: res.workflow ?? null, at_s: secs() };
         step(`human approved ${t.key}`, s.approved);
       }
@@ -685,7 +702,7 @@ async function settleSelection(t, s, pushed, negotiation) {
       if (["complete", "errored", "terminated"].includes(land.status) || Date.now() - t1 > 30 * 60_000) break;
       await sleep(4000);
     }
-    s.land = { status: land.status, ...(land.output ?? {}), ...(land.error ? { error: String(land.error?.message ?? land.error).slice(0, 300) } : {}) };
+    s.land = { workflow_status: land.status, ...(land.output ?? {}), ...(land.error ? { error: String(land.error?.message ?? land.error).slice(0, 300) } : {}) };
     s.landed_at_s = secs();
   }
   step(`selection ${t.key}`, { status: s.status, result: s.result, winner: s.winner_agent, approved_by: s.approved_by, land: s.land });
@@ -742,9 +759,10 @@ function criteria(full, agents, sigSeq) {
   const t2 = collided("t2");
   const t3 = collided("t3");
   const sel = out.selections ?? {};
-  const landOk = (k) => sel[k]?.land?.status === "complete";
+  const landOk = (k) => ["landed", "already_landed"].includes(sel[k]?.land?.status);
   const neg = out.negotiation ?? [];
-  const accepted = neg.filter((n) => n.answer?.kind === "negotiate.accept");
+  const isT = (agent, key) => agents.some((a) => a.id === agent && a.task.key === key);
+  const accepted = neg.filter((n) => n.answer?.kind === "negotiate.accept" && isT(n.from, "t3") && isT(n.to, "t1"));
   const overloadOnTrunk = /createSession\(userId: string\)\s*:\s*Session\s*;/.test(out.trunk?.files?.["src/auth/session.ts"] ?? "") || /opts\?\s*:/.test(out.trunk?.files?.["src/auth/session.ts"] ?? "");
   const layers = ["t4", "t5"].map((k) => sel[k]?.land?.layer ?? null);
   const t6 = agents.filter((a) => a.task.key === "t6");
@@ -753,7 +771,7 @@ function criteria(full, agents, sigSeq) {
     agents_live: { ok: agents.length === TASKS.length * 3 && agents.every((a) => a.turns.length > 0), detail: { agents: agents.length, pushed: agents.filter((a) => a.push?.ok).length, harness_failures: agents.filter((a) => a.turns.some((t) => t.failure || t.code !== 0)).map((a) => ({ agent: a.id, turns: a.turns })) } },
     collision_squiggle_reroute: { ok: !!sigSeq && t2.some((x) => x.rejected_seq && x.deny_in_transcript && x.accepted_edits_after > 0), detail: { t1_signature_seq: sigSeq ?? null, t2 } },
     structural_merge: { ok: landOk("t4") && landOk("t5") && layers.includes("mergiraf"), detail: { layers, t4: sel.t4?.land ?? null, t5: sel.t5?.land ?? null } },
-    negotiation_both_land: { ok: accepted.length > 0 && landOk("t1") && landOk("t3") && sel.t1?.winner === accepted[0]?.to_change && overloadOnTrunk, detail: { t3, proposals: neg, t1_winner: sel.t1?.winner_agent ?? null, overload_on_trunk: overloadOnTrunk } },
+    negotiation_both_land: { ok: accepted.length > 0 && landOk("t1") && landOk("t3") && accepted.some((n) => n.to_change === sel.t1?.winner) && overloadOnTrunk, detail: { t3, proposals: neg, t1_winner: sel.t1?.winner_agent ?? null, overload_on_trunk: overloadOnTrunk } },
     comparison_and_human_approval: { ok: shots.length >= 2 && !!sel.t6?.approved_by && landOk("t6"), detail: { t6_with_screenshots: shots.map((a) => a.id), approved_by: sel.t6?.approved_by ?? null, approved: sel.t6?.approved ?? null, winner: sel.t6?.winner_agent ?? null } },
     trunk_green: { ok: out.trunk?.tsc?.exit === 0 && out.trunk?.test?.exit === 0, detail: { tsc: out.trunk?.tsc?.exit, test: out.trunk?.test?.exit } },
     auto_revert: { ok: SKIP_REVERT ? false : out.auto_revert?.exit === 0, detail: out.auto_revert ?? "skipped" },
@@ -772,7 +790,7 @@ async function resume() {
   WORK = readdirSync(tmpdir()).map((d) => join(tmpdir(), d)).find((d) => d.includes(`weft-m2-${stamp}-`));
   for (const t of TASKS) t.id = `m2-${stamp}-${t.key}`;
   const agents = tc.candidates.map((c) => {
-    const t = TASKS.find((x) => c.agent.endsWith(`-${x.key}`));
+    const t = TASKS.find((x) => c.agent.split("-")[1] === x.key);
     const a = new Agent(t, c.agent.split("-")[0], { agent: c.agent, change: c.change, fork: { name: c.fork } });
     const pushed = prev.steps.find((x) => x.name === `pushed ${c.agent}`);
     a.push = pushed ? (pushed.sha ? { ok: true, sha: pushed.sha } : { ok: false, reason: pushed.reason, detail: pushed.detail }) : { ok: false, reason: "no push recorded" };
@@ -786,7 +804,23 @@ async function resume() {
   await finishRun(agents, prev.first_seq - 1, sig);
 }
 
-(argv.includes("--resume") ? resume() : main()).catch((e) => {
+/** `--rescore`: recompute `criteria` for a finished run from its saved run.json + coordinator-log.json
+ * (no network; used when a criterion's code was wrong, never to change what happened). */
+async function rescore() {
+  const prev = JSON.parse(readFileSync(join(OUT, "run.json"), "utf8"));
+  Object.assign(out, prev);
+  const full = JSON.parse(readFileSync(join(OUT, "coordinator-log.json"), "utf8")).events;
+  const agents = (prev.agents ?? []).map((a) => ({ id: a.agent, harness: a.harness, task: TASKS.find((t) => t.key === a.task), cand: { change: a.change }, turns: a.turns, push: a.push, ev: join(OUT, "agents", a.agent) }));
+  const sig = prev.steps.find((x) => x.name === "t1 signature change")?.seq;
+  const before = Object.fromEntries(Object.entries(prev.criteria ?? {}).map(([k, v]) => [k, v.ok]));
+  out.criteria = criteria(full, agents, sig);
+  out.pass = Object.values(out.criteria).every((c) => c.ok);
+  out.rescored = { at: new Date().toISOString(), before, after: Object.fromEntries(Object.entries(out.criteria).map(([k, v]) => [k, v.ok])) };
+  save();
+  console.log(JSON.stringify(out.rescored));
+}
+
+(argv.includes("--rescore") ? rescore() : argv.includes("--resume") ? resume() : main()).catch((e) => {
   console.error(scrub(e.stack ?? e));
   out.error = scrub(String(e.message ?? e));
   try {
