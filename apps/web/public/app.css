@@ -332,8 +332,19 @@ body.gate { display: grid; place-items: center; min-height: 100vh; }
 .login { background: var(--panel); border: 1px solid var(--line); border-radius: 16px; padding: 32px; width: min(380px, 92vw); display: flex; flex-direction: column; gap: 12px; text-align: center; }
 .login button { justify-content: center; padding: 9px; font-weight: 600; background: var(--accent); color: #fff; border: 0; }
 
+/* ---------- policy + telemetry */
+.policy { display: grid; gap: 16px; }
+.telemetry { display: flex; flex-wrap: wrap; gap: 8px; }
+.telemetry .stat { min-width: 110px; border: 1px solid var(--line); border-radius: 8px; background: var(--panel); padding: 9px 12px; }
+.policy-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.policy-grid .panel { display: grid; align-content: start; gap: 10px; min-width: 0; }
+.policy-input, .policy-output { box-sizing: border-box; width: 100%; min-height: 290px; margin: 0; padding: 13px; border: 1px solid var(--line2); border-radius: 8px; background: var(--bg2); color: var(--text); font: 12px/1.55 var(--mono); resize: vertical; overflow: auto; }
+.policy-output.ok { border-color: var(--green); color: var(--green); }
+.policy-output.err { border-color: var(--red); color: var(--red); }
+
 /* ---------- responsive */
 @media (max-width: 1100px) {
+  .policy-grid { grid-template-columns: 1fr; }
   .liveview { grid-template-columns: 1fr; }
   .side { position: static; max-height: none; }
   .stats { display: none; }

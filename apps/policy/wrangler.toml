@@ -1,0 +1,6 @@
+name = "weft-default-policy"
+main = "src/index.ts"
+compatibility_date = "2025-09-06"
+
+# Upload this Worker to the `weft-policies` dispatch namespace rather than
+# exposing it on a route; see docs/platform-runbook.md.

@@ -3,7 +3,7 @@
 
 import { describe, expect, it } from "vitest";
 import {
-  agentHue, approvals, changeStats, deriveAgents, deriveBoard, deriveOps, diffLines, diffStats,
+  agentHue, approvals, changeStats, deriveAgents, deriveBoard, deriveMetrics, deriveOps, diffLines, diffStats,
   symbolName, titleFromEvents, upsert, worstSeverity, type WcpEvent,
 } from "../public/lib/model.js";
 
@@ -37,6 +37,20 @@ const DIFF = `diff --git a/src/a.ts b/src/a.ts
 `;
 
 describe("model", () => {
+  it("derives landing, conflict, latency, and harness/model metrics", () => {
+    seq = 0;
+    const evs = [
+      ev({ kind: "edit", change: "c1", payload: { model: "sonnet" } }),
+      ev({ kind: "edit", change: "c2", status: "rejected", payload: { model: "gpt-5" } }),
+      ev({ kind: "land", change: "c1", payload: { model: "sonnet" } }),
+    ];
+    const metrics = deriveMetrics(evs);
+    expect(metrics).toMatchObject({ attempts: 2, landed: 1, landingRate: 0.5, conflictsCaught: 1, averageTimeToLandMs: 2000 });
+    expect(metrics.byHarnessModel).toEqual(expect.arrayContaining([
+      expect.objectContaining({ harness: "claude-code", model: "sonnet", attempts: 1, landed: 1, successRate: 1 }),
+    ]));
+  });
+
   it("diffStats/diffLines count only content lines", () => {
     expect(diffStats(DIFF)).toEqual({ add: 2, del: 1, files: ["src/a.ts"] });
     expect(diffStats(undefined)).toEqual({ add: 0, del: 0, files: [] });

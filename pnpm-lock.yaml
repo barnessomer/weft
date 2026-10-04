@@ -39,6 +39,8 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sequencer
 
+  apps/policy: {}
+
   apps/sandbox: {}
 
   apps/web: {}

@@ -15,7 +15,9 @@
 //   POST /api/repos/{repo}/actions                 approve | undo | pause | resume | message
 //   WS   /api/repos/{repo}/stream?after=N          live log (spec §9.4), proxied to the repo DO
 
+import { EmailMessage } from "cloudflare:email";
 import { accessConfigured, authenticate, mintSession, sessionCookie, timingSafeEqual, type AuthEnv, type Identity, type JwksFetcher } from "./auth";
+import { emailBody, emailSubject, emailTaskId, evaluatePolicy, metric, validatePolicyInput, type AnalyticsEngine, type DispatchNamespace } from "./platform";
 
 export interface Env extends AuthEnv {
   ASSETS?: Fetcher;
@@ -27,6 +29,12 @@ export interface Env extends AuthEnv {
   WEFT_WEB_TOKEN?: string;
   /** Optional: Workflows binding to BestOfN (apps/workflows); approve also sends it an event. */
   BESTOFN?: { get(id: string): Promise<{ sendEvent(e: { type: string; payload: unknown }): Promise<void> }> };
+  POLICY_DISPATCH?: DispatchNamespace;
+  WEFT_ANALYTICS?: AnalyticsEngine;
+  /** Dedicated observe+system token, never exposed to fetch requests. */
+  WEFT_EMAIL_TOKEN?: string;
+  WEFT_EMAIL_REPO?: string;
+  WEFT_EMAIL_FROM?: string;
 }
 
 const REPO = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
@@ -68,8 +76,12 @@ const apiError = (status: number, code: string, message: string) => json({ type:
 
 /** Call weft-gateway with the Worker's token. */
 function gateway(env: Env, path: string, init: RequestInit = {}): Promise<Response> {
+  return gatewayWithToken(env, path, env.WEFT_WEB_TOKEN, init);
+}
+
+function gatewayWithToken(env: Env, path: string, token: string | undefined, init: RequestInit = {}): Promise<Response> {
   const headers = new Headers(init.headers);
-  headers.set("authorization", `Bearer ${env.WEFT_WEB_TOKEN}`);
+  headers.set("authorization", `Bearer ${token ?? ""}`);
   headers.set("wcp-version", "0.1");
   headers.set("user-agent", "weft-web/0.1");
   // GATEWAY_URL (local dev) wins over the service binding, which has no target under `wrangler dev`.
@@ -105,6 +117,26 @@ async function api(req: Request, env: Env, who: Identity, path: string, u: URL):
     }
     return json({ type: "me", identity: who, access: accessConfigured(env), token: Boolean(env.WEFT_WEB_TOKEN), gateway: gw, bestofn: Boolean(env.BESTOFN) });
   }
+  if (path === "/api/policy/evaluate" && m === "POST") {
+    const origin = req.headers.get("origin");
+    if (!origin || origin !== u.origin) return apiError(403, "forbidden", "cross-origin policy request refused");
+    if (!(req.headers.get("content-type") ?? "").includes("application/json")) return apiError(415, "invalid_message", "JSON required");
+    const started = Date.now();
+    const text = await req.text();
+    if (text.length > MAX_ACTION_BYTES) return apiError(413, "payload_too_large", "policy input too large");
+    let input: unknown;
+    try { input = JSON.parse(text); } catch { return apiError(400, "invalid_message", "body is not JSON"); }
+    const valid = validatePolicyInput(input);
+    if (!valid) return apiError(400, "invalid_message", "repo, task, and change are required");
+    try {
+      const decision = await evaluatePolicy(valid, env.POLICY_DISPATCH);
+      metric(env.WEFT_ANALYTICS, valid.repo, "policy.evaluate", decision.allow ? "allow" : "deny", started);
+      return json(decision);
+    } catch (e) {
+      metric(env.WEFT_ANALYTICS, valid.repo, "policy.evaluate", "error", started);
+      return apiError(502, "bad_gateway", (e as Error).message);
+    }
+  }
   if (!env.WEFT_WEB_TOKEN) return apiError(503, "unavailable", "WEFT_WEB_TOKEN is not configured");
   if (path === "/api/repos" && m === "GET") return relay(await gateway(env, "/v1/repos"));
 
@@ -134,6 +166,7 @@ async function api(req: Request, env: Env, who: Identity, path: string, u: URL):
   }
 
   if (rest === "/actions" && m === "POST") {
+    const started = Date.now();
     // CSRF: same-origin JSON only (SameSite=Strict cookie + Origin check + JSON content type).
     const origin = req.headers.get("origin");
     if (!origin || origin !== u.origin) return apiError(403, "forbidden", "cross-origin action refused");
@@ -164,6 +197,7 @@ async function api(req: Request, env: Env, who: Identity, path: string, u: URL):
         out.workflow = `not signalled: ${(e as Error).message}`;
       }
     }
+    metric(env.WEFT_ANALYTICS, repo, `action.${String(body.action)}`, res.ok ? "ok" : "error", started);
     return json(out, res.status);
   }
   return apiError(404, "not_found", `no route ${m} ${path}`);
@@ -172,6 +206,54 @@ async function api(req: Request, env: Env, who: Identity, path: string, u: URL):
 /** Workflow instance id convention shared with apps/workflows BestOfN: one instance per task. */
 export function bestOfNInstanceId(repo: string, task: string): string {
   return `bestofn-${repo}-${task}`.replace(/[^A-Za-z0-9_-]/g, "_").slice(0, 100);
+}
+
+type InboundEmail = {
+  from: string;
+  to: string;
+  raw: ReadableStream<Uint8Array>;
+  headers: Headers;
+  reply(message: EmailMessage): Promise<void>;
+  setReject(reason: string): void;
+};
+
+/** Email Routing adapter: one inbound message becomes one queued WCP task intent. */
+export async function handleEmail(message: InboundEmail, env: Env): Promise<void> {
+  const started = Date.now();
+  const repo = env.WEFT_EMAIL_REPO || "weft";
+  if (!env.WEFT_EMAIL_TOKEN || !REPO.test(repo)) {
+    message.setReject("Weft email intake is not configured");
+    metric(env.WEFT_ANALYTICS, repo, "email.intake", "unconfigured", started, "email");
+    return;
+  }
+  const raw = await new Response(message.raw).text();
+  const subject = emailSubject(raw);
+  const task = emailTaskId(message.headers.get("message-id") ?? `${message.from}:${subject}`, subject);
+  try {
+    const page = await gatewayWithToken(env, `/v1/repos/${encodeURIComponent(repo)}/events?tail=1&limit=1`, env.WEFT_EMAIL_TOKEN);
+    const state = page.ok ? ((await page.json()) as { head_seq?: number }) : {};
+    const draft = {
+      kind: "intent",
+      base_seq: state.head_seq ?? 0,
+      task,
+      intent: emailBody(raw),
+      summary_hint: subject,
+      payload: { source: "email", from: message.from, to: message.to, subject },
+    };
+    const created = await gatewayWithToken(env, `/v1/repos/${encodeURIComponent(repo)}/system/events`, env.WEFT_EMAIL_TOKEN, {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(draft),
+    });
+    if (!created.ok) throw new Error(`gateway returned ${created.status}`);
+    const from = env.WEFT_EMAIL_FROM || message.to;
+    const response = `From: ${from}\r\nTo: ${message.from}\r\nSubject: Re: ${subject}\r\nContent-Type: text/plain; charset=utf-8\r\n\r\nWeft created task ${task} in ${repo}.\r\n`;
+    await message.reply(new EmailMessage(from, message.from, response));
+    metric(env.WEFT_ANALYTICS, repo, "email.intake", "created", started, "email");
+  } catch (e) {
+    metric(env.WEFT_ANALYTICS, repo, "email.intake", "error", started, "email");
+    throw e;
+  }
 }
 
 const page = (title: string, body: string) =>
@@ -240,5 +322,8 @@ export async function handle(req: Request, env: Env, fetcher?: JwksFetcher): Pro
 export default {
   async fetch(req: Request, env: Env): Promise<Response> {
     return withHeaders(await handle(req, env), securityHeaders(req));
+  },
+  async email(message: ForwardableEmailMessage, env: Env): Promise<void> {
+    await handleEmail(message as unknown as InboundEmail, env);
   },
 } satisfies ExportedHandler<Env>;

@@ -253,6 +253,25 @@ describe("live stream", () => {
   });
 });
 
+describe("policy evaluation", () => {
+  it("requires authenticated same-origin JSON and dispatches validated evidence", async () => {
+    const fetch = async () => Response.json({ type: "policy.decision", policy: "customer", allow: true, reasons: [], evaluated_at: "now", isolate: "dispatch" });
+    const points: unknown[] = [];
+    const env = baseEnv({
+      POLICY_DISPATCH: { get: () => ({ fetch }) },
+      WEFT_ANALYTICS: { writeDataPoint: (point) => points.push(point) },
+    });
+    const body = JSON.stringify({ repo: "acme", task: "t-1", change: "c-1" });
+    const cookie = await keyCookie(env);
+    const denied = await handle(new Request(`${ORIGIN}/api/policy/evaluate`, { method: "POST", headers: { cookie, origin: "https://evil.example", "content-type": "application/json" }, body }), env);
+    expect(denied.status).toBe(403);
+    const ok = await handle(new Request(`${ORIGIN}/api/policy/evaluate`, { method: "POST", headers: { cookie, origin: ORIGIN, "content-type": "application/json" }, body }), env);
+    expect(ok.status).toBe(200);
+    expect((await ok.json()) as object).toMatchObject({ allow: true, isolate: "dispatch" });
+    expect(points).toHaveLength(1);
+  });
+});
+
 describe("static app", () => {
   it("serves assets behind the gate with security headers, SPA fallback for routes", async () => {
     const env = baseEnv();

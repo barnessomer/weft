@@ -5,7 +5,7 @@
 
 import { h, mount, icon } from "./lib/dom.js";
 import {
-  agentHue, ago, approvals, changeStats, deriveAgents, deriveBoard, deriveOps, diffLines, diffStats,
+  agentHue, ago, approvals, changeStats, deriveAgents, deriveBoard, deriveMetrics, deriveOps, diffLines, diffStats,
   isSquiggly, KIND_LABEL, shortChange, shortSha, symbolFile, symbolName, upsert, worstSeverity, WRITE_TAG,
 } from "./lib/model.js";
 
@@ -209,6 +209,8 @@ function render() {
   if (!S.repo) return mount(main, h("div.empty", null, S.repos.length ? "Pick a repo." : "No repos visible to this token yet."));
   if (S.route.view === "board") renderBoard(main);
   else if (S.route.view === "ops") renderOps(main);
+  else if (S.route.view === "policy") renderPolicy(main);
+  else if (S.route.view === "analytics") renderAnalytics(main);
   else if (S.route.view === "task" && S.route.arg) renderTask(main, S.route.arg);
   else renderLive(main);
   renderStats();
@@ -219,8 +221,8 @@ function renderTop() {
   const v = S.route.view;
   mount(
     nav,
-    [["live", "Live"], ["board", "Board"], ["ops", "Ops"]].map(([id, label]) =>
-      h("a", { href: href(id), class: v === id || (id === "board" && v === "task") ? "active" : "" }, icon(id), label),
+    [["live", "Live"], ["board", "Board"], ["ops", "Ops"], ["policy", "Policy"], ["analytics", "Analytics"]].map(([id, label]) =>
+      h("a", { href: href(id), class: v === id || (id === "board" && v === "task") ? "active" : "" }, icon(id === "policy" ? "check" : id), label),
     ),
   );
   const sel = /** @type {HTMLSelectElement} */ ($("#repo"));
@@ -770,6 +772,70 @@ function safeJson(/** @type {string} */ s) {
 }
 
 // ------------------------------------------------------------------ Ops: op log with undo
+
+function renderPolicy(/** @type {HTMLElement} */ main) {
+  const evs = events();
+  const accepted = evs.filter((e) => e.status === "accepted").length;
+  const rejected = evs.filter((e) => e.status === "rejected").length;
+  const errors = evs.reduce((n, e) => n + e.diagnostics.filter((d) => d.severity === "error").length, 0);
+  const sample = {
+    repo: S.repo,
+    task: "demo-policy",
+    change: "candidate-demo",
+    evidence: { tests: { passed: 24, failed: 0 }, review: { approved: true }, cost_usd: 0.42, squiggles: { error: 0, warning: 1 } },
+  };
+  const input = /** @type {HTMLTextAreaElement} */ (h("textarea.policy-input", { spellcheck: "false" }, JSON.stringify(sample, null, 2)));
+  const output = h("pre.policy-output.muted", null, "Run an evaluation to see the isolated policy decision.");
+  const run = /** @type {HTMLButtonElement} */ (h("button.primary", {
+    onclick: async () => {
+      run.disabled = true;
+      output.className = "policy-output muted";
+      output.textContent = "Evaluating…";
+      try {
+        const decision = await api("/policy/evaluate", { method: "POST", headers: { "content-type": "application/json" }, body: input.value });
+        output.className = `policy-output ${decision.allow ? "ok" : "err"}`;
+        output.textContent = JSON.stringify(decision, null, 2);
+      } catch (e) {
+        output.className = "policy-output err";
+        output.textContent = /** @type {Error} */ (e).message;
+      } finally { run.disabled = false; }
+    },
+  }, "Evaluate candidate"));
+  mount(main, h("section.policy", null,
+    h("div.toolbar", null, h("h2", null, "weft.policy.ts"), h("span.muted", null, "Per-repository code runs in an isolated dynamic Worker.")),
+    h("div.telemetry", null, stat("events queried", String(evs.length)), stat("accepted", String(accepted), "ok"), stat("rejected", String(rejected), rejected ? "err" : ""), stat("error squiggles", String(errors), errors ? "err" : "")),
+    h("div.policy-grid", null,
+      h("div.panel", null, h("h3", null, "Input"), input, run),
+      h("div.panel", null, h("h3", null, "Decision"), output),
+    ),
+    h("p.muted", null, "Operational actions, policy decisions, and email intake also write latency/outcome points to Analytics Engine."),
+  ));
+}
+
+function duration(/** @type {number} */ ms) {
+  if (!ms) return "—";
+  if (ms < 60_000) return `${Math.round(ms / 1000)}s`;
+  if (ms < 3_600_000) return `${Math.round(ms / 60_000)}m`;
+  return `${(ms / 3_600_000).toFixed(1)}h`;
+}
+
+function renderAnalytics(/** @type {HTMLElement} */ main) {
+  const m = deriveMetrics(events());
+  mount(main, h("section.analytics", null,
+    h("div.toolbar", null, h("h2", null, "Analytics Engine"), h("span.muted", null, "Operational outcomes for the loaded repository.")),
+    h("div.telemetry", null,
+      stat("landing rate", m.attempts ? `${Math.round(m.landingRate * 100)}%` : "—", m.landingRate ? "ok" : ""),
+      stat("landed", `${m.landed}/${m.attempts}`),
+      stat("conflicts caught", String(m.conflictsCaught), m.conflictsCaught ? "warn" : ""),
+      stat("avg time-to-land", duration(m.averageTimeToLandMs))),
+    h("div.panel.analytics-table", null, h("h3", null, "Success by harness / model"),
+      m.byHarnessModel.length ? h("table.optable", null,
+        h("thead", null, h("tr", null, ["harness", "model", "landed", "attempts", "success"].map((x) => h("th", null, x)))),
+        h("tbody", null, m.byHarnessModel.map((g) => h("tr", null,
+          h("td", null, g.harness), h("td", null, g.model), h("td", null, String(g.landed)), h("td", null, String(g.attempts)), h("td", null, `${Math.round(g.successRate * 100)}%`)))))
+        : h("p.muted.pad", null, "No candidate activity yet.")),
+    h("p.muted", null, "Platform operations are written to the weft_operations Analytics Engine dataset; this live view derives outcome metrics from the repository event stream.")));
+}
 
 function renderOps(/** @type {HTMLElement} */ main) {
   const ops = deriveOps(events());

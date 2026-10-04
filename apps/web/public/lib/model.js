@@ -341,6 +341,48 @@ export function deriveAgents(/** @type {WcpEvent[]} */ events) {
   return [...m.values()].sort((x, y) => y.last_ts.localeCompare(x.last_ts));
 }
 
+/** Outcome metrics mirrored to the Analytics Engine dashboard. */
+export function deriveMetrics(/** @type {WcpEvent[]} */ events) {
+  /** @type {Map<string, {first:number,harness:string,model:string,landed:boolean,landMs?:number}>} */
+  const changes = new Map();
+  let conflictsCaught = 0;
+  for (const e of [...events].sort((a, b) => a.seq - b.seq)) {
+    if (e.status === "rejected" || e.diagnostics.some((d) => d.severity === "error")) conflictsCaught++;
+    if (!e.change) continue;
+    const ts = Date.parse(e.ts);
+    const prev = changes.get(e.change);
+    const model = String(e.payload?.model ?? e.payload?.model_id ?? "unknown");
+    const c = prev ?? { first: ts, harness: e.actor?.harness ?? "unknown", model, landed: false };
+    if (e.actor?.harness) c.harness = e.actor.harness;
+    if (model !== "unknown") c.model = model;
+    if (e.kind === "land" && e.status === "accepted" && !c.landed) {
+      c.landed = true;
+      c.landMs = Math.max(0, ts - c.first);
+    }
+    changes.set(e.change, c);
+  }
+  const all = [...changes.values()];
+  const landed = all.filter((c) => c.landed);
+  const times = landed.map((c) => c.landMs).filter((n) => typeof n === "number");
+  /** @type {Map<string, {harness:string,model:string,attempts:number,landed:number}>} */
+  const groups = new Map();
+  for (const c of all) {
+    const key = `${c.harness}\u0000${c.model}`;
+    const g = groups.get(key) ?? { harness: c.harness, model: c.model, attempts: 0, landed: 0 };
+    g.attempts++;
+    if (c.landed) g.landed++;
+    groups.set(key, g);
+  }
+  return {
+    attempts: all.length,
+    landed: landed.length,
+    landingRate: all.length ? landed.length / all.length : 0,
+    conflictsCaught,
+    averageTimeToLandMs: times.length ? times.reduce((a, b) => a + b, 0) / times.length : 0,
+    byHarnessModel: [...groups.values()].map((g) => ({ ...g, successRate: g.attempts ? g.landed / g.attempts : 0 })).sort((a, b) => b.attempts - a.attempts),
+  };
+}
+
 /** Insert/replace an event in a seq-keyed store; returns true when it is new. */
 export function upsert(/** @type {Map<number, WcpEvent>} */ store, /** @type {WcpEvent} */ e) {
   const had = store.has(e.seq);
