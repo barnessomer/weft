@@ -295,7 +295,7 @@ async function selectBest(req: Request, env: ArtifactsEnv, k: Kit, repo: string,
  */
 async function listTasks(d: D1Database, repo: string) {
   const [tasks, changes, evidence] = await Promise.all([
-    d.prepare(`SELECT id, title, status, candidates, created_at, updated_at FROM tasks WHERE repo = ? ORDER BY updated_at DESC LIMIT 500`).bind(repo).all<{ id: string; title: string | null; status: string; candidates: number; created_at: number; updated_at: number }>(),
+    d.prepare(`SELECT id, title, status, candidates, acceptance, created_at, updated_at FROM tasks WHERE repo = ? ORDER BY updated_at DESC LIMIT 500`).bind(repo).all<{ id: string; title: string | null; status: string; candidates: number; acceptance: string | null; created_at: number; updated_at: number }>(),
     d.prepare(`SELECT id, task, n, agent, status, head_sha, updated_at FROM changes WHERE repo = ? ORDER BY task, n`).bind(repo).all<{ id: string; task: string; n: number; agent: string | null; status: string; head_sha: string | null; updated_at: number }>(),
     d
       .prepare(`SELECT e.change_id AS change_id, e.status AS status, COUNT(*) AS n FROM evidence e JOIN changes c ON c.id = e.change_id WHERE c.repo = ? GROUP BY e.change_id, e.status`)
@@ -313,6 +313,7 @@ async function listTasks(d: D1Database, repo: string) {
   return tasks.results.map((t) => ({
     task: t.id,
     ...(t.title ? { title: t.title } : {}),
+    ...(t.acceptance ? { acceptance: parseList(t.acceptance) } : {}),
     status: t.status,
     candidate_count: t.candidates,
     candidates: byTask.get(t.id) ?? [],
@@ -321,8 +322,24 @@ async function listTasks(d: D1Database, repo: string) {
   }));
 }
 
+function parseList(s: string): string[] {
+  try {
+    const v = JSON.parse(s) as unknown;
+    return Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+  } catch {
+    return [];
+  }
+}
+
 async function createCandidates(req: Request, env: ArtifactsEnv, k: Kit, repo: string, task: string): Promise<Response> {
-  const body = ((await k.readJson(req, true)) ?? {}) as { agent?: unknown; agents?: unknown; title?: unknown; count?: unknown; ttl?: unknown };
+  const body = ((await k.readJson(req, true)) ?? {}) as { agent?: unknown; agents?: unknown; title?: unknown; count?: unknown; ttl?: unknown; acceptance?: unknown };
+  // B10: acceptance criteria the review agent scores candidates against (array of strings).
+  let acceptance: string | null = null;
+  if (body.acceptance !== undefined) {
+    if (!Array.isArray(body.acceptance) || body.acceptance.length > 20 || !body.acceptance.every((a) => typeof a === "string" && a.trim().length > 0 && a.length <= 500))
+      k.fail("invalid_message", "acceptance must be 1..20 non-empty strings (<= 500 chars)", { issues: [{ path: "/acceptance", message: "string[]" }] });
+    acceptance = JSON.stringify((body.acceptance as string[]).map((a) => a.trim()));
+  }
   const count = body.count === undefined ? 1 : body.count;
   if (typeof count !== "number" || !Number.isInteger(count) || count < 1 || count > MAX_CANDIDATES)
     k.fail("invalid_message", `count must be 1..${MAX_CANDIDATES}`, { issues: [{ path: "/count", message: `1..${MAX_CANDIDATES}` }] });
@@ -335,8 +352,10 @@ async function createCandidates(req: Request, env: ArtifactsEnv, k: Kit, repo: s
   const a = artifacts(env, k);
   const now = Date.now();
   await d
-    .prepare(`INSERT INTO tasks (repo, id, title, status, candidates, created_at, updated_at) VALUES (?, ?, ?, 'open', 0, ?, ?) ON CONFLICT (repo, id) DO UPDATE SET title = COALESCE(excluded.title, tasks.title), updated_at = excluded.updated_at`)
-    .bind(repo, task, str(body.title, 500) ?? null, now, now)
+    .prepare(
+      `INSERT INTO tasks (repo, id, title, status, candidates, created_at, updated_at, acceptance) VALUES (?, ?, ?, 'open', 0, ?, ?, ?) ON CONFLICT (repo, id) DO UPDATE SET title = COALESCE(excluded.title, tasks.title), acceptance = COALESCE(excluded.acceptance, tasks.acceptance), updated_at = excluded.updated_at`,
+    )
+    .bind(repo, task, str(body.title, 500) ?? null, now, now, acceptance)
     .run();
   const sub = subscriber(env);
   const out = [];

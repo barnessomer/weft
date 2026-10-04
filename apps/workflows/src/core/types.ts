@@ -4,6 +4,7 @@
 // Artifacts fake, an in-process coordinator and weft-job.mjs run as a child process.
 
 import type { EventDraft, EventRecord } from "@weft/protocol";
+import type { EvidenceCapabilities } from "./evidence";
 
 // ------------------------------------------------------------------ durable steps
 
@@ -74,6 +75,10 @@ export interface JobResult {
   error?: string;
   superseded?: string;
   timings?: Record<string, number>;
+  /** B10: unified diff onto..rebased (capped at 48 KB) and changed files, for risk + review. */
+  patch?: string;
+  files?: Array<{ status: string; path: string }>;
+  patch_truncated?: boolean;
   /** Added by the runner: where it ran (sandbox run id) + infra timings. */
   run?: { id: string; cold_start_ms?: number; state?: string };
 }
@@ -161,6 +166,8 @@ export interface Deps {
   jobPoll?: { interval: Duration; max: number };
   /** Landing queue: how long to wait between turn checks and how many checks (default 10 s × 360). */
   queuePoll?: { interval: Duration; max: number };
+  /** B10: preview, Browser Rendering + R2, Workers AI risk and AI Gateway review capabilities. */
+  evidence?: EvidenceCapabilities;
 }
 
 export type ChangeRow = {

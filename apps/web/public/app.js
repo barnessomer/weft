@@ -701,6 +701,8 @@ function candidateCard(/** @type {string} */ task, /** @type {string} */ change,
   const previews = by("preview");
   const shots = by("screenshot");
   const reviews = by("review");
+  const risk = by("risk").slice(-1)[0];
+  const visual = by("visual_diff").slice(-1)[0];
   const cost = by("cost").reduce((n, e) => n + (Number(e.data?.usd ?? e.data?.cost_usd ?? 0) || 0), 0);
   const agent = d1?.agent ?? st.agent;
   const status = st.reverted ? "reverted" : st.landed ? "landed" : d1?.status ?? (st.blocked && !st.edits ? "blocked" : "open");
@@ -731,18 +733,69 @@ function candidateCard(/** @type {string} */ task, /** @type {string} */ change,
       metric(String(st.edits), "edits"),
       metric(h("span", null, sq.error ? h("span.c-error", null, sq.error) : "0", sq.warning ? h("span.c-warning", null, ` ${sq.warning}`) : null), "squiggles"),
       metric(cost ? `$${cost.toFixed(2)}` : "—", "cost"),
+      risk?.data?.risk ? metric(h(`span.risk.risk-${risk.data.risk}`, { title: (risk.data.reasons ?? []).join("\n") }, risk.data.risk), "risk") : null,
     ),
     shots.length
-      ? h("div.shots", null, shots.slice(0, 4).map((s) => h("a", { href: s.uri, target: "_blank", rel: "noopener" }, h("img", { src: s.uri, alt: `screenshot ${shortSha(s.sha)}`, loading: "lazy" }))))
+      ? h(
+          "div.shots",
+          null,
+          shots
+            .filter((s) => s.uri)
+            .slice(-4)
+            .map((s) =>
+              h(
+                "figure.shot",
+                null,
+                h("a", { href: s.uri, target: "_blank", rel: "noopener" }, h("img", { src: s.uri, alt: `screenshot ${s.data?.route ?? ""} ${shortSha(s.sha)}`, loading: "lazy" })),
+                h(
+                  "figcaption",
+                  null,
+                  h("code", null, s.data?.route ?? "/"),
+                  typeof s.data?.diff_ratio === "number" ? h(`span.vd${s.data.diff_ratio > 0.001 ? ".changed" : ""}`, null, ` Δ ${(s.data.diff_ratio * 100).toFixed(2)}%`) : null,
+                  s.data?.trunk_uri ? extLink(s.data.trunk_uri, "trunk") : null,
+                  s.data?.diff_uri ? extLink(s.data.diff_uri, "diff") : null,
+                ),
+              ),
+            ),
+        )
       : h("div.shots.empty", null, h("span.muted", null, "no screenshots yet")),
     h(
       "ul.evidence",
       null,
-      tests.map((t) => h(`li.ev.ev-${t.status}`, null, h("span.evk", null, "tests"), h("span", null, t.status), t.data?.passed !== undefined ? h("span.muted", null, ` ${t.data.passed}✓ ${t.data.failed ?? 0}✗`) : null, t.uri ? extLink(t.uri, "log") : null)),
-      previews.map((p) => h(`li.ev.ev-${p.status}`, null, h("span.evk", null, "preview"), p.uri ? extLink(p.uri, new URL(p.uri, location.href).host) : h("span", null, p.status))),
-      reviews.map((r) => h(`li.ev.ev-${r.status}`, null, h("span.evk", null, "review"), h("span", null, r.data?.verdict ?? r.status), r.data?.summary ? h("span.muted", null, ` ${String(r.data.summary).slice(0, 140)}`) : null)),
+      tests.map((t) => {
+        const pass = t.data?.passed ?? t.data?.summary?.pass;
+        const fail = t.data?.failed ?? t.data?.summary?.fail;
+        return h(`li.ev.ev-${t.status}`, null, h("span.evk", null, "tests"), h("span", null, t.status), pass !== undefined ? h("span.muted", null, ` ${pass}✓ ${fail ?? 0}✗`) : null, t.uri ? extLink(t.uri, "log") : null);
+      }),
+      previews.map((p) =>
+        h(
+          `li.ev.ev-${p.status}`,
+          null,
+          h("span.evk", null, "preview"),
+          p.uri ? extLink(p.uri, "candidate") : h("span", null, p.data?.reason ?? p.data?.error ?? p.status),
+          p.data?.trunk_url ? extLink(p.data.trunk_url, "trunk") : null,
+        ),
+      ),
+      visual ? h(`li.ev.ev-info`, null, h("span.evk", null, "visual"), h("span", null, (visual.data?.routes ?? []).map((/** @type {any} */ r) => `${r.route} ${r.ratio === null ? "—" : `${(r.ratio * 100).toFixed(2)}%`}`).join(" · "))) : null,
+      reviews.map((r) =>
+        h(
+          `li.ev.ev-${r.status}`,
+          null,
+          h("span.evk", null, "review"),
+          h("span", null, r.data?.verdict ?? r.status),
+          typeof r.data?.score === "number" ? h("span.muted", null, ` ${r.data.score}/100`) : null,
+          r.data?.summary || r.data?.reason || r.data?.error ? h("span.muted", null, ` ${String(r.data.summary ?? r.data.reason ?? r.data.error).slice(0, 160)}`) : null,
+          Array.isArray(r.data?.criteria) && r.data.criteria.length
+            ? h(
+                "ul.criteria",
+                null,
+                r.data.criteria.map((/** @type {any} */ c) => h(`li.crit.${c.met === true ? "met" : c.met === false ? "unmet" : "unknown"}`, { title: c.note ?? "" }, c.met === true ? "✓ " : c.met === false ? "✗ " : "? ", c.criterion)),
+              )
+            : null,
+        ),
+      ),
       evidence
-        .filter((e) => !["test", "preview", "screenshot", "review", "cost"].includes(e.kind))
+        .filter((e) => !["test", "preview", "screenshot", "review", "cost", "risk", "visual_diff"].includes(e.kind))
         .map((e) => h(`li.ev.ev-${e.status}`, null, h("span.evk", null, e.kind), h("span", null, e.status), e.uri ? extLink(e.uri, "open") : null)),
       !evidence.length ? h("li.muted", null, "No evidence recorded yet (tests, previews, review arrive from ProcessRevision).") : null,
     ),

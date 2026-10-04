@@ -1,0 +1,15 @@
+{
+  "name": "@weft/previews",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "dev": "wrangler dev",
+    "deploy:preview": "wrangler deploy --env preview"
+  },
+  "exports": {
+    "./sign": "./src/sign.ts"
+  }
+}

@@ -103,6 +103,18 @@ export function rank(cands: Candidate[]): Ranked[] {
       score -= Math.min(200, Math.round(churn / 5));
       reasons.push(`churn ${churn}`);
     }
+    // B10 review agent: a pass adds up to +60 by score; a fail sinks the candidate below every
+    // reviewed-clean one (still eligible: a human may disagree with the model).
+    const rv = c.review?.data as { verdict?: string; score?: number } | undefined;
+    if (rv?.verdict === "pass") {
+      score += Math.round((60 * Math.max(0, Math.min(100, Number(rv.score ?? 100)))) / 100);
+      reasons.push(`review pass${rv.score !== undefined ? ` ${rv.score}` : ""}`);
+    } else if (rv?.verdict === "fail") {
+      score -= 300;
+      reasons.push(`review fail${rv.score !== undefined ? ` ${rv.score}` : ""}`);
+    } else if (rv?.verdict === "needs_human") reasons.push("review: needs human");
+    const rk = (c.risk?.data as { risk?: string } | undefined)?.risk;
+    if (rk) reasons.push(`risk ${rk}`);
     const cost = Number((c.cost?.data as { usd?: number } | undefined)?.usd ?? 0);
     if (cost > 0) {
       score -= Math.min(100, Math.round(cost * 20));

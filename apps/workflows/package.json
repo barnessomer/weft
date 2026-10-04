@@ -11,8 +11,10 @@
     "live": "node scripts/live.mjs"
   },
   "dependencies": {
+    "@cloudflare/puppeteer": "^1.4.0",
     "@weft/artifacts": "workspace:*",
-    "@weft/protocol": "workspace:*"
+    "@weft/protocol": "workspace:*",
+    "@weft/previews": "workspace:*"
   },
   "devDependencies": {
     "@weft/sequencer": "workspace:*"

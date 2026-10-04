@@ -235,3 +235,37 @@ cd apps/workflows && pnpm exec wrangler workflows instances describe weft-land-c
   instance errors; `instances describe` shows the error per attempt. Git side effects are idempotent
   (CAS push; revert finds its `Weft-Reverts-Op:` trailer; op ids are deterministic), so re-creating
   the workflow for the same change/op is safe.
+
+## Evidence: previews, screenshots, review (B10)
+
+Previews: `https://weft-previews-preview.redacted-subdomain.workers.dev` (`/v1/health` public;
+everything else needs a signed URL minted by weft-workflows). Code: `apps/previews`,
+`apps/workflows/src/{core/evidence.ts,evidence-cf.ts}`. Live evidence: `demo/evidence/b10-evidence-live/`.
+
+- Resources: Worker `weft-previews-preview` (Artifacts `weft-preview`, R2 `weft-evidence-preview`);
+  R2 buckets `weft-evidence-preview` and `weft-evidence` (prod, created, unused until prod deploy);
+  weft-workflows-preview gained `BROWSER` (Browser Rendering), `AI` (Workers AI) and `EVIDENCE` (R2)
+  bindings and vars `WEFT_PREVIEWS_URL`, `AI_GATEWAY_ID=default`. Prod config is written, NOT deployed.
+- Secret `WEFT_PREVIEW_KEY` (same value on weft-previews and weft-workflows):
+  `~/.config/weft/preview-evidence-key` (mode 600).
+- D1 migration `0003_evidence.sql` (`tasks.acceptance`) applied to `weft-preview`.
+- A repo opts into previews with `.weft/preview.json` in its tree: `{"root":"public","routes":["/","/pricing.html"]}`.
+- Acceptance criteria: `POST /v1/repos/{repo}/tasks/{task}/candidates {"acceptance":["…","…"], …}`.
+- Optional model overrides (vars on weft-workflows): `WEFT_REVIEW_MODEL`, `WEFT_RISK_MODEL`.
+
+```sh
+cd apps/gateway && unset CLOUDFLARE_API_TOKEN && pnpm exec wrangler d1 migrations apply weft-preview --env preview --remote
+cd ../previews && pnpm exec wrangler deploy --env preview
+pnpm exec wrangler secret put WEFT_PREVIEW_KEY --env preview < ~/.config/weft/preview-evidence-key
+cd ../workflows && pnpm exec wrangler deploy --env preview
+pnpm exec wrangler secret put WEFT_PREVIEW_KEY --env preview < ~/.config/weft/preview-evidence-key
+cd ../sandbox && node scripts/stage.mjs && pnpm exec wrangler deploy --env preview --var AI_GATEWAY_ID:default   # weft-job emits patch/files
+cd ../gateway && pnpm exec wrangler deploy --env preview                                                      # acceptance on candidates
+node apps/workflows/scripts/live-b10.mjs    # ~90 s: 2 candidates -> evidence -> BestOfN -> land
+```
+
+- Evidence rows per revision (D1 `evidence`, `GET /v1/repos/{repo}/changes/{change}`): `preview`,
+  `screenshot` (one per route; `uri` = signed PNG, `data.trunk_uri`, `data.diff_uri`, `data.diff_ratio`),
+  `visual_diff`, `risk`, `review`. The `checkpoint` with `payload.ref = "refs/weft/evidence"` carries
+  `payload.x_evidence`; so does the `land` record.
+- Rotating `WEFT_PREVIEW_KEY` invalidates every preview/screenshot link already stored.
