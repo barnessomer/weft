@@ -276,3 +276,40 @@ WCP v0.1 is specified in `docs/protocol/wcp-v0.md` (normative; implemented by `p
   - **Models without Codex catalog metadata (any OpenRouter model) get no native apply_patch tool.** They run `apply_patch <<'PATCH'` through the shell, Codex applies it, the hooks see `Bash`, and no PostToolUse fires. The adapter routes shell apply_patch through the same check, and commits a pending pre-edit from disk at the next hook.
 - Git worktrees share `<common>/hooks`: two adapters in two worktrees overwrote each other's commit-msg/pre-commit. Both installers now set a worktree-scoped `core.hooksPath`.
 - Hook latency against the preview gateway: about 400 ms per coordinator call, about 0.55 s for a pre-edit check hook. Diagnostics overhead is under 0.1% of the receiving agent's tokens; the quoted causing hunk is about 60% of the deny text and is what makes the reroute one-shot.
+
+## Update 2026-10-04 (B11, negotiation + arbitration)
+- **All four loser options are protocol actions now** (spec §7.2, §7.4, §7.6). Retreat and wait
+  were already implicit; negotiate (`negotiate.propose|counter|accept|reject`) existed on the
+  wire but no agent could send it; escalate was "surface to humans". B11 closes both:
+  - **Agents negotiate from their shell.** Each adapter install writes `<checkout>/.weft/bin/weft`
+    (`negotiate propose|accept|reject|counter|escalate`, `inbox`; grammar shared in
+    `@weft/protocol` `parseNegotiate`). `propose`/`escalate` without `--to` target the agent behind
+    the session's newest open error, with the keys it blocks; `--wait N` blocks until the reply.
+    Every loser-side error the adapter injects (`stale_assumption`, `claim_wait|die|wounded`) ends
+    with an options line that spells out the exact commands.
+  - **Proposals reach the owner as injected context**: the inbox item renders as
+    `[weft negotiation] #n <agent> (change, task) proposes to you: overload on <key> — "<terms>".
+    Answer it: …` plus the answer commands, at the next hook (PostToolUse/UserPromptSubmit/
+    SessionStart).
+  - **Negotiation is binding (stop gate, spec §8.4).** The stop gate refuses while a proposal
+    addressed to the session is unanswered, and — for an accepted `overload` — until the giver has
+    an accepted edit of the agreed keys. A new session of the change gets the pending items
+    redelivered, so an owner that already exited sees the proposal when it is resumed.
+  - **Escalation merges tasks** (`negotiate.escalate`, spec §7.6). With repo policy
+    `escalation: auto` (default) the coordinator appends a system `control merge` record; with
+    `human`, a human `merge` action does it. Accepting `merge_tasks` terms merges too. A merged
+    group is one unit for validation: no R1/R2 between members, no arbitration between members'
+    claims, seniority = the lead's, cross-member open errors forgiven, every member told.
+- **Wound-wait priority comes from the task**: `hello.task.priority` (adapters: `--priority`,
+  Hermes adapter: the kanban card's priority; sandbox: `spec.weft.priority`) is the first
+  seniority key; a merged group ranks by its lead, so a higher-priority change still wounds a
+  whole group (scenario `escalation-merge`).
+- SQL coordinator: schema v2 adds `changes.merged_into` via an idempotent `ALTER TABLE` on
+  startup (existing preview/production DOs migrate in place); configs written before B11 read as
+  `escalation: auto`. 4 new conformance scenarios; reference, SqlCoordinator and the gateway DO
+  are identical on all 15, journal replay included.
+- Demo: `demo/b11-negotiation.mjs` (two live `claude -p` agents; evidence `demo/evidence/b11/`).
+- Gaps / proposals: landing workflows should land a merged group together (LandChange per group);
+  the web UI shows negotiation records generically by summary (thread view is a follow-up); the
+  Hermes adapter has no `negotiate` command yet; a Codex agent needs
+  `sandbox_workspace_write.network_access=true` for its shell to reach the coordinator.

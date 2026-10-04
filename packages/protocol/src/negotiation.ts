@@ -62,9 +62,9 @@ export function agreementOf(accept: EventRecord, record: Lookup): Agreement | un
 /**
  * What a session owes before it may stop (spec §8.4): unanswered proposals/counters
  * addressed to it, and `overload` agreements where its change is the giver and no accepted
- * edit of the agreed keys followed the accept. `records` = accepted negotiation records in
- * seq order; `fulfilled(giver, afterSeq, keys)` = an accepted edit by `giver` after
- * `afterSeq` writes one of `keys`.
+ * edit of the agreed keys followed the accepted proposal/counter. `records` = accepted
+ * negotiation records in seq order; `fulfilled(giver, afterSeq, keys)` = an accepted edit by
+ * `giver` after `afterSeq` writes one of `keys`.
  */
 export function negotiationDues(o: {
   records: EventRecord[];
@@ -83,7 +83,9 @@ export function negotiationDues(o: {
     } else if (r.kind === "negotiate.accept") {
       const a = agreementOf(r, o.record);
       if (!a || a.terms.kind !== "overload" || a.giver !== o.me.change || !a.keys.length) continue;
-      if (!o.fulfilled(a.giver, r.seq, a.keys)) out.push({ seq: r.seq, due: "fulfil", record: r, keys: a.keys });
+      // An edit made after the accepted terms were proposed counts: an owner may make the
+      // overload first and accept afterwards.
+      if (!o.fulfilled(a.giver, a.replied.seq, a.keys)) out.push({ seq: r.seq, due: "fulfil", record: r, keys: a.keys });
     }
   }
   return out;

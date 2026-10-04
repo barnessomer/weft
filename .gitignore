@@ -4,6 +4,7 @@ node_modules/
 dist/
 .env*
 .dev.vars
+.dev.vars.*
 # Download/execution by-products of the isolated analyzer spike; committed assets live in assets/.
 spikes/analyzer/vendor/
 spikes/analyzer/assets/tree-sitter.js

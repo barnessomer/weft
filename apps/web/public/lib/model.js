@@ -360,6 +360,7 @@ export const KIND_LABEL = /** @type {Record<string,string>} */ ({
   "negotiate.counter": "counter",
   "negotiate.accept": "accept",
   "negotiate.reject": "reject",
+  "negotiate.escalate": "escalate",
   message: "message",
   control: "control",
   land: "land",

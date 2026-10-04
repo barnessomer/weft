@@ -471,6 +471,26 @@ scenarios.append({
     ],
 })
 
+# ------------------------------------------------------------------ 16
+scenarios.append({
+    "name": "overload-before-accept",
+    "description": "§8.4: an owner that makes the requested overload edit first and accepts afterwards owes nothing; an edit before the proposal does not count.",
+    "covers": ["8.4", "7.4"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "signature")]), "expect": {"seq": 4}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.propose", 3, {"to": {"agent": "claude-a"}, "keys": [X],
+            "terms": {"kind": "overload", "text": "keep refreshToken(token)"}}), "expect": {"seq": 5}},
+        {"op": "drain", "as": "A", "ack": "last", "expect": {"delivered_through": 5}},
+        {"op": "submit", "as": "A", "submit": edit(5, [(X, "signature")]), "expect": {"verdict": "accept", "seq": 6}},
+        {"op": "gate", "as": "A", "gate": "stop", "expect": {"allow": False, "negotiations": [{"seq": 5, "due": "reply"}]}},
+        {"op": "submit", "as": "A", "submit": submit("negotiate.accept", 6, {"reply_to": 5}), "expect": {"verdict": "accept", "seq": 7}},
+        {"op": "gate", "as": "A", "gate": "stop", "expect": {"allow": True, "negotiations": "$absent"}},
+    ],
+})
+
 os.makedirs(OUT, exist_ok=True)
 for f in os.listdir(OUT):
     os.remove(os.path.join(OUT, f))
