@@ -1,0 +1,206 @@
+{
+  "run": 3,
+  "repo": "demo-m1-20261004-064702-r2",
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "pass": false,
+  "criteria": {
+    "b_got_edit_time_diagnostic_from_a": false,
+    "b_changed_approach": false,
+    "both_finished": false,
+    "merged_cleanly": true,
+    "tests_green": true
+  },
+  "a_signature_seq": 3,
+  "b_rejected_seq": null,
+  "b_accepted_after": [],
+  "a_running_when_b2_started": false,
+  "timeline_ms": {
+    "b_joined": 6595,
+    "a_started": 6597,
+    "a_signature_accepted": 20749,
+    "b1_done": 40152,
+    "b2_started": 40152,
+    "b2_done": 58589,
+    "a_done": 58589
+  },
+  "durations_ms": {
+    "a": 28103,
+    "b1": 40152,
+    "b2": 18437
+  },
+  "hooks": {
+    "a": {
+      "SessionStart": {
+        "n": 1,
+        "total_ms_p50": 796,
+        "total_ms_max": 796,
+        "coordinator_call_ms_p50": 407,
+        "calls": 2
+      },
+      "UserPromptSubmit": {
+        "n": 1,
+        "total_ms_p50": 406,
+        "total_ms_max": 406,
+        "coordinator_call_ms_p50": 387,
+        "calls": 1
+      },
+      "PostToolUse:Read": {
+        "n": 3,
+        "total_ms_p50": 18,
+        "total_ms_max": 413,
+        "coordinator_call_ms_p50": 393,
+        "calls": 1
+      },
+      "PreToolUse:Edit": {
+        "n": 2,
+        "total_ms_p50": 714,
+        "total_ms_max": 714,
+        "coordinator_call_ms_p50": 569,
+        "calls": 2
+      },
+      "PostToolUse:Edit": {
+        "n": 2,
+        "total_ms_p50": 1137,
+        "total_ms_max": 1137,
+        "coordinator_call_ms_p50": 994,
+        "calls": 2
+      },
+      "PreToolUse:Write": {
+        "n": 1,
+        "total_ms_p50": 441,
+        "total_ms_max": 441,
+        "coordinator_call_ms_p50": 279,
+        "calls": 1
+      },
+      "PostToolUse:Write": {
+        "n": 1,
+        "total_ms_p50": 423,
+        "total_ms_max": 423,
+        "coordinator_call_ms_p50": 271,
+        "calls": 1
+      },
+      "PreToolUse:Bash": {
+        "n": 1,
+        "total_ms_p50": 27,
+        "total_ms_max": 27,
+        "coordinator_call_ms_p50": null,
+        "calls": 0
+      },
+      "PostToolUse:Bash": {
+        "n": 1,
+        "total_ms_p50": 423,
+        "total_ms_max": 423,
+        "coordinator_call_ms_p50": 396,
+        "calls": 1
+      },
+      "Stop": {
+        "n": 1,
+        "total_ms_p50": 303,
+        "total_ms_max": 303,
+        "coordinator_call_ms_p50": 280,
+        "calls": 1
+      },
+      "SessionEnd": {
+        "n": 1,
+        "total_ms_p50": 467,
+        "total_ms_max": 467,
+        "coordinator_call_ms_p50": 268,
+        "calls": 2
+      },
+      "_all": {
+        "n": 15,
+        "total_ms_p50": 423,
+        "total_ms_p95": 1137,
+        "coordinator_call_ms_p50": 356,
+        "coordinator_call_ms_p95": 994
+      }
+    },
+    "b": {
+      "SessionStart": {
+        "n": 2,
+        "total_ms_p50": 830,
+        "total_ms_max": 830,
+        "coordinator_call_ms_p50": 408,
+        "calls": 4
+      },
+      "UserPromptSubmit": {
+        "n": 2,
+        "total_ms_p50": 416,
+        "total_ms_max": 416,
+        "coordinator_call_ms_p50": 393,
+        "calls": 2
+      },
+      "PreToolUse:Bash": {
+        "n": 2,
+        "total_ms_p50": 34,
+        "total_ms_max": 34,
+        "coordinator_call_ms_p50": null,
+        "calls": 0
+      },
+      "PostToolUse:Bash": {
+        "n": 2,
+        "total_ms_p50": 440,
+        "total_ms_max": 440,
+        "coordinator_call_ms_p50": 412,
+        "calls": 2
+      },
+      "Stop": {
+        "n": 1,
+        "total_ms_p50": 318,
+        "total_ms_max": 318,
+        "coordinator_call_ms_p50": 298,
+        "calls": 1
+      },
+      "SessionEnd": {
+        "n": 2,
+        "total_ms_p50": 470,
+        "total_ms_max": 470,
+        "coordinator_call_ms_p50": 263,
+        "calls": 4
+      },
+      "_all": {
+        "n": 11,
+        "total_ms_p50": 416,
+        "total_ms_p95": 830,
+        "coordinator_call_ms_p50": 298,
+        "coordinator_call_ms_p95": 412
+      }
+    }
+  },
+  "injected": {
+    "a_weft_chars": 544,
+    "b_weft_chars": 1088,
+    "b_deny_chars": 0,
+    "est_tokens": {
+      "a": 136,
+      "b": 272,
+      "b_deny": 0
+    }
+  },
+  "model_tokens": {
+    "a": 129162,
+    "b": 234553,
+    "a_cost_usd": 0.18702439999999998
+  },
+  "checks": {
+    "a": {
+      "tsc": 0,
+      "test": 0
+    },
+    "b": {
+      "tsc": 0,
+      "test": 0
+    },
+    "merged": {
+      "tsc": 0,
+      "test": 0
+    }
+  },
+  "harnesses": {
+    "a": "claude-code (claude -p)",
+    "b": "codex exec (provider openrouter, model openai/gpt-6-sol)"
+  },
+  "b_thread": "01a105aa-84c1-73a1-8892-1ca1d4acab74",
+  "work": "/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064702-r2",
+  "aborted": "aborted: Codex model backend refused every request (OpenRouter 403 \"Budget limit exceeded (daily limit)\"); not a Weft result"
+}

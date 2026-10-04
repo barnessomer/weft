@@ -1,0 +1,142 @@
+agent-a commit: auth: sessions expire (T-1)
+
+Change-Id: I9dac65c72bcfc0ec97f453d6e8a05c731c06bd7f
+Task-Id: T-1
+Agent-Id: claude-a
+agent-b commit: api: POST /api/signup (T-2)
+
+Change-Id: I4029b5ed5d8778f3649f6f0c3f3adc26c8524294
+Task-Id: T-2
+Agent-Id: codex-b
+--- agent-a alone: tsc exit 0, tests exit 0
+--- agent-b alone (A's change not merged yet): tsc exit 2, tests exit 0
+src/api/account.ts(17,48): error TS2554: Expected 1 arguments, but got 2.
+--- merge agent-a: {"ok":true}; merge agent-b: {"ok":true}
+*   f46b3d6 Merge branch 'agent-b'
+|\  
+| * 6fe7467 api: POST /api/signup (T-2)
+* |   cbebc00 Merge branch 'agent-a'
+|\ \  
+| |/  
+|/|   
+| * f653536 auth: sessions expire (T-1)
+|/  
+* 53f2755 target-app: initial
+--- main after both merges: tsc exit 0
+
+--- main: node --test exit 0
+✔ login with valid credentials returns a token that works for /api/me (48.811084ms)
+✔ login rejects a wrong password and missing fields (45.571791ms)
+✔ logout revokes the token (46.248541ms)
+✔ pages render and unknown routes 404 (22.864917ms)
+✔ createSession issues a unique token bound to the user (0.475875ms)
+✔ revokeSession ends the session (0.082041ms)
+✔ getSession forgets a session once it expires (0.243917ms)
+✔ signup creates a public user and a token usable for /api/me (25.238292ms)
+✔ signup rejects missing fields (0.112875ms)
+✔ signup returns UserError messages for invalid email and short password (0.122333ms)
+✔ signup rejects a duplicate email case-insensitively (23.449042ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 221.945459
+--- main:src/api/account.ts
+import { createUser, getUser, publicUser, UserError } from "../auth/users.ts";
+import { createSession, revokeSession } from "../auth/session.ts";
+import { field, html, json, sessionOf, type Route } from "./router.ts";
+import { accountPage } from "../ui/pages.ts";
+
+export const accountRoutes: Route[] = [
+  {
+    method: "POST",
+    path: "/api/signup",
+    handler: (req) => {
+      const email = field(req.body, "email");
+      const name = field(req.body, "name");
+      const password = field(req.body, "password");
+      if (!email || !name || !password) return json(400, { error: "email, name and password are required" });
+      try {
+        const user = createUser(email, name, password);
+        const session = createSession(user.id, { ttlMs: 24 * 60 * 60 * 1000 });
+        return json(201, { token: session.token, user: publicUser(user) });
+      } catch (error) {
+        if (error instanceof UserError) return json(400, { error: error.message });
+        throw error;
+      }
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/me",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? json(200, publicUser(user)) : json(401, { error: "not signed in" });
+    },
+  },
+  {
+    method: "GET",
+    path: "/account",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? html(200, accountPage(publicUser(user))) : html(401, "<p>Please sign in.</p>");
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/logout",
+    handler: (req) => {
+      const session = sessionOf(req);
+      if (!session) return json(401, { error: "not signed in" });
+      revokeSession(session.token);
+      return json(200, { ok: field(req.body, "reason") ?? true });
+    },
+  },
+];
+
+--- main:src/auth/session.ts
+import { randomBytes } from "node:crypto";
+
+export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };
+
+export type SessionOptions = { ttlMs: number };
+
+const sessions = new Map<string, Session>();
+
+/** Start a session for a user and return it (the token is the bearer credential). */
+export function createSession(userId: string, opts: SessionOptions): Session {
+  const createdAt = Date.now();
+  const session: Session = {
+    token: randomBytes(24).toString("base64url"),
+    userId,
+    createdAt,
+    expiresAt: createdAt + opts.ttlMs,
+  };
+  sessions.set(session.token, session);
+  return session;
+}
+
+/** The live session for a token, or undefined (expired sessions are forgotten). */
+export function getSession(token: string): Session | undefined {
+  const session = sessions.get(token);
+  if (session && Date.now() >= session.expiresAt) {
+    sessions.delete(token);
+    return undefined;
+  }
+  return session;
+}
+
+export function revokeSession(token: string): boolean {
+  return sessions.delete(token);
+}
+
+/** Test helper: forget every session. */
+export function resetSessions(): void {
+  sessions.clear();
+}
+

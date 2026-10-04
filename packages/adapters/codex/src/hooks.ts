@@ -27,7 +27,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, Verdict } from "@weft/protocol";
 import { WcpError, PROTOCOL, type Transport } from "./client";
 import { readState, withLock, writeState, type Loaded, type SessionState } from "./config";
-import { EDIT_TOOLS, editPath, isGitCommit, proposedText } from "./edits";
+import { EDIT_TOOLS, isGitCommit, patchPaths, proposedFiles, shellPatch } from "./edits";
 import { renderForModel, type EditedFile, type RenderCtx } from "./render";
 import type { Sets, FileChange } from "./analysis";
 
@@ -279,6 +279,17 @@ export class CodexAdapter {
 
   private async dispatch(input: HookInput, st: SessionState): Promise<HookOutput> {
     this.refreshFloor(st);
+    // Codex applies `apply_patch` sent through the shell itself, but reports it as Bash.
+    const viaShell = input.tool_name === "Bash" && typeof input.tool_input?.command === "string" ? shellPatch(input.tool_input.command) : undefined;
+    const call: HookInput = viaShell
+      ? { ...input, tool_name: "apply_patch", tool_input: { command: viaShell.patch }, cwd: viaShell.cd ? resolve(input.cwd ?? this.root, viaShell.cd) : input.cwd }
+      : input;
+    const flushed = await this.flushPending(st, input.hook_event_name === "PostToolUse" ? input.tool_use_id : undefined);
+    const out = await this.route(call, st);
+    return flushed ? withContext(out, call.hook_event_name, flushed) : out;
+  }
+
+  private async route(input: HookInput, st: SessionState): Promise<HookOutput> {
     switch (input.hook_event_name) {
       case "SessionStart":
         return this.sessionStart(input, st);
@@ -299,6 +310,33 @@ export class CodexAdapter {
       default:
         return undefined;
     }
+  }
+
+  /**
+   * Commit edits whose PostToolUse never came. Codex fires no PostToolUse for an apply_patch
+   * sent through the shell, so a pending pre-edit whose files changed on disk (or that is
+   * older than a minute) is committed from the real filesystem at the next hook. Returns the
+   * text for the model (verdict + inbox), if any.
+   */
+  private async flushPending(st: SessionState, except?: string): Promise<string> {
+    const texts: string[] = [];
+    for (const [callId, pend] of Object.entries(st.pending)) {
+      if (callId === except) continue;
+      const changed = Object.entries(pend.before).some(([rel, before]) => {
+        const abs = join(this.root, rel);
+        return (existsSync(abs) ? this.readText(abs) : null) !== before;
+      });
+      if (!changed && this.now() - pend.at < 60_000) continue; // the tool may not have run yet
+      if (!changed) {
+        delete st.pending[callId];
+        continue;
+      }
+      this.log(`no PostToolUse for ${callId}; committing its edit from disk`);
+      const out = await this.postEdit({ hook_event_name: "PostToolUse", session_id: st.codexSession, tool_name: pend.tool, tool_use_id: callId, tool_input: {}, cwd: this.root }, st, Object.keys(pend.before));
+      const text = (out as { hookSpecificOutput?: { additionalContext?: string } } | undefined)?.hookSpecificOutput?.additionalContext;
+      if (text) texts.push(text);
+    }
+    return texts.join("\n");
   }
 
   // ------------------------------------------------------------------ hooks
@@ -329,35 +367,59 @@ export class CodexAdapter {
     return text ? { hookSpecificOutput: { hookEventName: "UserPromptSubmit", additionalContext: `[weft diagnostics]\n${text}` } } : undefined;
   }
 
+  /** Files of an apply_patch call inside this checkout, with their current text. */
+  private patchTargets(args: Record<string, unknown>, cwd?: string): Array<Target & { before: string | null }> {
+    const out: Array<Target & { before: string | null }> = [];
+    for (const p of patchPaths(args)) {
+      const t = this.target(p, cwd);
+      if (t) out.push({ ...t, before: existsSync(t.abs) ? this.readText(t.abs) : null });
+    }
+    return out;
+  }
+
   private async preEdit(input: HookInput, st: SessionState): Promise<HookOutput> {
     const tool = input.tool_name!;
     const args = input.tool_input ?? {};
-    const path = editPath(args);
-    const t = path ? this.target(path, input.cwd) : undefined;
-    if (!t) return undefined; // outside the coordinated checkout
+    const targets = this.patchTargets(args, input.cwd);
+    if (!targets.length || typeof args.command !== "string") return undefined; // outside the coordinated checkout
     const callId = input.tool_use_id ?? `anon-${this.now()}`;
-    const before = existsSync(t.abs) ? this.readText(t.abs) : null;
-    st.pending[callId] = { tool, before: { [t.rel]: before }, shown: [], at: this.now() };
-    const after = proposedText(tool, args, before);
-    if (after === undefined || after === before) return undefined;
-    const sets = await this.deps.analyze([{ rel: t.rel, before, after }], this.root, this.prefix);
+    st.pending[callId] = { tool, before: Object.fromEntries(targets.map((t) => [t.rel, t.before])), shown: [], at: this.now() };
+    // Proposed text per file: apply the patch to the current checkout text (Add/Delete/Update/Move).
+    const byAbs = new Map(targets.map((t) => [t.abs, t]));
+    const proposed = proposedFiles(args.command, (p) => {
+      const t = this.target(p, input.cwd);
+      return t ? (byAbs.get(t.abs)?.before ?? (existsSync(t.abs) ? this.readText(t.abs) : null)) : null;
+    });
+    const changes: FileChange[] = [];
+    for (const f of proposed) {
+      const t = this.target(f.path, input.cwd);
+      if (!t || f.after === undefined || f.after === f.before) continue;
+      changes.push({ rel: t.rel, before: f.before, after: f.after });
+    }
+    if (!changes.length) {
+      if (proposed.some((f) => f.after === undefined)) this.log(`check skipped: patch hunks did not apply to ${targets.map((t) => t.rel).join(",")} (PostToolUse accounts)`);
+      return undefined;
+    }
+    const sets = await this.deps.analyze(changes, this.root, this.prefix);
     if (!sets.writes.length) return undefined; // comment/import-only change: nothing to conflict with
-    const diff = await this.deps.diff(this.prefix + t.rel, before, after);
+    const diff = (await Promise.all(changes.map((c) => this.deps.diff(this.prefix + c.rel, c.before, c.after)))).join("");
     const event = this.draft(st, "edit", {
-      files: [this.prefix + t.rel],
+      files: changes.map((c) => this.prefix + c.rel),
       reads: sets.reads,
       writes: sets.writes,
       diff,
       tool: { name: tool, call_id: callId.slice(0, 200), harness_event: "PreToolUse" },
     });
     const verdict = await this.submit(st, "check", event, callId);
-    const text = await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx({ rel: t.rel, before, after }));
-    this.log(`check ${t.rel} base #${event.base_seq} -> ${verdict.verdict}${verdict.seq ? ` #${verdict.seq}` : ""} (${verdict.diagnostics.map((d) => d.code).join(",") || "clean"})`);
+    const main = changes[0];
+    const text = await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx({ rel: main.rel, before: main.before, after: main.after }));
+    const shownPaths = changes.map((c) => this.prefix + c.rel).join(", ");
+    this.log(`check ${shownPaths} base #${event.base_seq} -> ${verdict.verdict}${verdict.seq ? ` #${verdict.seq}` : ""} (${verdict.diagnostics.map((d) => d.code).join(",") || "clean"})`);
     if (verdict.verdict === "reject" && this.enforce) {
       delete st.pending[callId];
       this.delivered(st, text, verdict.delivered_through, verdict.inbox);
       const reason =
-        `[weft] Edit to ${this.prefix + t.rel} blocked: it conflicts with another agent's change (Weft edit-time coordination, log #${verdict.seq}).\n${text}\n` +
+        `[weft] Edit to ${shownPaths} blocked: it conflicts with another agent's change (Weft edit-time coordination, log #${verdict.seq}).\n${text}\n` +
         `Do not retry the same edit. Adapt your code to the change described above (or work around it), then edit again — your next attempt is checked against the current log.`;
       return { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: reason } };
     }
@@ -385,28 +447,29 @@ export class CodexAdapter {
     };
   }
 
-  private async postEdit(input: HookInput, st: SessionState): Promise<HookOutput> {
+  private async postEdit(input: HookInput, st: SessionState, rels?: string[]): Promise<HookOutput> {
     const tool = input.tool_name!;
     const args = input.tool_input ?? {};
-    const path = editPath(args);
-    const t = path ? this.target(path, input.cwd) : undefined;
     const callId = input.tool_use_id ?? "";
     const pend = st.pending[callId];
     delete st.pending[callId];
-    if (!t) return undefined;
-    let before: string | null | undefined = pend?.before[t.rel];
-    if (before === undefined) {
-      const original = (input.tool_response as { originalFile?: unknown } | undefined)?.originalFile;
-      before = typeof original === "string" ? original : this.git(["show", `HEAD:${t.rel}`]) ?? null;
+    const changes: FileChange[] = [];
+    for (const p of rels ?? patchPaths(args)) {
+      const t = this.target(p, rels ? this.root : input.cwd);
+      if (!t) continue;
+      let before: string | null | undefined = pend?.before[t.rel];
+      if (before === undefined) before = this.git(["show", `HEAD:${t.rel}`]) ?? null;
+      const after = existsSync(t.abs) ? this.readText(t.abs) : null;
+      if (before !== after) changes.push({ rel: t.rel, before, after });
     }
-    const after = existsSync(t.abs) ? this.readText(t.abs) : null;
-    if (before === after) return this.postOther(input, st);
-    const sets = await this.deps.analyze([{ rel: t.rel, before, after }], this.root, this.prefix);
+    if (!changes.length) return this.postOther(input, st);
+    const sets = await this.deps.analyze(changes, this.root, this.prefix);
     if (!sets.writes.length) return this.postOther(input, st);
-    let diff = await this.deps.diff(this.prefix + t.rel, before, after);
+    let diff = (await Promise.all(changes.map((c) => this.deps.diff(this.prefix + c.rel, c.before, c.after)))).join("");
     if (Buffer.byteLength(diff) > 900_000) diff = "";
+    const shownPaths = changes.map((c) => this.prefix + c.rel).join(", ");
     const event = this.draft(st, "edit", {
-      files: [this.prefix + t.rel],
+      files: changes.map((c) => this.prefix + c.rel),
       reads: sets.reads,
       writes: sets.writes,
       ...(diff ? { diff } : {}),
@@ -414,13 +477,14 @@ export class CodexAdapter {
     });
     const verdict = await this.submit(st, "commit", event, callId || `anon-${this.now()}`);
     st.lastContact = this.now();
-    this.log(`commit ${t.rel} base #${event.base_seq} -> ${verdict.verdict} #${verdict.seq} (${verdict.diagnostics.map((d) => d.code).join(",") || "clean"})`);
-    const full = await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx({ rel: t.rel, before, after }));
+    this.log(`commit ${shownPaths} base #${event.base_seq} -> ${verdict.verdict} #${verdict.seq} (${verdict.diagnostics.map((d) => d.code).join(",") || "clean"})`);
+    const main = changes[0];
+    const full = await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx({ rel: main.rel, before: main.before, after: main.after }));
     const shown = new Set(pend?.shown ?? []);
     const fresh = full.split("\n").filter((l) => l && !shown.has(l)).join("\n");
     const header =
       verdict.verdict === "reject"
-        ? `[weft] Your edit to ${this.prefix + t.rel} was applied in your checkout but REJECTED by the coordinator (log #${verdict.seq}); it stays an open error until you rework it:\n`
+        ? `[weft] Your edit to ${shownPaths} was applied in your checkout but REJECTED by the coordinator (log #${verdict.seq}); it stays an open error until you rework it:\n`
         : "[weft diagnostics]\n";
     const text = this.delivered(st, fresh ? header + fresh : "", verdict.delivered_through, verdict.inbox);
     return text ? { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: text } } : undefined;
@@ -536,3 +600,16 @@ export class CodexAdapter {
 }
 
 export type { Target };
+
+const CONTEXT_EVENTS = new Set(["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse"]);
+
+/** Add model-visible text to a hook output (additionalContext, or a Stop block's reason). */
+export function withContext(out: HookOutput, event: string, text: string): HookOutput {
+  const o = (out ?? {}) as { decision?: string; reason?: string; hookSpecificOutput?: Record<string, unknown> };
+  if (o.decision === "block" && typeof o.reason === "string") return { ...o, reason: `${text}\n${o.reason}` };
+  if (!CONTEXT_EVENTS.has(event)) return out;
+  const spec = { ...(o.hookSpecificOutput ?? { hookEventName: event }) };
+  if (typeof spec.permissionDecisionReason === "string") spec.permissionDecisionReason = `${text}\n${spec.permissionDecisionReason}`;
+  else spec.additionalContext = typeof spec.additionalContext === "string" ? `${text}\n${spec.additionalContext}` : text;
+  return { ...o, hookSpecificOutput: spec };
+}

@@ -1,0 +1,539 @@
+{
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "repo": "demo-m1-20261004-064201-r1",
+  "events": [
+    {
+      "seq": 1,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T06:42:08.321Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "Ie47ef935301c653d7f16694aa9c41a181d69191c",
+      "session": "s1",
+      "base_seq": 0,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "codex-b joined (codex-code, L2)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 2,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T06:42:09.563Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "Iade5caa3fd5ceb9bf826c122f2916edfec1d9dfc",
+      "session": "s2",
+      "base_seq": 1,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-a joined (claude-code, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 3,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T06:42:23.541Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "Iade5caa3fd5ceb9bf826c122f2916edfec1d9dfc",
+      "session": "s2",
+      "base_seq": 2,
+      "mode": "commit",
+      "files": [
+        "src/auth/session.ts"
+      ],
+      "reads": [],
+      "writes": [
+        {
+          "key": "src/auth/session.ts#createSession",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#createSession.createdAt",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#createSession.session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#getSession",
+          "kind": "body"
+        },
+        {
+          "key": "src/auth/session.ts#getSession.session",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#Session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#SessionOptions",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/auth/session.ts b/src/auth/session.ts\n--- a/src/auth/session.ts\n+++ b/src/auth/session.ts\n@@ -1,19 +1,32 @@\n import { randomBytes } from \"node:crypto\";\n \n-export type Session = { token: string; userId: string; createdAt: number };\n+export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };\n \n+export type SessionOptions = { ttlMs: number };\n+\n const sessions = new Map<string, Session>();\n \n /** Start a session for a user and return it (the token is the bearer credential). */\n-export function createSession(userId: string): Session {\n-  const session: Session = { token: randomBytes(24).toString(\"base64url\"), userId, createdAt: Date.now() };\n+export function createSession(userId: string, opts: SessionOptions): Session {\n+  const createdAt = Date.now();\n+  const session: Session = {\n+    token: randomBytes(24).toString(\"base64url\"),\n+    userId,\n+    createdAt,\n+    expiresAt: createdAt + opts.ttlMs,\n+  };\n   sessions.set(session.token, session);\n   return session;\n }\n \n-/** The live session for a token, or undefined. */\n+/** The live session for a token, or undefined (expired sessions are forgotten). */\n export function getSession(token: string): Session | undefined {\n-  return sessions.get(token);\n+  const session = sessions.get(token);\n+  if (session && Date.now() >= session.expiresAt) {\n+    sessions.delete(token);\n+    return undefined;\n+  }\n+  return session;\n }\n \n export function revokeSession(token: string): boolean {\n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of createSession, createSession.session +1 more, edited getSession, added createSession.createdAt, getSession.se…",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "toolu_01NZBDCRnp1JabLriM8AixLF",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 4,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T06:42:24.638Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "Iade5caa3fd5ceb9bf826c122f2916edfec1d9dfc",
+      "session": "s2",
+      "base_seq": 2,
+      "mode": "commit",
+      "files": [
+        "src/api/routes.ts"
+      ],
+      "reads": [
+        "src/api/account.ts#accountRoutes",
+        "src/api/router.ts#Route",
+        "src/api/router.ts#createRouter",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/auth/session.ts#createSession",
+        "src/auth/users.ts#authenticate",
+        "src/ui/pages.ts#loginPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/routes.ts#login",
+          "kind": "body"
+        },
+        {
+          "key": "src/api/routes.ts#login.session",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/src/api/routes.ts b/src/api/routes.ts\n--- a/src/api/routes.ts\n+++ b/src/api/routes.ts\n@@ -8,7 +8,7 @@\n export function login(email: string, password: string): { token: string } | undefined {\n   const user = authenticate(email, password);\n   if (!user) return undefined;\n-  const session = createSession(user.id);\n+  const session = createSession(user.id, { ttlMs: 60 * 60 * 1000 });\n   return { token: session.token };\n }\n \n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of login.session, edited login in src/api/routes.ts — Session expiry",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "toolu_015ZosisvGHaazFLqRaXyRqy",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 5,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T06:42:28.241Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "Iade5caa3fd5ceb9bf826c122f2916edfec1d9dfc",
+      "session": "s2",
+      "base_seq": 2,
+      "mode": "commit",
+      "files": [
+        "test/session.test.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#resetSessions",
+        "src/auth/session.ts#revokeSession"
+      ],
+      "writes": [
+        {
+          "key": "test/session.test.ts#a",
+          "kind": "signature"
+        },
+        {
+          "key": "test/session.test.ts#b",
+          "kind": "signature"
+        },
+        {
+          "key": "test/session.test.ts#opts",
+          "kind": "new"
+        },
+        {
+          "key": "test/session.test.ts#s",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/test/session.test.ts b/test/session.test.ts\n--- a/test/session.test.ts\n+++ b/test/session.test.ts\n@@ -2,18 +2,31 @@\n import assert from \"node:assert/strict\";\n import { createSession, getSession, resetSessions, revokeSession } from \"../src/auth/session.ts\";\n \n+const opts = { ttlMs: 60_000 };\n+\n beforeEach(() => resetSessions());\n \n test(\"createSession issues a unique token bound to the user\", () => {\n-  const a = createSession(\"u_1\");\n-  const b = createSession(\"u_1\");\n+  const a = createSession(\"u_1\", opts);\n+  const b = createSession(\"u_1\", opts);\n   assert.equal(a.userId, \"u_1\");\n   assert.notEqual(a.token, b.token);\n+  assert.equal(a.expiresAt, a.createdAt + opts.ttlMs);\n   assert.equal(getSession(a.token)?.userId, \"u_1\");\n });\n \n test(\"revokeSession ends the session\", () => {\n-  const s = createSession(\"u_2\");\n+  const s = createSession(\"u_2\", opts);\n   assert.equal(revokeSession(s.token), true);\n   assert.equal(getSession(s.token), undefined);\n+});\n+\n+test(\"getSession forgets a session once it expires\", (t) => {\n+  t.mock.timers.enable({ apis: [\"Date\"], now: 1_000 });\n+  const s = createSession(\"u_3\", opts);\n+  t.mock.timers.tick(opts.ttlMs - 1);\n+  assert.equal(getSession(s.token)?.userId, \"u_3\");\n+  t.mock.timers.tick(1);\n+  assert.equal(getSession(s.token), undefined);\n+  assert.equal(revokeSession(s.token), false);\n });\n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of a, b +1 more, added opts in test/session.test.ts — Session expiry",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "toolu_015ivgvnrpJPhpKiJZ75z44N",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 6,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T06:42:31.677Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "Ie47ef935301c653d7f16694aa9c41a181d69191c",
+      "session": "s1",
+      "base_seq": 5,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "codex-code session end: other",
+      "summary": "codex-b left — codex-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 7,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T06:42:36.524Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "Iade5caa3fd5ceb9bf826c122f2916edfec1d9dfc",
+      "session": "s2",
+      "base_seq": 6,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "claude-code session end: other",
+      "summary": "claude-a left — claude-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 8,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T06:42:50.519Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "Ie47ef935301c653d7f16694aa9c41a181d69191c",
+      "session": "s3",
+      "base_seq": 7,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "codex-b joined (codex-code, L2)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 9,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "rejected",
+      "kind": "edit",
+      "ts": "2026-10-04T06:43:08.810Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "Ie47ef935301c653d7f16694aa9c41a181d69191c",
+      "session": "s3",
+      "base_seq": 1,
+      "mode": "check",
+      "files": [
+        "src/api/account.ts",
+        "test/signup.test.ts"
+      ],
+      "reads": [
+        "src/api/router.ts#Route",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/api/router.ts#sessionOf",
+        "src/api/routes.ts#app",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#resetSessions",
+        "src/auth/session.ts#revokeSession",
+        "src/auth/users.ts#UserError",
+        "src/auth/users.ts#createUser",
+        "src/auth/users.ts#getUser",
+        "src/auth/users.ts#publicUser",
+        "src/auth/users.ts#resetUsers",
+        "src/ui/pages.ts#accountPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/account.ts#accountRoutes",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.email",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.err",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.name",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.password",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#body",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#duplicate",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#invalidEmail",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#me",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#res",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#shortPassword",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#signup",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/api/account.ts b/src/api/account.ts\n--- a/src/api/account.ts\n+++ b/src/api/account.ts\n@@ -1,9 +1,27 @@\n-import { getUser, publicUser } from \"../auth/users.ts\";\n-import { revokeSession } from \"../auth/session.ts\";\n+import { createUser, getUser, publicUser, UserError } from \"../auth/users.ts\";\n+import { createSession, revokeSession } from \"../auth/session.ts\";\n import { field, html, json, sessionOf, type Route } from \"./router.ts\";\n import { accountPage } from \"../ui/pages.ts\";\n \n export const accountRoutes: Route[] = [\n+  {\n+    method: \"POST\",\n+    path: \"/api/signup\",\n+    handler: (req) => {\n+      const email = field(req.body, \"email\");\n+      const name = field(req.body, \"name\");\n+      const password = field(req.body, \"password\");\n+      if (!email || !name || !password) return json(400, { error: \"email, name and password are required\" });\n+      try {\n+        const user = createUser(email, name, password);\n+        const session = createSession(user.id);\n+        return json(201, { token: session.token, user: publicUser(user) });\n+      } catch (err) {\n+        if (err instanceof UserError) return json(400, { error: err.message });\n+        throw err;\n+      }\n+    },\n+  },\n   {\n     method: \"GET\",\n     path: \"/api/me\",\ndiff --git a/test/signup.test.ts b/test/signup.test.ts\n--- /dev/null\n+++ b/test/signup.test.ts\n@@ -0,0 +1,47 @@\n+import { test, beforeEach } from \"node:test\";\n+import assert from \"node:assert/strict\";\n+import { app } from \"../src/api/routes.ts\";\n+import { resetUsers } from \"../src/auth/users.ts\";\n+import { resetSessions } from \"../src/auth/session.ts\";\n+\n+const signup = (body: unknown) => app({ method: \"POST\", path: \"/api/signup\", body, headers: {} });\n+\n+beforeEach(() => {\n+  resetUsers();\n+  resetSessions();\n+});\n+\n+test(\"signup creates a public user and a working session\", async () => {\n+  const res = await signup({ email: \"ADA@example.com\", name: \"Ada\", password: \"correct horse\" });\n+  assert.equal(res.status, 201);\n+  const { token, user } = res.body as { token: string; user: { id: string; email: string; name: string } };\n+  assert.ok(token);\n+  assert.deepEqual(user, { id: user.id, email: \"ada@example.com\", name: \"Ada\" });\n+  const me = await app({ method: \"GET\", path: \"/api/me\", headers: { authorization: `Bearer ${token}` } });\n+  assert.equal(me.status, 200);\n+  assert.deepEqual(me.body, user);\n+});\n+\n+test(\"signup requires all fields\", async () => {\n+  const res = await signup({ email: \"ada@example.com\", password: \"correct horse\" });\n+  assert.equal(res.status, 400);\n+  assert.deepEqual(res.body, { error: \"email, name and password are required\" });\n+});\n+\n+test(\"signup reports user validation errors\", async () => {\n+  const invalidEmail = await signup({ email: \"invalid\", name: \"Ada\", password: \"correct horse\" });\n+  assert.equal(invalidEmail.status, 400);\n+  assert.deepEqual(invalidEmail.body, { error: \"invalid email\" });\n+\n+  const shortPassword = await signup({ email: \"ada@example.com\", name: \"Ada\", password: \"short\" });\n+  assert.equal(shortPassword.status, 400);\n+  assert.deepEqual(shortPassword.body, { error: \"password must be at least 8 characters\" });\n+});\n+\n+test(\"signup rejects a duplicate email\", async () => {\n+  const body = { email: \"ada@example.com\", name: \"Ada\", password: \"correct horse\" };\n+  assert.equal((await signup(body)).status, 201);\n+  const duplicate = await signup({ ...body, email: \"ADA@example.com\" });\n+  assert.equal(duplicate.status, 400);\n+  assert.deepEqual(duplicate.body, { error: \"email already registered\" });\n+});\n",
+      "intent": "T-2: Signup endpoint",
+      "summary": "Blocked: codex-b changed signature of accountRoutes, added accountRoutes.email, accountRoutes.err +9 more in 2 files — Signup endpoint",
+      "diagnostics": [
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#createSession",
+          "message": "You use src/auth/session.ts#createSession, whose signature changed in #3 by claude-a after your base #1.",
+          "suggestion": "Read the new src/auth/session.ts#createSession (event #3) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 3,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        }
+      ],
+      "tool": {
+        "name": "apply_patch",
+        "call_id": "call_wWFrPg6q2H6WkulC8I6wFq7u",
+        "harness_event": "PreToolUse"
+      }
+    },
+    {
+      "seq": 10,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T06:43:30.921Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "Ie47ef935301c653d7f16694aa9c41a181d69191c",
+      "session": "s3",
+      "base_seq": 9,
+      "mode": "commit",
+      "files": [
+        "src/api/account.ts",
+        "test/signup.test.ts"
+      ],
+      "reads": [
+        "src/api/router.ts#Route",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/api/router.ts#sessionOf",
+        "src/api/routes.ts#app",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#resetSessions",
+        "src/auth/session.ts#revokeSession",
+        "src/auth/users.ts#UserError",
+        "src/auth/users.ts#createUser",
+        "src/auth/users.ts#getUser",
+        "src/auth/users.ts#publicUser",
+        "src/auth/users.ts#resetUsers",
+        "src/ui/pages.ts#accountPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/account.ts#accountRoutes",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.email",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.err",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.name",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.password",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#body",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#duplicate",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#invalidEmail",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#me",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#res",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#shortPassword",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#signup",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/api/account.ts b/src/api/account.ts\n--- a/src/api/account.ts\n+++ b/src/api/account.ts\n@@ -1,9 +1,27 @@\n-import { getUser, publicUser } from \"../auth/users.ts\";\n-import { revokeSession } from \"../auth/session.ts\";\n+import { createUser, getUser, publicUser, UserError } from \"../auth/users.ts\";\n+import { createSession, revokeSession } from \"../auth/session.ts\";\n import { field, html, json, sessionOf, type Route } from \"./router.ts\";\n import { accountPage } from \"../ui/pages.ts\";\n \n export const accountRoutes: Route[] = [\n+  {\n+    method: \"POST\",\n+    path: \"/api/signup\",\n+    handler: (req) => {\n+      const email = field(req.body, \"email\");\n+      const name = field(req.body, \"name\");\n+      const password = field(req.body, \"password\");\n+      if (!email || !name || !password) return json(400, { error: \"email, name and password are required\" });\n+      try {\n+        const user = createUser(email, name, password);\n+        const session = createSession(user.id, { ttlMs: 60 * 60 * 1000 });\n+        return json(201, { token: session.token, user: publicUser(user) });\n+      } catch (err) {\n+        if (err instanceof UserError) return json(400, { error: err.message });\n+        throw err;\n+      }\n+    },\n+  },\n   {\n     method: \"GET\",\n     path: \"/api/me\",\ndiff --git a/test/signup.test.ts b/test/signup.test.ts\n--- /dev/null\n+++ b/test/signup.test.ts\n@@ -0,0 +1,47 @@\n+import { test, beforeEach } from \"node:test\";\n+import assert from \"node:assert/strict\";\n+import { app } from \"../src/api/routes.ts\";\n+import { resetUsers } from \"../src/auth/users.ts\";\n+import { resetSessions } from \"../src/auth/session.ts\";\n+\n+const signup = (body: unknown) => app({ method: \"POST\", path: \"/api/signup\", body, headers: {} });\n+\n+beforeEach(() => {\n+  resetUsers();\n+  resetSessions();\n+});\n+\n+test(\"signup creates a public user and a working session\", async () => {\n+  const res = await signup({ email: \"ADA@example.com\", name: \"Ada\", password: \"correct horse\" });\n+  assert.equal(res.status, 201);\n+  const { token, user } = res.body as { token: string; user: { id: string; email: string; name: string } };\n+  assert.ok(token);\n+  assert.deepEqual(user, { id: user.id, email: \"ada@example.com\", name: \"Ada\" });\n+  const me = await app({ method: \"GET\", path: \"/api/me\", headers: { authorization: `Bearer ${token}` } });\n+  assert.equal(me.status, 200);\n+  assert.deepEqual(me.body, user);\n+});\n+\n+test(\"signup requires all fields\", async () => {\n+  const res = await signup({ email: \"ada@example.com\", password: \"correct horse\" });\n+  assert.equal(res.status, 400);\n+  assert.deepEqual(res.body, { error: \"email, name and password are required\" });\n+});\n+\n+test(\"signup reports user validation errors\", async () => {\n+  const invalidEmail = await signup({ email: \"invalid\", name: \"Ada\", password: \"correct horse\" });\n+  assert.equal(invalidEmail.status, 400);\n+  assert.deepEqual(invalidEmail.body, { error: \"invalid email\" });\n+\n+  const shortPassword = await signup({ email: \"ada@example.com\", name: \"Ada\", password: \"short\" });\n+  assert.equal(shortPassword.status, 400);\n+  assert.deepEqual(shortPassword.body, { error: \"password must be at least 8 characters\" });\n+});\n+\n+test(\"signup rejects a duplicate email\", async () => {\n+  const body = { email: \"ada@example.com\", name: \"Ada\", password: \"correct horse\" };\n+  assert.equal((await signup(body)).status, 201);\n+  const duplicate = await signup({ ...body, email: \"ADA@example.com\" });\n+  assert.equal(duplicate.status, 400);\n+  assert.deepEqual(duplicate.body, { error: \"email already registered\" });\n+});\n",
+      "intent": "T-2: Signup endpoint",
+      "summary": "codex-b changed signature of accountRoutes, added accountRoutes.email, accountRoutes.err +9 more in 2 files — Signup endpoint",
+      "diagnostics": [],
+      "tool": {
+        "name": "apply_patch",
+        "call_id": "call_5VvduJXlN7cUVkTYySx1ipOR",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 11,
+      "repo": "demo-m1-20261004-064201-r1",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T06:43:45.472Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "Ie47ef935301c653d7f16694aa9c41a181d69191c",
+      "session": "s3",
+      "base_seq": 10,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "codex-code session end: other",
+      "summary": "codex-b left — codex-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    }
+  ]
+}

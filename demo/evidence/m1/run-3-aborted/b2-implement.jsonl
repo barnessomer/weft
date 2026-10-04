@@ -1,0 +1,12 @@
+{"type":"thread.started","thread_id":"01a105aa-84c1-73a1-8892-1ca1d4acab74"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_2","type":"error","message":"Model metadata for `openai/gpt-6-sol` not found. Defaulting to fallback metadata; this can degrade performance and cause issues."}}
+{"type":"turn.started"}
+{"type":"error","message":"Reconnecting... 1/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523cc71a0649a5-EZE)"}
+{"type":"error","message":"Reconnecting... 2/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523cc9bb28200e-EZE)"}
+{"type":"error","message":"Reconnecting... 3/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523ccd7a2d322d-EZE)"}
+{"type":"error","message":"Reconnecting... 4/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523cd3ae881eab-EZE)"}
+{"type":"error","message":"Reconnecting... 5/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523cdfea362569-EZE)"}
+{"type":"error","message":"unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523cf54e9adb70-EZE"}
+{"type":"turn.failed","error":{"message":"unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523cf54e9adb70-EZE"}}
