@@ -1,14 +1,33 @@
 import { describe, expect, it } from "vitest";
-import { errorsFromTail } from "../src/index";
+import { errorsFromTail, handleTail, type Env } from "../src/index";
 
 describe("Tail normalization", () => {
   it("forwards exception stack traces but ignores response-only failures", async () => {
+    // Shape as delivered by the Tail Consumer of weft-demo (exceptions at the top level).
     const errors = await errorsFromTail([
-      { eventTimestamp: 1_234, scriptName: "weft-demo", event: { exceptions: [{ name: "TypeError", message: "planted bug", stack: "TypeError: planted bug\n at handler" }], response: { status: 500 } } },
-      { eventTimestamp: 1_235, scriptName: "weft-demo", event: { response: { status: 500 } } },
+      { eventTimestamp: 1_234, scriptName: "weft-demo", outcome: "exception", exceptions: [{ name: "TypeError", message: "planted bug", stack: "    at fetch (worker.js:30:72)", timestamp: 1_234 }], event: { request: { url: "https://weft-demo.example.workers.dev/quote?sku=pear&token=x", method: "GET" }, response: { status: 500 } } },
+      { eventTimestamp: 1_235, scriptName: "weft-demo", outcome: "ok", exceptions: [], event: { response: { status: 500 } } },
     ], "weft-demo");
     expect(errors).toHaveLength(1);
-    expect(errors[0]).toMatchObject({ repo: "weft-demo", occurred_at: 1_234, script: "weft-demo", status: 500, stack: "TypeError: planted bug\n at handler" });
+    expect(errors[0]).toMatchObject({ repo: "weft-demo", occurred_at: 1_234, script: "weft-demo", status: 500, stack: "TypeError: planted bug\n    at fetch (worker.js:30:72)\n    (request: GET /quote)" });
     expect(errors[0]!.event_id).toMatch(/^[a-f0-9]{64}$/);
+  });
+
+  it("keeps a stack that already starts with its message line", async () => {
+    const [e] = await errorsFromTail([{ eventTimestamp: 1, exceptions: [{ name: "Error", message: "boom", stack: "Error: boom\n at x" }] }], "r");
+    expect(e!.stack).toBe("Error: boom\n at x");
+  });
+
+  it("writes one Analytics Engine index per point and queues the error", async () => {
+    const points: Array<{ indexes?: unknown[] }> = [];
+    const sent: unknown[] = [];
+    const env = {
+      WEFT_REPO: "weft-demo",
+      WEFT_PROD: { writeDataPoint: (p: { indexes?: unknown[] }) => { if ((p.indexes?.length ?? 0) > 1) throw new TypeError("writeDataPoint(): Maximum of 1 indexes supported."); points.push(p); } },
+      WEFT_PROD_EVENTS: { send: async (m: unknown) => { sent.push(m); } },
+    } as unknown as Env;
+    await handleTail([{ eventTimestamp: 5, scriptName: "weft-demo", exceptions: [{ name: "Error", message: "x", stack: "    at y" }] }], env);
+    expect(points).toEqual([expect.objectContaining({ indexes: ["weft-demo"] })]);
+    expect(sent).toHaveLength(1);
   });
 });

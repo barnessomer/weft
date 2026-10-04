@@ -10,7 +10,12 @@ export interface Env {
   WEFT_SPIKE_THRESHOLD?: string;
 }
 
-type TailRecord = { event?: { exceptions?: unknown; logs?: unknown; request?: { url?: string }; response?: { status?: number } } | null; outcome?: string; scriptName?: string; eventTimestamp?: number };
+/**
+ * The subset of a Tail `TraceItem` the detector reads. Exceptions live at the top level of the
+ * trace item (verified live on weft-demo: `{ name, message, stack: "    at priceOf (worker.js:17:27)…", timestamp }`);
+ * `event` carries the request/response of a fetch invocation.
+ */
+type TailRecord = { exceptions?: unknown; event?: { request?: { url?: string; method?: string }; response?: { status?: number } } | null; outcome?: string; scriptName?: string; eventTimestamp?: number };
 
 function intVar(value: string | undefined, fallback: number, minimum: number): number {
   const parsed = Number(value);
@@ -21,7 +26,10 @@ function stringifyException(value: unknown): string | null {
   if (typeof value === "string") return value;
   if (value && typeof value === "object") {
     const e = value as { name?: unknown; message?: unknown; stack?: unknown };
-    const text = typeof e.stack === "string" ? e.stack : [e.name, e.message].filter((v): v is string => typeof v === "string").join(": ");
+    const head = [e.name, e.message].filter((v): v is string => typeof v === "string" && v.length > 0).join(": ");
+    const stack = typeof e.stack === "string" ? e.stack.trimEnd() : "";
+    // Workers report `stack` as frames only; prefix the `Name: message` line unless it is already there.
+    const text = head && !stack.startsWith(head) ? [head, stack].filter(Boolean).join("\n") : stack || head;
     return text || null;
   }
   return null;
@@ -37,9 +45,16 @@ async function eventId(repo: string, at: number, stack: string, script?: string)
 export async function errorsFromTail(events: TailRecord[], repo: string): Promise<ProductionError[]> {
   const out: ProductionError[] = [];
   for (const record of events) {
-    const exceptions = Array.isArray(record.event?.exceptions) ? record.event!.exceptions : [];
-    const stack = exceptions.map(stringifyException).find((v): v is string => Boolean(v));
-    if (!stack) continue; // Requests with a 5xx response but no exception are not auto-revert evidence.
+    const exceptions = Array.isArray(record.exceptions) ? record.exceptions : [];
+    const thrown = exceptions.map(stringifyException).find((v): v is string => Boolean(v));
+    if (!thrown) continue; // Requests with a 5xx response but no exception are not auto-revert evidence.
+    // Evidence names the failing request (method + path; the query string is dropped).
+    const req = record.event?.request;
+    let where = "";
+    try {
+      if (req?.url) where = `${req.method ?? "GET"} ${new URL(req.url).pathname}`;
+    } catch {}
+    const stack = where ? `${thrown}\n    (request: ${where})` : thrown;
     const occurred_at = typeof record.eventTimestamp === "number" ? record.eventTimestamp : Date.now();
     const script = typeof record.scriptName === "string" ? record.scriptName : undefined;
     out.push({ event_id: await eventId(repo, occurred_at, stack, script), repo, occurred_at, stack, script, status: record.event?.response?.status });
@@ -50,7 +65,14 @@ export async function errorsFromTail(events: TailRecord[], repo: string): Promis
 export async function handleTail(events: TailRecord[], env: Env): Promise<void> {
   const errors = await errorsFromTail(events, env.WEFT_REPO);
   for (const error of errors) {
-    env.WEFT_PROD.writeDataPoint({ indexes: [error.repo, error.script ?? "unknown"], blobs: [error.event_id, error.stack.slice(0, 1_000)], doubles: [error.occurred_at, error.status ?? 0] });
+    // Analytics Engine allows exactly one index (sampling key): the repo. Live-verified: two
+    // indexes throw "writeDataPoint(): Maximum of 1 indexes supported.". Metrics must never block
+    // the detector, so a failed write is logged and the Queue send still happens.
+    try {
+      env.WEFT_PROD.writeDataPoint({ indexes: [error.repo], blobs: [error.script ?? "unknown", error.event_id, error.stack.slice(0, 1_000)], doubles: [error.occurred_at, error.status ?? 0] });
+    } catch (cause) {
+      console.error("weft_prod write failed", cause instanceof Error ? cause.message : String(cause));
+    }
     await env.WEFT_PROD_EVENTS.send(error);
   }
 }

@@ -34,7 +34,7 @@ script_name = "weft-workflows"
 
 [vars]
 WEFT_REPO = "weft-demo"
-WEFT_SPIKE_WINDOW_SECONDS = "300"
+WEFT_SPIKE_WINDOW_SECONDS = "600"
 WEFT_SPIKE_THRESHOLD = "5"
 
 [observability]
@@ -71,5 +71,5 @@ script_name = "weft-workflows-preview"
 
 [env.preview.vars]
 WEFT_REPO = "weft-demo"
-WEFT_SPIKE_WINDOW_SECONDS = "300"
+WEFT_SPIKE_WINDOW_SECONDS = "600"
 WEFT_SPIKE_THRESHOLD = "5"
