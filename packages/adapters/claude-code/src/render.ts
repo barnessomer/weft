@@ -6,7 +6,7 @@
 // read the new signature from its checkout.
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
-import { renderDiagnostic, renderInboxItem, type Diagnostic, type EventRecord, type InboxItem, type Range } from "@weft/protocol";
+import { agreementOf, renderDiagnostic, renderDue, renderInboxItem, type Diagnostic, type EventRecord, type InboxItem, type NegotiationDue, type Range } from "@weft/protocol";
 
 export type EditedFile = { rel: string; before: string | null; after: string | null };
 export type RenderCtx = {
@@ -15,7 +15,14 @@ export type RenderCtx = {
   /** The file this tool call edits (call-site location for read-based diagnostics). */
   edited?: EditedFile;
   fetchEvent?: (seq: number) => Promise<EventRecord | undefined>;
+  /** Shell command the model runs for `negotiate` / `inbox` (spec §7.4); enables option hints. */
+  cli?: string;
+  /** This checkout's change id (role-specific negotiation hints). */
+  change?: string;
 };
+
+/** Errors where another agent holds the area: the loser's options apply (spec §7.2). */
+const LOSER_CODES = new Set(["stale_assumption", "claim_wait", "claim_die", "claim_wounded"]);
 
 const READ_CODES = new Set(["stale_assumption", "stale_read"]);
 const QUOTE_CODES = new Set(["stale_assumption", "contract_changed", "stale_overwrite"]);
@@ -109,6 +116,48 @@ export function quoteDiff(record: EventRecord, symbol: string): string | undefin
   return clipped.map((l) => `    ${l}`).join("\n");
 }
 
+/** How to exercise the loser's options from the shell (spec §7.2 options, §7.4, §7.6). */
+export function optionsHint(cli: string, other: string): string {
+  return (
+    `  ↳ Your options: retreat (rework without that code) | wait (until ${other} lands or releases it) | ` +
+    `negotiate: \`${cli} negotiate propose overload "<what ${other} should keep working for you>" --wait 240\` (terms: overload | transfer | share | sequence | merge_tasks | other; it is delivered to ${other} and you get the reply) | ` +
+    `escalate: \`${cli} negotiate escalate "<why>"\` (the coordinator merges your two tasks).`
+  );
+}
+
+function answerHint(cli: string, seq: number): string {
+  return `  ↳ Answer from the shell: \`${cli} negotiate accept ${seq}\` | \`${cli} negotiate reject ${seq} "<why>"\` | \`${cli} negotiate counter ${seq} <overload|transfer|share|sequence|merge_tasks|other> "<terms>"\`.`;
+}
+
+/** Spell out an accepted agreement for this side (asker vs giver). */
+async function agreementHint(r: EventRecord, ctx: RenderCtx): Promise<string | undefined> {
+  if (r.kind !== "negotiate.accept" || !ctx.fetchEvent) return undefined;
+  const cache = new Map<number, EventRecord | undefined>();
+  const want = new Set<number>([Number(r.payload?.reply_to)]);
+  // Walk the thread (reply_to chain) so agreementOf() can find its root.
+  for (let i = 0; i < 20 && want.size; i++) {
+    const [n] = want;
+    want.delete(n!);
+    if (cache.has(n!)) continue;
+    const rec = await ctx.fetchEvent(n!).catch(() => undefined);
+    cache.set(n!, rec);
+    if (rec && rec.kind !== "negotiate.propose" && rec.payload?.reply_to !== undefined) want.add(Number(rec.payload.reply_to));
+  }
+  const a = agreementOf(r, (n) => cache.get(n));
+  if (!a) return undefined;
+  const terms = `${a.terms.kind}: "${a.terms.text}" on ${a.keys.join(", ")}`;
+  if (ctx.change && a.giver === ctx.change)
+    return `  ↳ You are bound by agreement #${r.seq} (${terms}). Make that edit now${a.terms.kind === "overload" ? " — keep the old call shape compiling next to the new one" : ""}; Weft will not let you finish before it is in the log.`;
+  if (ctx.change && a.asker === ctx.change)
+    return `  ↳ ${a.giver === r.change ? r.agent ?? "the other agent" : "The other side"} agreed (#${r.seq}, ${terms}). Continue with your original plan; if one more edit is blocked by their follow-up change, read the quoted diff (it should be the agreed change) and retry the same edit.`;
+  return `  ↳ Agreement #${r.seq}: ${terms}.`;
+}
+
+/** Render negotiation dues from a stop-gate result (spec §8.4). */
+export function renderDues(dues: NegotiationDue[], ctx: RenderCtx): string {
+  return dues.map((d) => renderDue(d) + (ctx.cli && d.due === "reply" ? `\n${answerHint(ctx.cli, d.seq)}` : "")).join("\n");
+}
+
 /** Render verdict/inbox diagnostics as the text injected into Claude. */
 export async function renderForModel(diagnostics: Diagnostic[], inbox: InboxItem[], ctx: RenderCtx): Promise<string> {
   const lines: string[] = [];
@@ -134,7 +183,20 @@ export async function renderForModel(diagnostics: Diagnostic[], inbox: InboxItem
   for (const d of diagnostics) await one(d);
   for (const item of inbox) {
     if (item.diagnostic) await one(item.diagnostic);
-    else push(renderInboxItem(item));
+    else {
+      push(renderInboxItem(item));
+      const r = item.record;
+      if (item.kind === "negotiation" && r && ctx.cli && (r.kind === "negotiate.propose" || r.kind === "negotiate.counter")) push(answerHint(ctx.cli, r.seq));
+      if (item.kind === "negotiation" && r?.kind === "negotiate.accept") {
+        const hint = await agreementHint(r, ctx);
+        if (hint) push(hint);
+      }
+    }
+  }
+  // One options hint per conflicting agent (the loser decides what to do next).
+  if (ctx.cli) {
+    const losers = [...diagnostics, ...inbox.flatMap((i) => (i.diagnostic ? [i.diagnostic] : []))].filter((d) => d.severity === "error" && LOSER_CODES.has(d.code));
+    for (const other of new Set(losers.map((d) => d.caused_by_agent))) push(optionsHint(ctx.cli, other));
   }
   return lines.join("\n");
 }

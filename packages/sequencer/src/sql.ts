@@ -34,7 +34,7 @@ export function run(sql: Sql, q: string, ...args: Array<string | number | boolea
  * Schema of one repo's coordinator. Every table is owned by exactly one Durable Object
  * (one repo), so no table carries a repo column.
  */
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 2;
 
 export const DDL: string[] = [
   `CREATE TABLE IF NOT EXISTS meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)`,
@@ -61,7 +61,8 @@ export const DDL: string[] = [
   `CREATE TABLE IF NOT EXISTS changes (
      id TEXT PRIMARY KEY, ord INTEGER NOT NULL,
      agent TEXT NOT NULL, task TEXT, priority INTEGER NOT NULL, birth INTEGER,
-     landed INTEGER NOT NULL DEFAULT 0, approved INTEGER NOT NULL DEFAULT 0)`,
+     landed INTEGER NOT NULL DEFAULT 0, approved INTEGER NOT NULL DEFAULT 0,
+     merged_into TEXT)`,
   `CREATE TABLE IF NOT EXISTS change_reads (change_id TEXT NOT NULL, key TEXT NOT NULL, PRIMARY KEY (change_id, key))`,
   `CREATE TABLE IF NOT EXISTS change_writes (
      change_id TEXT NOT NULL, key TEXT NOT NULL, wkind TEXT NOT NULL, ord INTEGER NOT NULL,
@@ -98,7 +99,18 @@ export const DDL: string[] = [
   `CREATE INDEX IF NOT EXISTS submit_queue_change ON submit_queue(change_id, status)`,
 ];
 
+/** Columns added after a table first shipped (CREATE TABLE IF NOT EXISTS never adds them). */
+const ADDED_COLUMNS: Array<{ table: string; column: string; ddl: string }> = [
+  // v2 (B11): merged task groups, spec §7.6.
+  { table: "changes", column: "merged_into", ddl: `ALTER TABLE changes ADD COLUMN merged_into TEXT` },
+];
+
 export function migrate(sql: Sql): void {
   for (const q of DDL) run(sql, q);
+  for (const c of ADDED_COLUMNS) {
+    const cols = all<{ name: string }>(sql, `PRAGMA table_info(${c.table})`).map((r) => r.name);
+    if (!cols.includes(c.column)) run(sql, c.ddl);
+  }
   run(sql, `INSERT OR IGNORE INTO meta (k, v) VALUES ('schema_version', ?)`, String(SCHEMA_VERSION));
+  run(sql, `UPDATE meta SET v = ? WHERE k = 'schema_version' AND CAST(v AS INTEGER) < ?`, String(SCHEMA_VERSION), SCHEMA_VERSION);
 }

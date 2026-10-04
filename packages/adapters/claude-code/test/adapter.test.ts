@@ -1,5 +1,5 @@
 import { describe, expect, it, afterAll } from "vitest";
-import { ReferenceCoordinator } from "@weft/protocol";
+import { ReferenceCoordinator, parseNegotiate } from "@weft/protocol";
 import { analyzeDiff } from "@weft/analyzer";
 import { execFileSync, execFile } from "node:child_process";
 import { promisify } from "node:util";
@@ -17,7 +17,7 @@ import type { Transport } from "../src/client";
 
 const BUNDLE = join(dirname(dirname(fileURLToPath(import.meta.url))), "dist", "weft-claude.mjs");
 
-function adapter(root: string, agent: string, task: string, transport: Transport, priority?: number): ClaudeAdapter {
+function adapter(root: string, agent: string, task: string, transport: Transport, priority?: number, extra: { cli?: string; sleep?: (ms: number) => Promise<void> } = {}): ClaudeAdapter {
   const loaded: Loaded = {
     root,
     token: "test",
@@ -31,6 +31,7 @@ function adapter(root: string, agent: string, task: string, transport: Transport
       let t = 1_790_000_000_000;
       return () => (t += 5_000);
     })(),
+    ...extra,
   });
 }
 
@@ -267,4 +268,125 @@ describe("installer, git hooks and the bundled CLI", () => {
     expect(msg).toMatch(new RegExp(`Change-Id: ${cfg.change}\\nTask-Id: T-2\\nAgent-Id: claude-b`));
     await run({ hook_event_name: "SessionEnd", session_id: "c1", cwd: root });
   }, 30_000);
+});
+
+describe("negotiation from the agent's shell (spec §7.4, §7.6, §8.4)", () => {
+  const CART_CALL = "return `total ${calcTotal(items)}`;";
+  const OVERLOAD = `export type Item = { price: number; qty: number };
+export type PriceOptions = { taxRate: number };
+
+export function calcTotal(items: Item[]): number;
+export function calcTotal(items: Item[], opts: PriceOptions): number;
+export function calcTotal(items: Item[], opts: PriceOptions = { taxRate: 0 }): number {
+  const net = items.reduce((sum, i) => sum + i.price * i.qty, 0);
+  return net * (1 + opts.taxRate);
+}
+`;
+
+  async function setup(extraB: { sleep?: (ms: number) => Promise<void> } = {}) {
+    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const t = refTransport(coord);
+    const rootA = checkout("na");
+    const rootB = checkout("nb");
+    const A = adapter(rootA, "claude-a", "T-1", t, 1, { cli: "/w/a/.weft/bin/weft" });
+    const B = adapter(rootB, "claude-b", "T-2", t, 0, { cli: "/w/b/.weft/bin/weft", ...extraB });
+    await A.handle(hook("sa", rootA, { hook_event_name: "SessionStart" }));
+    await B.handle(hook("sb", rootB, { hook_event_name: "SessionStart" }));
+    // B uses calcTotal(items); A then changes its signature; B's next use is denied.
+    const b1 = await edit(B, "sb", rootB, "b1", "src/cart.ts", "return `${items.length} items`;", CART_CALL);
+    expect(b1.applied).toBe(true);
+    writeFileSync(join(rootA, "src/pricing.ts"), PRICING_V1);
+    const a1 = await edit(A, "sa", rootA, "a1", "src/pricing.ts", PRICING_V1, PRICING_V2);
+    expect(a1.applied).toBe(true);
+    const b2 = await edit(B, "sb", rootB, "b2", "src/cart.ts", CART_CALL, "return `sum ${calcTotal(items)}`;");
+    expect(b2.applied).toBe(false);
+    return { coord, rootA, rootB, A, B, b2 };
+  }
+
+  it("losing agent gets options; proposal is injected into the owner; accept binds the owner until the overload lands", async () => {
+    const { coord, rootA, rootB, A, B, b2 } = await setup();
+    const deny = (b2.pre as { hookSpecificOutput: { permissionDecisionReason: string } }).hookSpecificOutput.permissionDecisionReason;
+    expect(deny).toContain("stale_assumption");
+    expect(deny).toContain("Your options: retreat");
+    expect(deny).toContain('/w/b/.weft/bin/weft negotiate propose overload');
+    expect(deny).toContain("negotiate escalate");
+
+    // B proposes without naming the target: it defaults to the agent behind its open error.
+    const sent = await B.negotiate("sb", parseNegotiate(["propose", "overload", "Keep calcTotal(items) compiling as an overload"]));
+    expect(sent.code).toBe(0);
+    const propose = coord.log.find((r) => r.kind === "negotiate.propose")!;
+    expect(sent.text).toContain(`[weft] sent #${propose.seq}`);
+    expect(propose.payload).toEqual({ to: { change: "I-claude-a" }, keys: ["src/pricing.ts#calcTotal"], terms: { kind: "overload", text: "Keep calcTotal(items) compiling as an overload" } });
+
+    // A cannot stop while the proposal is unanswered; the refusal carries it and how to answer.
+    const stop1 = (await A.handle(hook("sa", rootA, { hook_event_name: "Stop" }))) as { decision: string; reason: string };
+    expect(stop1.decision).toBe("block");
+    expect(stop1.reason).toContain(`[weft negotiation due] #${propose.seq} from claude-b`);
+    expect(stop1.reason).toContain(`/w/a/.weft/bin/weft negotiate accept ${propose.seq}`);
+    // ...and the next tool call injects it as context too.
+    const injected = (await A.handle(hook("sa", rootA, { hook_event_name: "UserPromptSubmit" }))) as { hookSpecificOutput: { additionalContext: string } };
+    expect(injected.hookSpecificOutput.additionalContext).toContain(`[weft negotiation] #${propose.seq} claude-b (change I-claude-b, task T-2) proposes to you: overload`);
+
+    const acc = await A.negotiate("sa", parseNegotiate(["accept", String(propose.seq)]));
+    expect(acc.code).toBe(0);
+    const accept = coord.log.find((r) => r.kind === "negotiate.accept")!;
+    expect(accept.payload).toEqual({ reply_to: propose.seq });
+
+    // Bound by the agreement: stop is refused until the overload edit is in the log.
+    const stop2 = (await A.handle(hook("sa", rootA, { hook_event_name: "Stop" }))) as { decision: string; reason: string };
+    expect(stop2.reason).toContain(`agreement #${accept.seq}`);
+    const a2 = await edit(A, "sa", rootA, "a2", "src/pricing.ts", PRICING_V2, OVERLOAD);
+    expect(a2.applied).toBe(true);
+    expect(await A.handle(hook("sa", rootA, { hook_event_name: "Stop" }))).toBeUndefined();
+
+    // B learns of the acceptance (with what it means for it) and its old-API edit now passes.
+    const inbox = await B.inbox("sb");
+    expect(inbox.text).toContain(`ACCEPTED #${propose.seq}`);
+    expect(inbox.text).toContain("agreed");
+    const b3 = await edit(B, "sb", rootB, "b3", "src/cart.ts", CART_CALL, "return `sum ${calcTotal(items)}`;");
+    expect(b3.applied).toBe(true);
+    expect(await B.handle(hook("sb", rootB, { hook_event_name: "Stop" }))).toBeUndefined();
+    expect(coord.log.filter((r) => r.kind.startsWith("negotiate.")).map((r) => r.summary)).toEqual([
+      `claude-b → I-claude-a: proposes overload on calcTotal`,
+      `claude-a accepted #${propose.seq}`,
+    ]);
+  });
+
+  it("propose --wait blocks until the owner replies; escalate merges the two tasks", async () => {
+    let A: ClaudeAdapter | undefined;
+    let replied = false;
+    const { coord, B } = await setup({
+      sleep: async () => {
+        if (replied || !A) return;
+        replied = true;
+        const p = coord.log.find((r) => r.kind === "negotiate.propose")!;
+        const r = await A.negotiate("sa", parseNegotiate(["reject", String(p.seq), "I need the new signature everywhere"]));
+        expect(r.code).toBe(0);
+      },
+    }).then((x) => ((A = x.A), x));
+    const sent = await B.negotiate("sb", parseNegotiate(["propose", "overload", "Keep calcTotal(items)", "--wait", "60"]));
+    expect(sent.text).toContain("rejected");
+    expect(sent.text).toContain("I need the new signature everywhere");
+
+    const esc = await B.negotiate("sb", parseNegotiate(["escalate", "We both need calcTotal; make it one task"]));
+    expect(esc.code).toBe(0);
+    expect(esc.text).toContain("tasks merged by the coordinator");
+    const merge = coord.log.find((r) => r.kind === "control")!;
+    expect(merge.payload).toMatchObject({ action: "merge", target: { changes: ["I-claude-a", "I-claude-b"] } });
+    const again = await B.negotiate("sb", parseNegotiate(["escalate", "again", "--to", "claude-a"]));
+    expect(again.code).toBe(1);
+    expect(again.text).toContain("invalid_reference");
+  });
+
+  it("parses the CLI grammar and refuses bad input", () => {
+    expect(parseNegotiate(["counter", "#12", "share", "both", "of", "us"])).toEqual({ cmd: "counter", reply_to: 12, terms: { kind: "share", text: "both of us" } });
+    expect(parseNegotiate(["propose", "transfer", "give it", "--to", "codex-b", "--keys", "a.ts#x,b.ts#y"])).toEqual({
+      cmd: "propose",
+      terms: { kind: "transfer", text: "give it" },
+      to: { agent: "codex-b" },
+      keys: ["a.ts#x", "b.ts#y"],
+    });
+    expect(() => parseNegotiate(["propose", "bribe", "x"])).toThrow(/terms kind/);
+    expect(() => parseNegotiate(["accept", "x"])).toThrow(/event number/);
+  });
 });

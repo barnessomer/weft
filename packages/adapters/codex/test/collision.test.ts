@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { ReferenceCoordinator } from "@weft/protocol";
+import { ReferenceCoordinator, parseNegotiate } from "@weft/protocol";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { analyzeChanges, unifiedDiff } from "../src/analysis";
@@ -9,10 +9,10 @@ import type { Loaded } from "../src/config";
 import type { Transport } from "../src/client";
 import { CART_V1, PRICING_V1, PRICING_V2, checkout, refTransport } from "./helpers";
 
-function adapter(root: string, agent: string, task: string, transport: Transport): CodexAdapter {
+function adapter(root: string, agent: string, task: string, transport: Transport, cli?: string): CodexAdapter {
   const loaded: Loaded = { root, token: "test", config: { url: "http://unused", repo: "demo", agent, task: { id: task, title: `${task} work` }, change: `I-${agent}` } };
   let t = 1_790_000_000_000;
-  return new CodexAdapter(loaded, { transport, analyze: (c, r, p) => analyzeChanges(c, r, p), diff: (rel, b, a) => unifiedDiff(rel, b, a), now: () => (t += 5_000) });
+  return new CodexAdapter(loaded, { transport, analyze: (c, r, p) => analyzeChanges(c, r, p), diff: (rel, b, a) => unifiedDiff(rel, b, a), now: () => (t += 5_000), ...(cli ? { cli } : {}) });
 }
 const hook = (session: string, cwd: string, extra: Partial<HookInput>): HookInput => ({ hook_event_name: "PreToolUse", session_id: session, cwd, ...extra });
 
@@ -161,5 +161,37 @@ describe("Codex hooks against the reference coordinator", () => {
     await bash('node --test "test/**/*.test.ts"', "b3");
     const committed = coord.log.slice(before).find((e) => e.agent === "codex-b" && e.kind === "edit");
     expect(committed).toMatchObject({ status: "accepted", mode: "commit", files: ["src/cart.ts"] });
+  });
+});
+
+describe("Codex negotiation from the shell (spec §7.4, §8.4)", () => {
+  it("the denied agent proposes an overload; the owner sees it, its stop gate holds until it accepts and edits", async () => {
+    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const t = refTransport(coord);
+    const rootA = checkout("na");
+    const rootB = checkout("nb");
+    const A = adapter(rootA, "codex-a", "T-1", t, "/w/a/.weft/bin/weft");
+    const B = adapter(rootB, "codex-b", "T-2", t, "/w/b/.weft/bin/weft");
+    await B.handle(hook("sb", rootB, { hook_event_name: "SessionStart", source: "startup" }));
+    await A.handle(hook("sa", rootA, { hook_event_name: "SessionStart", source: "startup" }));
+    const sig = ["*** Begin Patch", "*** Update File: src/pricing.ts", "@@", " export type Item = { price: number; qty: number };", "+export type PriceOptions = { taxRate: number };", " ",
+      "-export function calcTotal(items: Item[]): number {", "-  return items.reduce((sum, i) => sum + i.price * i.qty, 0);",
+      "+export function calcTotal(items: Item[], opts: PriceOptions): number {", "+  const net = items.reduce((sum, i) => sum + i.price * i.qty, 0);", "+  return net * (1 + opts.taxRate);", " }", "*** End Patch"].join("\n");
+    expect((await applyPatch(A, "sa", rootA, "a1", sig)).applied).toBe(true);
+    const stale = ["*** Begin Patch", "*** Update File: src/cart.ts", "@@", "-  return `${items.length} items`;", "+  return `${items.length} items, total ${calcTotal(items)}`;", "*** End Patch"].join("\n");
+    const b1 = await applyPatch(B, "sb", rootB, "b1", stale);
+    expect(b1.applied).toBe(false);
+    expect(b1.pre.hookSpecificOutput.permissionDecisionReason).toContain("/w/b/.weft/bin/weft negotiate propose overload");
+
+    const sent = await B.negotiate("sb", parseNegotiate(["propose", "overload", "keep calcTotal(items)"]));
+    expect(sent.code).toBe(0);
+    const p = coord.log.find((r) => r.kind === "negotiate.propose")!;
+    expect(p.payload).toMatchObject({ to: { change: "I-codex-a" }, keys: ["src/pricing.ts#calcTotal"] });
+    const stop = (await A.handle(hook("sa", rootA, { hook_event_name: "Stop" }))) as any;
+    expect(stop?.reason ?? JSON.stringify(stop)).toContain(`#${p.seq} from codex-b is unanswered`);
+    const inbox = await A.inbox("sa");
+    expect(inbox.text).toContain(`/w/a/.weft/bin/weft negotiate accept ${p.seq}`);
+    expect((await A.negotiate("sa", parseNegotiate(["accept", String(p.seq)]))).code).toBe(0);
+    expect(coord.log.at(-1)).toMatchObject({ kind: "negotiate.accept", agent: "codex-a", payload: { reply_to: p.seq } });
   });
 });

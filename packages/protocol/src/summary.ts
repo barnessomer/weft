@@ -68,7 +68,9 @@ function target(p: Record<string, unknown> | undefined): string {
  */
 export function summarize(r: Summarizable): string {
   const p = r.payload;
-  const why = (r.summary_hint?.trim() || r.intent?.split("\n")[0]?.trim() || "").trim();
+  // Escalations carry their reason (spec §7.6); other negotiation records keep the template.
+  const negotiationWhy = r.kind === "negotiate.escalate" && typeof p?.reason === "string" ? p.reason : "";
+  const why = (r.summary_hint?.trim() || r.intent?.split("\n")[0]?.trim() || negotiationWhy.split("\n")[0]?.trim() || "").trim();
   const a = who(r);
   let head: string;
   switch (r.kind) {
@@ -103,6 +105,11 @@ export function summarize(r: Summarizable): string {
     case "negotiate.reject":
       head = `${a} rejected #${p?.reply_to}`;
       break;
+    case "negotiate.escalate": {
+      const w = p?.with as { agent?: string; change?: string } | undefined;
+      head = `${a} escalated conflict with ${w?.agent ?? w?.change ?? "?"} to the coordinator (merge tasks)`;
+      break;
+    }
     case "land":
       head = `${a} landed ${r.change ?? "change"} (${r.writes.length} symbol${r.writes.length === 1 ? "" : "s"})`;
       break;
@@ -114,9 +121,9 @@ export function summarize(r: Summarizable): string {
       break;
     case "control": {
       const action = String(p?.action ?? "");
-      const verb = { pause: "paused", resume: "resumed", approve: "approved", undo: "requested undo of" }[action] ?? action;
-      const t = p?.target as { agent?: string; change?: string; seq?: number; op_id?: string } | undefined;
-      const obj = t?.agent ?? t?.change ?? (t?.seq ? `#${t.seq}` : t?.op_id) ?? "?";
+      const verb = { pause: "paused", resume: "resumed", approve: "approved", undo: "requested undo of", merge: "merged the tasks of" }[action] ?? action;
+      const t = p?.target as { agent?: string; change?: string; seq?: number; op_id?: string; changes?: string[] } | undefined;
+      const obj = t?.agent ?? t?.change ?? (t?.seq ? `#${t.seq}` : t?.op_id) ?? (t?.changes?.length ? t.changes.join(" + ") : "?");
       head = `${a} ${verb} ${obj}`;
       break;
     }

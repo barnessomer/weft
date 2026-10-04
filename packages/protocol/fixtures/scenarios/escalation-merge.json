@@ -1,0 +1,399 @@
+{
+  "name": "escalation-merge",
+  "description": "§7.6 (escalation auto): the loser of an arbitration escalates; the coordinator merges the two tasks with a system control record (senior lead first), forgives the cross-task errors and stops arbitrating between them; a higher-priority change still wounds the whole group; repeat or conflict-free escalations are refused.",
+  "covers": [
+    "7.6",
+    "7.1",
+    "7.2",
+    "6.5"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "hello",
+      "as": "C",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "gemini-c",
+          "harness": "gemini-cli"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-3",
+          "priority": 5
+        },
+        "change": "I-c"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s3",
+        "head_seq": 3,
+        "delivered_through": 3
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "claim",
+          "base_seq": 1,
+          "payload": {
+            "firm": true,
+            "source": "explicit"
+          },
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 4
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "reject",
+        "seq": 5,
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "claim_wait",
+            "symbol": "src/api/client.ts#fetchWithAuth",
+            "caused_by_seq": 4,
+            "caused_by_agent": "claude-a",
+            "arbitration": {
+              "outcome": "wait",
+              "winner": {
+                "change": "I-a"
+              },
+              "loser": {
+                "change": "I-b"
+              },
+              "options": [
+                "retreat",
+                "wait",
+                "negotiate",
+                "escalate"
+              ]
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.escalate",
+          "base_seq": 5,
+          "payload": {
+            "with": {
+              "agent": "claude-a"
+            },
+            "keys": [
+              "src/api/client.ts#fetchWithAuth"
+            ],
+            "reason": "T-2 needs fetchWithAuth too"
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 6,
+        "head_seq": 7,
+        "summary": "codex-b escalated conflict with claude-a to the coordinator (merge tasks) — T-2 needs fetchWithAuth too",
+        "inbox": [
+          {
+            "id": 1,
+            "seq": 7,
+            "kind": "control",
+            "record": {
+              "kind": "control",
+              "actor": {
+                "type": "system",
+                "id": "coordinator"
+              },
+              "payload": {
+                "action": "merge",
+                "target": {
+                  "changes": [
+                    "I-a",
+                    "I-b"
+                  ]
+                },
+                "cause": 6,
+                "reason": "T-2 needs fetchWithAuth too"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "event",
+      "seq": 7,
+      "expect": {
+        "kind": "control",
+        "status": "accepted",
+        "summary": "coordinator merged the tasks of I-a + I-b"
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": true,
+        "open_errors": []
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A",
+      "ack": "last",
+      "expect": {
+        "items": [
+          {
+            "seq": 6,
+            "kind": "negotiation",
+            "record": {
+              "kind": "negotiate.escalate",
+              "agent": "codex-b"
+            }
+          },
+          {
+            "seq": 7,
+            "kind": "control",
+            "record": {
+              "payload": {
+                "action": "merge"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 7,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 8,
+        "diagnostics": []
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.escalate",
+          "base_seq": 8,
+          "payload": {
+            "with": {
+              "change": "I-a"
+            },
+            "reason": "again"
+          }
+        }
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "invalid_reference"
+        }
+      }
+    },
+    {
+      "op": "submit",
+      "as": "C",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.escalate",
+          "base_seq": 3,
+          "payload": {
+            "with": {
+              "agent": "claude-a"
+            },
+            "reason": "no conflict"
+          }
+        }
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "invalid_reference"
+        }
+      }
+    },
+    {
+      "op": "submit",
+      "as": "C",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 3,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 9,
+        "diagnostics": [
+          {
+            "severity": "info",
+            "code": "claim_contended",
+            "symbol": "src/api/client.ts#fetchWithAuth",
+            "caused_by_seq": 4,
+            "caused_by_agent": "claude-a",
+            "arbitration": {
+              "outcome": "wound",
+              "winner": {
+                "change": "I-c"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "drain",
+      "as": "B",
+      "expect": {
+        "items": [
+          {
+            "seq": 7,
+            "kind": "control"
+          },
+          {
+            "seq": 9,
+            "diagnostic": {
+              "code": "claim_wounded"
+            }
+          }
+        ]
+      }
+    }
+  ]
+}
