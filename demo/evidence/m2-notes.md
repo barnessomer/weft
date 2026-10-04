@@ -20,16 +20,32 @@
 | 2 | Pass criteria read `land.status === "complete"` (the workflow status, not the land outcome) | criteria read `landed`/`already_landed`. Run 2 was **rescored** from its saved coordinator log; no events changed (`run.json.rescored`) |
 | 2 | The planted-bug beat died on an expired wrangler OAuth token (it lives about 1 h; a run takes 17–48 min) | the driver and `live.mjs` refresh with `wrangler whoami` and retry once on CF auth error 10000 |
 | 3 | The evidence wait hung for 20 min on a candidate whose tests failed: ProcessRevision skips the review stage and the revision stays `processed` | the wait also ends on a failed `test` row |
-| 3 | The planted-bug push was never delivered by Artifacts → Queues (revision "unseen"; no `artifact_events` row) | `live.mjs` now waits 45 s after creating a fork subscription before pushing (likely cause, below). The driver and `live.mjs` also replay the same `cf.artifacts.repo.pushed` envelope into `weft-artifacts-events-preview` if nothing arrives within 90 s. Each replay is recorded (`push_event_replayed` / `push_events_replayed`) |
+| 3 | The planted-bug push was never delivered by Artifacts → Queues (revision "unseen"; no `artifact_events` row) | `live.mjs` now waits 45 s after creating a fork subscription before pushing (this did not help; see below). The driver and `live.mjs` also replay the same `cf.artifacts.repo.pushed` envelope into `weft-artifacts-events-preview` if nothing arrives within 90 s. Each replay is recorded (`push_event_replayed` / `push_events_replayed`) |
 | 3 | Run 3's auto-revert counts as FAIL | after the fix, the same beat was re-run on the same trunk: PASS (`run-3/auto-revert-retry.{json,log}`). It is evidence for the fix, not a rescore |
 
-The Artifacts finding: fork pushes made minutes after the fork's subscription was created were
-always delivered, at 2.6–5 s latency. The planted-bug fork is subscribed and pushed about 3 s
-later, and that push was lost three times in a row, in run 3, a standalone retry, and run 4, which
-needed the replay. Trunk pushes, on a long-lived subscription, were never lost. This points to a
-settle time on new event subscriptions. That is a design note for B6, because agents that push
-within seconds of `POST /candidates` would lose their first revision. Follow-up: the gateway
-should reconcile it, by comparing the fork's head against its revisions on a timer.
+The Artifacts finding: on all four valid runs, every agent push was delivered by Artifacts →
+Queues within 2.6–5 s. That covers 72 fork pushes, made minutes after each fork's subscription
+was created. Trunk pushes were never lost either. The planted-bug fork is subscribed and pushed
+quickly, and its push was lost every time it was tried after 13:20Z: in run 3, in two standalone
+retries, in run 4, and in run 5. Run 5 had a 45 s settle between subscribing and pushing, and the
+push was still lost. So the settle-time hypothesis is **not** confirmed, and the root cause is
+open. The difference that remains is that this fork is created by `live.mjs` (`count: 1`, its own
+subscription), not by the driver's batch. In runs 4 and 5 the planted-bug beat passed because of
+the replay: detector, revert, redeploy and task reopen all ran for real, but ingesting the push
+was the harness's replay. Follow-up: the gateway should reconcile fork heads against revisions on
+a timer, so a lost event is not fatal in the product either. The cause also needs investigating
+with Cloudflare Artifacts.
+
+## Verdict
+
+- 5 runs: run 1 was aborted by the operator before any beat. Runs 2–5 are valid.
+- The six agent/coordination beats passed on all four valid runs: 18 live agents, collision →
+  squiggle → reroute, structural merge, negotiation with both landing, comparison + human
+  approval, and a green trunk.
+- All seven beats passed on runs 4 and 5 (1002 s and 1315 s). Runs 2 and 3 failed the
+  planted-bug beat for harness reasons, both fixed: an expired CF token, then a lost push event.
+- The runs after the last fix (4, 5) are 2 of 2 full PASS. In both, the planted-bug push was
+  ingested by the replay (see above).
 
 ## Honest gaps
 
@@ -47,6 +63,12 @@ should reconcile it, by comparing the fork's head against its revisions on a tim
   denied and rerouted, and every run had two or three.
 - OpenCode (big-pickle) is the slowest harness. One OpenCode agent per run ran 10–15 min and set
   `all_agents_done`.
+- Leftovers across runs: later runs (most visibly run 5) show proposals addressed to the previous
+  run's losing candidates (`codex-t6-r5 → opencode-t6-r4`, unanswered). Losing candidates stay
+  `open` after BestOfN lands the winner, so their accepted edits still count in the shared
+  coordinator log, even though the driver releases every claim at the end of a run. This made
+  noise but did not fail any beat. Follow-up: BestOfN should abandon or supersede the losers when
+  the winner lands, or the driver should give each run its own repo.
 - Claude auth: the keychain login on this Mac is broken (see t_1b412791). Runs 3–5 passed
   `CLAUDE_CODE_OAUTH_TOKEN` from the Hermes credential pool to the launcher process only. It was
   never written to the repo or the logs. Run `claude setup-token` for a durable token.
