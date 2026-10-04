@@ -1,0 +1,33 @@
+{
+  "schema": "Submit",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "inbox_ack": 3,
+    "event": {
+      "kind": "edit",
+      "base_seq": 9,
+      "task": "T-1",
+      "change": "I4f2a",
+      "files": [
+        "src/auth/session.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#RefreshOpts"
+      ],
+      "writes": [
+        {
+          "key": "src/auth/session.ts#refreshToken",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/src/auth/session.ts b/src/auth/session.ts\n--- a/src/auth/session.ts\n+++ b/src/auth/session.ts\n@@ -10,3 +10,3 @@\n-export async function refreshToken(token: string) {\n+export async function refreshToken(token: string, opts: RefreshOpts) {\n",
+      "intent": "add a retry budget to token refresh",
+      "tool": {
+        "name": "Edit",
+        "call_id": "toolu_01",
+        "harness_event": "PostToolUse"
+      }
+    }
+  }
+}

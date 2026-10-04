@@ -1,0 +1,20 @@
+{
+  "schema": "Hello",
+  "expect_issue_path": "/capabilities/observe",
+  "value": {
+    "type": "hello",
+    "protocol": "wcp/0.1",
+    "agent": {
+      "id": "a",
+      "harness": "codex"
+    },
+    "capabilities": {
+      "level": 2,
+      "observe": "async",
+      "inject": "immediate",
+      "deny_edit": true,
+      "refuse_stop": true,
+      "commit_gate": "tool_interception"
+    }
+  }
+}

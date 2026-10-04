@@ -1,0 +1,244 @@
+{
+  "name": "claim-ttl-and-session-expiry",
+  "description": "§7.5/§8.2: an expired claim is released by a system release event, unblocking others; idle sessions expire (leave) and further calls fail with session_expired.",
+  "covers": [
+    "7.5",
+    "8.2",
+    "11"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "claim_ttl_ms": 60000,
+  "session_ttl_ms": 300000,
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "claim",
+          "base_seq": 1,
+          "payload": {
+            "firm": true,
+            "source": "explicit",
+            "ttl_ms": 1000
+          },
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "signature"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "seq": 3
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "reject",
+        "seq": 4,
+        "diagnostics": [
+          {
+            "code": "claim_wait",
+            "severity": "error"
+          }
+        ]
+      }
+    },
+    {
+      "op": "advance",
+      "ms": 2000
+    },
+    {
+      "op": "tick",
+      "expect": [
+        {
+          "seq": 5,
+          "kind": "release",
+          "actor": {
+            "type": "system"
+          },
+          "agent": "claude-a",
+          "change": "I-a",
+          "payload": {
+            "keys": [
+              "src/auth/session.ts#refreshToken"
+            ],
+            "reason": "expired"
+          },
+          "summary": "claude-a released refreshToken (expired)"
+        }
+      ]
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 4,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 6,
+        "diagnostics": []
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": true
+      }
+    },
+    {
+      "op": "heartbeat",
+      "as": "A",
+      "expect": {
+        "type": "heartbeat.ack",
+        "head_seq": 6
+      }
+    },
+    {
+      "op": "advance",
+      "ms": 400000
+    },
+    {
+      "op": "tick",
+      "expect": [
+        {
+          "seq": 7,
+          "kind": "release",
+          "change": "I-b",
+          "payload": {
+            "reason": "expired"
+          }
+        },
+        {
+          "seq": 8,
+          "kind": "leave",
+          "agent": "claude-a"
+        },
+        {
+          "seq": 9,
+          "kind": "leave",
+          "agent": "codex-b"
+        }
+      ]
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 6,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "session_expired"
+        }
+      }
+    }
+  ]
+}

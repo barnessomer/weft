@@ -1,0 +1,22 @@
+{
+  "schema": "Hello",
+  "value": {
+    "type": "hello",
+    "protocol": "wcp/0.1",
+    "agent": {
+      "id": "codex-b",
+      "harness": "codex"
+    },
+    "capabilities": {
+      "level": 1,
+      "observe": "async",
+      "inject": "delayed",
+      "deny_edit": false,
+      "refuse_stop": false,
+      "commit_gate": false
+    },
+    "task": {
+      "id": "T-2"
+    }
+  }
+}

@@ -1,0 +1,422 @@
+{
+  "name": "arbitration-wound-wait",
+  "description": "§7 asymmetry under wound-wait: the junior writer gets the diagnostic (warning on a soft claim, error on a firm one) and the holder only an info; a higher-priority writer wounds every holder.",
+  "covers": [
+    "6.2 R3",
+    "7.1",
+    "7.2",
+    "7.3",
+    "8.4"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "policy": "wound-wait",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "hello",
+      "as": "C",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "gemini-c",
+          "harness": "gemini-cli"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-3",
+          "priority": 5
+        },
+        "change": "I-c"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s3",
+        "head_seq": 3,
+        "delivered_through": 3
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 4,
+        "diagnostics": []
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 5,
+        "diagnostics": [
+          {
+            "severity": "warning",
+            "code": "claim_wait",
+            "symbol": "src/auth/session.ts#refreshToken",
+            "caused_by_seq": 4,
+            "caused_by_agent": "claude-a",
+            "arbitration": {
+              "policy": "wound-wait",
+              "outcome": "wait",
+              "winner": {
+                "agent": "claude-a",
+                "change": "I-a"
+              },
+              "loser": {
+                "agent": "codex-b",
+                "change": "I-b"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A",
+      "expect": {
+        "items": [
+          {
+            "id": 1,
+            "seq": 5,
+            "kind": "diagnostic",
+            "diagnostic": {
+              "severity": "info",
+              "code": "claim_contended",
+              "symbol": "src/auth/session.ts#refreshToken",
+              "caused_by_seq": 5,
+              "caused_by_agent": "codex-b"
+            }
+          }
+        ],
+        "open_errors": []
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "claim",
+          "base_seq": 5,
+          "payload": {
+            "firm": true,
+            "source": "explicit"
+          },
+          "writes": [
+            {
+              "key": "src/auth/session.ts#SessionStore.get",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 6,
+        "summary": "claude-a firmly claimed SessionStore.get"
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 5,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#SessionStore.get",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "reject",
+        "seq": 7,
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "claim_wait",
+            "symbol": "src/auth/session.ts#SessionStore.get",
+            "caused_by_seq": 6,
+            "caused_by_agent": "claude-a"
+          }
+        ]
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A",
+      "ack": "last",
+      "expect": {
+        "items": [],
+        "open_errors": []
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": false
+      }
+    },
+    {
+      "op": "submit",
+      "as": "C",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 3,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "signature"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 8,
+        "diagnostics": [
+          {
+            "severity": "info",
+            "code": "claim_contended",
+            "symbol": "src/auth/session.ts#refreshToken",
+            "caused_by_seq": 4,
+            "caused_by_agent": "claude-a",
+            "arbitration": {
+              "outcome": "wound",
+              "winner": {
+                "agent": "gemini-c",
+                "change": "I-c"
+              },
+              "loser": {
+                "agent": "claude-a",
+                "change": "I-a"
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A",
+      "ack": "last",
+      "expect": {
+        "items": [
+          {
+            "seq": 8,
+            "diagnostic": {
+              "severity": "error",
+              "code": "claim_wounded",
+              "symbol": "src/auth/session.ts#refreshToken",
+              "caused_by_seq": 8,
+              "caused_by_agent": "gemini-c",
+              "caused_by_task": "T-3",
+              "arbitration": {
+                "outcome": "wound",
+                "loser": {
+                  "change": "I-a"
+                }
+              }
+            }
+          },
+          {
+            "seq": 8,
+            "diagnostic": {
+              "severity": "warning",
+              "code": "contract_changed",
+              "symbol": "src/auth/session.ts#refreshToken",
+              "caused_by_seq": 8,
+              "caused_by_agent": "gemini-c"
+            }
+          }
+        ],
+        "open_errors": [
+          {
+            "code": "claim_wounded"
+          }
+        ]
+      }
+    },
+    {
+      "op": "drain",
+      "as": "B",
+      "expect": {
+        "items": [
+          {
+            "seq": 8,
+            "diagnostic": {
+              "code": "claim_wounded",
+              "arbitration": {
+                "loser": {
+                  "change": "I-b"
+                }
+              }
+            }
+          },
+          {
+            "seq": 8,
+            "diagnostic": {
+              "code": "contract_changed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "gate",
+      "as": "A",
+      "gate": "stop",
+      "expect": {
+        "allow": false,
+        "open_errors": [
+          {
+            "code": "claim_wounded",
+            "symbol": "src/auth/session.ts#refreshToken"
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "release",
+          "base_seq": 8,
+          "payload": {
+            "keys": [
+              "src/auth/session.ts#refreshToken"
+            ],
+            "reason": "abandoned"
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 9,
+        "summary": "claude-a released refreshToken (abandoned)"
+      }
+    },
+    {
+      "op": "gate",
+      "as": "A",
+      "gate": "stop",
+      "expect": {
+        "allow": true
+      }
+    }
+  ]
+}

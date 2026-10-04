@@ -1,0 +1,91 @@
+{
+  "schema": "InboxBatch",
+  "value": {
+    "type": "inbox",
+    "items": [
+      {
+        "id": 5,
+        "seq": 15,
+        "kind": "negotiation",
+        "record": {
+          "seq": 15,
+          "repo": "weft-demo",
+          "status": "accepted",
+          "kind": "negotiate.propose",
+          "ts": "2026-10-05T14:03:11.204Z",
+          "actor": {
+            "type": "agent",
+            "id": "claude-a",
+            "harness": "claude-code"
+          },
+          "agent": "claude-a",
+          "task": "T-1",
+          "change": "I4f2a",
+          "session": "s1",
+          "base_seq": 9,
+          "mode": "commit",
+          "files": [],
+          "reads": [],
+          "writes": [],
+          "intent": "add a retry budget to token refresh",
+          "summary": "codex-b → claude-a: proposes overload on refreshToken",
+          "diagnostics": [],
+          "tool": {
+            "name": "Edit",
+            "call_id": "toolu_01",
+            "harness_event": "PostToolUse"
+          },
+          "transcript": {
+            "uri": "r2://weft-transcripts/I4f2a/claude-a.jsonl",
+            "offset": 1824
+          },
+          "has_diff": false,
+          "payload": {
+            "to": {
+              "agent": "claude-a"
+            },
+            "keys": [
+              "src/auth/session.ts#refreshToken"
+            ],
+            "terms": {
+              "kind": "overload",
+              "text": "Keep the old signature as an overload."
+            }
+          }
+        }
+      },
+      {
+        "id": 6,
+        "seq": 20,
+        "kind": "trunk",
+        "requires_rebase": true
+      }
+    ],
+    "head_seq": 20,
+    "delivered_through": 20,
+    "open_errors": [
+      {
+        "severity": "error",
+        "code": "stale_assumption",
+        "file": "src/api/client.ts",
+        "range": {
+          "start": {
+            "line": 41,
+            "character": 10
+          },
+          "end": {
+            "line": 41,
+            "character": 22
+          }
+        },
+        "symbol": "src/auth/session.ts#refreshToken",
+        "message": "You use src/auth/session.ts#refreshToken, whose signature changed in #12 by claude-a after your base #9.",
+        "caused_by_seq": 12,
+        "caused_by_agent": "claude-a",
+        "caused_by_task": "T-1",
+        "suggestion": "Read the new src/auth/session.ts#refreshToken (event #12) and update this call site, or negotiate with claude-a."
+      }
+    ],
+    "paused": false
+  }
+}

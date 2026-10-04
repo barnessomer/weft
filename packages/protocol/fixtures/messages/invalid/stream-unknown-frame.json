@@ -1,0 +1,7 @@
+{
+  "schema": "StreamFrame",
+  "expect_issue_path": "/event",
+  "value": {
+    "type": "event"
+  }
+}

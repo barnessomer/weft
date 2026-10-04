@@ -1,0 +1,13 @@
+{
+  "schema": "Submit",
+  "expect_issue_path": "/event/summary_hint",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "intent",
+      "base_seq": 1,
+      "summary_hint": "xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx"
+    }
+  }
+}

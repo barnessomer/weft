@@ -1,0 +1,20 @@
+{
+  "schema": "Hello",
+  "expect_issue_path": "/capabilities/inject",
+  "value": {
+    "type": "hello",
+    "protocol": "wcp/0.1",
+    "agent": {
+      "id": "a",
+      "harness": "x"
+    },
+    "capabilities": {
+      "level": 1,
+      "observe": "async",
+      "inject": false,
+      "deny_edit": false,
+      "refuse_stop": false,
+      "commit_gate": false
+    }
+  }
+}

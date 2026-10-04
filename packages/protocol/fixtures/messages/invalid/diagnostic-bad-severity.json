@@ -1,0 +1,25 @@
+{
+  "schema": "Diagnostic",
+  "expect_issue_path": "/severity",
+  "value": {
+    "severity": "fatal",
+    "code": "stale_assumption",
+    "file": "src/api/client.ts",
+    "range": {
+      "start": {
+        "line": 41,
+        "character": 10
+      },
+      "end": {
+        "line": 41,
+        "character": 22
+      }
+    },
+    "symbol": "src/auth/session.ts#refreshToken",
+    "message": "You use src/auth/session.ts#refreshToken, whose signature changed in #12 by claude-a after your base #9.",
+    "caused_by_seq": 12,
+    "caused_by_agent": "claude-a",
+    "caused_by_task": "T-1",
+    "suggestion": "Read the new src/auth/session.ts#refreshToken (event #12) and update this call site, or negotiate with claude-a."
+  }
+}

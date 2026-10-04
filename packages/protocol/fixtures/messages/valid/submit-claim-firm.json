@@ -1,0 +1,22 @@
+{
+  "schema": "Submit",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "claim",
+      "base_seq": 9,
+      "writes": [
+        {
+          "key": "src/auth/session.ts#refreshToken",
+          "kind": "signature"
+        }
+      ],
+      "payload": {
+        "firm": true,
+        "source": "explicit",
+        "ttl_ms": 600000
+      }
+    }
+  }
+}

@@ -1,0 +1,24 @@
+{
+  "schema": "Hello",
+  "value": {
+    "type": "hello",
+    "protocol": "wcp/0.2",
+    "x_future": {
+      "anything": 1
+    },
+    "agent": {
+      "id": "a",
+      "harness": "cursor",
+      "x": 1
+    },
+    "capabilities": {
+      "level": 3,
+      "observe": "sync",
+      "inject": "immediate",
+      "deny_edit": true,
+      "refuse_stop": true,
+      "commit_gate": "tool_interception",
+      "x_new_cap": true
+    }
+  }
+}

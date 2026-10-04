@@ -1,0 +1,15 @@
+{
+  "schema": "Submit",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "checkpoint",
+      "base_seq": 14,
+      "payload": {
+        "sha": "3f9a2c1d",
+        "ref": "refs/heads/weft/I4f2a"
+      }
+    }
+  }
+}

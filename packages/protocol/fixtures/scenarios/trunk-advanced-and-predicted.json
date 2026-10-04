@@ -1,0 +1,258 @@
+{
+  "name": "trunk-advanced-and-predicted",
+  "description": "§6.3: a landing notifies every live change that reads/writes/claims a landed symbol (requires_rebase); predicted claims never arbitrate, they only inform.",
+  "covers": [
+    "6.3",
+    "7.5"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#refreshToken"
+          ]
+        }
+      },
+      "expect": {
+        "seq": 3
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "seq": 4
+      }
+    },
+    {
+      "op": "system",
+      "draft": {
+        "kind": "land",
+        "base_seq": 4,
+        "change": "I-a",
+        "payload": {
+          "sha": "0badc0de",
+          "op_id": "op_1"
+        }
+      },
+      "expect": {
+        "seq": 5,
+        "status": "accepted",
+        "writes": [
+          {
+            "key": "src/auth/session.ts#refreshToken",
+            "kind": "body"
+          }
+        ]
+      }
+    },
+    {
+      "op": "drain",
+      "as": "B",
+      "expect": {
+        "items": [
+          {
+            "id": 1,
+            "seq": 5,
+            "kind": "trunk",
+            "requires_rebase": true,
+            "diagnostic": {
+              "severity": "info",
+              "code": "trunk_advanced",
+              "symbol": "src/auth/session.ts#refreshToken",
+              "caused_by_seq": 5,
+              "caused_by_agent": "claude-a"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "hello",
+      "as": "C",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "gemini-c",
+          "harness": "gemini-cli"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-3",
+          "priority": 5
+        },
+        "change": "I-c"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s3",
+        "head_seq": 6,
+        "delivered_through": 6
+      }
+    },
+    {
+      "op": "submit",
+      "as": "C",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "claim",
+          "base_seq": 6,
+          "payload": {
+            "firm": false,
+            "source": "predicted"
+          },
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 7,
+        "summary": "gemini-c is predicted to touch fetchWithAuth",
+        "diagnostics": [
+          {
+            "severity": "info",
+            "code": "claim_predicted_overlap",
+            "symbol": "src/api/client.ts#fetchWithAuth",
+            "caused_by_seq": 3,
+            "caused_by_agent": "codex-b"
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 5,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 8,
+        "diagnostics": [
+          {
+            "severity": "info",
+            "code": "claim_predicted_overlap",
+            "symbol": "src/api/client.ts#fetchWithAuth",
+            "caused_by_seq": 7,
+            "caused_by_agent": "gemini-c"
+          }
+        ]
+      }
+    }
+  ]
+}

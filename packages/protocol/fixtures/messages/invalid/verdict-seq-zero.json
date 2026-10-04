@@ -1,0 +1,14 @@
+{
+  "schema": "Verdict",
+  "expect_issue_path": "/seq",
+  "value": {
+    "type": "verdict",
+    "verdict": "accept",
+    "mode": "commit",
+    "seq": 0,
+    "head_seq": 0,
+    "diagnostics": [],
+    "inbox": [],
+    "delivered_through": 0
+  }
+}

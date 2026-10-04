@@ -1,0 +1,22 @@
+{
+  "schema": "Welcome",
+  "value": {
+    "type": "welcome",
+    "protocol": "wcp/0.1",
+    "session": "s1",
+    "repo": "weft-demo",
+    "head_seq": 9,
+    "delivered_through": 9,
+    "heartbeat_interval_ms": 30000,
+    "session_ttl_ms": 300000,
+    "claim_ttl_ms": 1800000,
+    "policy": {
+      "arbitration": "wound-wait"
+    },
+    "limits": {
+      "max_diff_bytes": 1048576,
+      "max_keys": 2000,
+      "max_page": 500
+    }
+  }
+}

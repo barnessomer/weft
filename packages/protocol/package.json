@@ -4,7 +4,20 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --types vitest/globals,node src/index.test.ts",
-    "test": "vitest run src/index.test.ts"
-  }
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "vitest run",
+    "gen": "node --experimental-strip-types --no-warnings scripts/gen-schema.ts"
+  },
+  "devDependencies": {
+    "ajv": "^8.17.1"
+  },
+  "exports": {
+    ".": "./src/index.ts",
+    "./schema.json": "./schema/wcp-v0.schema.json"
+  },
+  "files": [
+    "src",
+    "schema",
+    "fixtures"
+  ]
 }

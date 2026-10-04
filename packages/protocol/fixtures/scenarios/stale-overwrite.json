@@ -1,0 +1,208 @@
+{
+  "name": "stale-overwrite",
+  "description": "R1: writing a symbol that landed on trunk after the writer's base is an error; rebasing (higher base) clears it and the stop gate opens.",
+  "covers": [
+    "6.2 R1",
+    "6.5",
+    "8.4"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "signature"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 3
+      }
+    },
+    {
+      "op": "system",
+      "draft": {
+        "kind": "land",
+        "base_seq": 3,
+        "change": "I-a",
+        "payload": {
+          "sha": "9e1b77a0",
+          "op_id": "op_1"
+        }
+      },
+      "expect": {
+        "seq": 4,
+        "kind": "land",
+        "status": "accepted",
+        "agent": "claude-a",
+        "writes": [
+          {
+            "key": "src/auth/session.ts#refreshToken",
+            "kind": "signature"
+          }
+        ],
+        "summary": "claude-a landed I-a (1 symbol)"
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ],
+          "intent": "tweak refresh"
+        }
+      },
+      "expect": {
+        "verdict": "reject",
+        "seq": 5,
+        "summary": "Blocked: codex-b edited refreshToken in src/auth/session.ts — tweak refresh",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "stale_overwrite",
+            "symbol": "src/auth/session.ts#refreshToken",
+            "caused_by_seq": 4,
+            "caused_by_agent": "claude-a",
+            "caused_by_task": "T-1",
+            "file": "src/auth/session.ts"
+          }
+        ]
+      }
+    },
+    {
+      "op": "event",
+      "seq": 5,
+      "expect": {
+        "status": "rejected",
+        "mode": "commit"
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": false,
+        "open_errors": [
+          {
+            "code": "stale_overwrite"
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 5,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 6,
+        "diagnostics": []
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": true,
+        "open_errors": []
+      }
+    }
+  ]
+}

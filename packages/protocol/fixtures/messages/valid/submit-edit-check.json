@@ -1,0 +1,24 @@
+{
+  "schema": "Submit",
+  "value": {
+    "type": "submit",
+    "mode": "check",
+    "event": {
+      "kind": "edit",
+      "base_seq": 9,
+      "reads": [
+        "src/auth/session.ts#refreshToken"
+      ],
+      "writes": [
+        {
+          "key": "src/api/client.ts#fetchWithAuth",
+          "kind": "body"
+        }
+      ],
+      "tool": {
+        "name": "apply_patch",
+        "harness_event": "PreToolUse"
+      }
+    }
+  }
+}
