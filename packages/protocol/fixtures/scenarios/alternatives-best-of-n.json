@@ -1,0 +1,300 @@
+{
+  "name": "alternatives-best-of-n",
+  "description": "Three candidates of one task (best-of-N) edit the same symbol without claim arbitration, stale-assumption errors or contract_changed broadcasts against each other; another task still gets the squiggle, and once one alternative lands it is trunk for the others. The landing also releases the losing alternatives' claims.",
+  "covers": [
+    "7.7",
+    "6.2 R1",
+    "6.2 R2",
+    "7.2"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A1",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a1",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a1"
+      },
+      "expect": {
+        "session": "s1"
+      }
+    },
+    {
+      "op": "hello",
+      "as": "A2",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-a2",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a2"
+      },
+      "expect": {
+        "session": "s2"
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "opencode-b",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "session": "s3"
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A1",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#createSession",
+              "kind": "signature"
+            }
+          ],
+          "intent": "createSession takes options"
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 4,
+        "diagnostics": []
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A2",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#createSession",
+              "kind": "signature"
+            }
+          ],
+          "intent": "createSession takes a ttl"
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 5,
+        "diagnostics": []
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A2",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/api/routes.ts#login",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#createSession"
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 6,
+        "diagnostics": []
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A1",
+      "expect": {
+        "items": []
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 3,
+          "writes": [
+            {
+              "key": "src/api/signup.ts#signup",
+              "kind": "new"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#createSession"
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "reject",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "stale_assumption",
+            "caused_by_seq": 5
+          }
+        ],
+        "seq": 7
+      }
+    },
+    {
+      "op": "system",
+      "draft": {
+        "kind": "land",
+        "base_seq": 7,
+        "change": "I-a1",
+        "payload": {
+          "sha": "abc1234",
+          "op_id": "op_1"
+        }
+      },
+      "expect": {
+        "seq": 8,
+        "kind": "land",
+        "status": "accepted",
+        "agent": "claude-a1"
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A2",
+      "expect": {
+        "items": [
+          {
+            "seq": 8,
+            "kind": "trunk",
+            "requires_rebase": true,
+            "diagnostic": {
+              "code": "trunk_advanced",
+              "caused_by_seq": 8
+            }
+          },
+          {
+            "seq": 8,
+            "kind": "diagnostic",
+            "diagnostic": {
+              "code": "contract_changed",
+              "caused_by_seq": 8
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A2",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 6,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#createSession",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "reject",
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "stale_overwrite"
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 7,
+          "writes": [
+            {
+              "key": "src/api/routes.ts#login",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "diagnostics": []
+      }
+    }
+  ]
+}

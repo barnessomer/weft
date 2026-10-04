@@ -1,0 +1,13 @@
+{
+  "run": 1,
+  "aborted": true,
+  "error": "aborted by the operator at ~+9 min: concurrent `opencode serve` processes failed with 'database is locked' (shared ~/.local/share/opencode SQLite), so 5 OpenCode agents never started or joined and the driver sat in the planner-join wait; also t4/t5 one-line arrow functions were classified as signature writes by the analyzer, turning the structural-merge beat into a stale_assumption collision. Both fixed for run 2 (per-agent XDG_DATA_HOME; function declarations in src/pricing.ts). Pipeline facts from this run: ProcessRevision produced preview/screenshots/review evidence for all 6 pushed revisions.",
+  "pushed": [
+    "claude-t4",
+    "claude-t6",
+    "codex-t6",
+    "codex-t5",
+    "codex-t4",
+    "opencode-t6"
+  ]
+}

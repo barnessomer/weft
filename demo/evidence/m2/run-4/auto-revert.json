@@ -1,0 +1,322 @@
+{
+  "started_at": "2026-10-04T14:05:15.956Z",
+  "gateway": "https://weft-gateway-preview.elier.ai",
+  "workflows": "https://weft-workflows-preview.elier.ai",
+  "demo": "https://weft-demo.elier.ai",
+  "repo": "weft-demo",
+  "steps": [
+    {
+      "name": "preflight: demo serves trunk",
+      "at_s": 3.1,
+      "trunk_head": "6badd965b7d0ec1105b349aa383d44728328ddff",
+      "quote": {
+        "status": 200,
+        "ms": 89,
+        "body": "{\"sku\":\"pear\",\"qty\":2,\"total\":4}",
+        "waited_s": 0.089
+      },
+      "versions": [
+        {
+          "id": "abdcb8cd-9352-4098-aa0a-707e29492b2f",
+          "created_on": "2026-10-04T14:04:39.15187Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        },
+        {
+          "id": "06e93127-fc48-47b6-bc1a-21ae486b8d73",
+          "created_on": "2026-10-04T14:04:23.641633Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        },
+        {
+          "id": "6f85c225-3c7d-4be3-97e8-0a3048760cf4",
+          "created_on": "2026-10-04T14:04:08.27216Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        },
+        {
+          "id": "14023281-f1b5-4a7f-b2fd-d9526f155eaf",
+          "created_on": "2026-10-04T14:03:57.864155Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        }
+      ]
+    },
+    {
+      "name": "task + candidate",
+      "at_s": 10.4,
+      "task": "b13-mutw7wol",
+      "change": "Icfa87efd2c477825e62fffc5bd52df4d36478a58",
+      "fork": "weft-weft-demo-b13-mutw7wol-1"
+    },
+    {
+      "name": "planted bug pushed",
+      "at_s": 13,
+      "sha": "3620598dbbb3424f42dd49217eef423cf8db5fbc",
+      "diff": [
+        "+      const unit = url.searchParams.get(\"unit\")!.toLowerCase(); // planted bug: throws when ?unit is absent",
+        "+      if (unit === \"g\") return Response.json({ sku, qty, total: calcTotal([{ sku, price: priceOf(sku) / 1000, qty }]) });"
+      ]
+    },
+    {
+      "name": "push event not delivered by Artifacts; replayed into the queue",
+      "at_s": 104.8,
+      "after_s": 91.82,
+      "reason": "Artifacts pushed event not delivered"
+    },
+    {
+      "name": "processed (ProcessRevision)",
+      "at_s": 125.3,
+      "revision": "processed",
+      "tests": {
+        "status": "pass",
+        "summary": {
+          "pass": 22,
+          "fail": 0
+        }
+      }
+    },
+    {
+      "name": "landed (LandChange)",
+      "at_s": 141.8,
+      "workflow": "land-Icfa87efd2c47-1791122841622",
+      "output": {
+        "status": "landed",
+        "op_id": "op-3fc3e38b12d937c0646f607f",
+        "seq": 675,
+        "before": "6badd965b7d0ec1105b349aa383d44728328ddff",
+        "after": "3620598dbbb3424f42dd49217eef423cf8db5fbc",
+        "layer": "none",
+        "attempts": 1,
+        "queue_id": 31
+      },
+      "d1_landing": {
+        "op_id": "op-3fc3e38b12d937c0646f607f",
+        "kind": "land",
+        "status": "landed",
+        "created_at": 1791122855357
+      }
+    },
+    {
+      "name": "Workers Builds deployed trunk with the bug",
+      "at_s": 162.5,
+      "land_to_broken_s": 20.969,
+      "sample": {
+        "status": 500,
+        "ms": 64,
+        "body": "<!DOCTYPE html>\n<!--[if lt IE 7]> <html class=\"no-js ie6 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 7]>    <html class=\"no-js ie7 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if IE 8]>    <html class=\"no-js ie8 oldie\" lang=\"en-US\"> <![endif]-->\n<!--[if gt IE 8]><!--> <html class=\"no-js\" lang=\"en-US\"> <!",
+        "waited_s": 20.38
+      },
+      "versions": [
+        {
+          "id": "01d07137-3a18-4d7d-be3f-2a6a99144b9f",
+          "created_on": "2026-10-04T14:07:45.188674Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        },
+        {
+          "id": "acbc0169-a55d-4b18-bf7d-2272e9e43e8b",
+          "created_on": "2026-10-04T14:05:42.281633Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        },
+        {
+          "id": "1519bf94-801a-4349-a2b9-a79064631cc4",
+          "created_on": "2026-10-04T14:05:41.219426Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        },
+        {
+          "id": "abdcb8cd-9352-4098-aa0a-707e29492b2f",
+          "created_on": "2026-10-04T14:04:39.15187Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        }
+      ]
+    },
+    {
+      "name": "production traffic",
+      "at_s": 162.7,
+      "requests": 8,
+      "statuses": [
+        500,
+        200,
+        500,
+        200,
+        500,
+        200,
+        500,
+        200
+      ]
+    },
+    {
+      "name": "detector started RevertOperation",
+      "at_s": 174,
+      "workflow": "prod-revert-op-3fc3e38b12d937c0646f607f",
+      "status": "running",
+      "d1_latch": [
+        {
+          "land_op_id": "op-3fc3e38b12d937c0646f607f",
+          "triggered_at": 1791122885404,
+          "error_count": 5,
+          "workflow_id": "prod-revert-op-3fc3e38b12d937c0646f607f"
+        }
+      ],
+      "land_row_to_trigger_s": 30.047
+    },
+    {
+      "name": "reverted (RevertOperation)",
+      "at_s": 181,
+      "status": "complete",
+      "output": {
+        "status": "reverted",
+        "op_id": "op-fe98458109fd65d51f164a4f",
+        "reverts_op_id": "op-3fc3e38b12d937c0646f607f",
+        "seq": 676,
+        "sha": "e87b905442d1dc1d7ab18ef1905f31578822f205"
+      },
+      "error": null
+    },
+    {
+      "name": "Workers Builds deployed the revert",
+      "at_s": 191.5,
+      "land_to_healed_s": 49.934,
+      "sample": {
+        "status": 200,
+        "ms": 65,
+        "body": "{\"sku\":\"pear\",\"qty\":2,\"total\":4}",
+        "waited_s": 10.205
+      },
+      "versions": [
+        {
+          "id": "149f86be-906b-4d77-8eba-2ccd436571a5",
+          "created_on": "2026-10-04T14:08:26.250786Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        },
+        {
+          "id": "01d07137-3a18-4d7d-be3f-2a6a99144b9f",
+          "created_on": "2026-10-04T14:07:45.188674Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        },
+        {
+          "id": "acbc0169-a55d-4b18-bf7d-2272e9e43e8b",
+          "created_on": "2026-10-04T14:05:42.281633Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        },
+        {
+          "id": "1519bf94-801a-4349-a2b9-a79064631cc4",
+          "created_on": "2026-10-04T14:05:41.219426Z",
+          "source": "wrangler",
+          "triggered_by": "version_upload"
+        }
+      ]
+    },
+    {
+      "name": "final",
+      "at_s": 216,
+      "analytics_engine_weft_prod_preview": [],
+      "change_status": "reverted",
+      "task": [
+        {
+          "id": "b13-mutw7wol",
+          "status": "open",
+          "candidates": [
+            [
+              "claude-b13",
+              "reverted"
+            ]
+          ]
+        }
+      ],
+      "ops": [
+        {
+          "op_id": "op-3fc3e38b12d937c0646f607f",
+          "seq": 675,
+          "kind": "land",
+          "change_id": "Icfa87efd2c477825e62fffc5bd52df4d36478a58",
+          "sha": "3620598dbbb3424f42dd49217eef423cf8db5fbc",
+          "trunk_ref": "refs/heads/main",
+          "reverts_seq": null,
+          "reverts_op_id": null,
+          "at": "2026-10-04T14:07:35.158Z"
+        },
+        {
+          "op_id": "op-fe98458109fd65d51f164a4f",
+          "seq": 676,
+          "kind": "revert",
+          "change_id": "Icfa87efd2c477825e62fffc5bd52df4d36478a58",
+          "sha": "e87b905442d1dc1d7ab18ef1905f31578822f205",
+          "trunk_ref": null,
+          "reverts_seq": 675,
+          "reverts_op_id": "op-3fc3e38b12d937c0646f607f",
+          "at": "2026-10-04T14:08:14.011Z"
+        }
+      ],
+      "events": [
+        {
+          "seq": 675,
+          "kind": "land",
+          "actor": {
+            "type": "system",
+            "id": "weft-workflows"
+          },
+          "summary": "claude-b13 landed Icfa87efd2c477825e62fffc5bd52df4d36478a58 (0 symbols) — landed claude-b13: Quote API: support ?unit=g (3620598dbbb3)"
+        },
+        {
+          "seq": 676,
+          "kind": "revert",
+          "actor": {
+            "type": "system",
+            "id": "weft-workflows"
+          },
+          "summary": "reverted #675: production error spike: 5 errors in 600s after land op-3fc3e38b12d937c0646f607f"
+        },
+        {
+          "seq": 677,
+          "kind": "message",
+          "actor": {
+            "type": "system",
+            "id": "weft-workflows"
+          },
+          "summary": "claude-b13 → Icfa87efd2c477825e62fffc5bd52df4d36478a58: Your landed change was reverted: production error spike: 5 errors in 600s after lan…"
+        }
+      ],
+      "evidence": [
+        {
+          "status": "fail",
+          "reason": "production error spike: 5 errors in 600s after land op-3fc3e38b12d937c0646f607f",
+          "op_id": "op-fe98458109fd65d51f164a4f",
+          "reverts_op_id": "op-3fc3e38b12d937c0646f607f",
+          "revert_sha": "e87b905442d1dc1d7ab18ef1905f31578822f205",
+          "requested_by": "weft-production-signal",
+          "evidence": {
+            "kind": "production_tail_error",
+            "text": "TypeError: Cannot read properties of null (reading 'toLowerCase')\n    at Object.fetch (worker.js:33:48)\n    (request: GET /quote)",
+            "data": {
+              "event_id": "5e9c184e65e24dd7c42239b01542d288c77ef6142c3b7aca2c371d9f2e5dbc1f",
+              "script": "weft-demo",
+              "status": 500,
+              "error_count": 5,
+              "window_seconds": 600
+            }
+          }
+        }
+      ],
+      "trunk_log": [
+        "134e013 weft-revert Revert change Iee283426a0c994be37183cc0859172717dcb1b39",
+        "e87b905 weft-revert Revert change Icfa87efd2c477825e62fffc5bd52df4d36478a58",
+        "3620598 weft-live quote: support ?unit=g"
+      ],
+      "worker_ts_matches_seed": true
+    }
+  ],
+  "push_event_replayed": {
+    "after_s": 91.82,
+    "reason": "Artifacts pushed event not delivered"
+  },
+  "finished_at": "2026-10-04T14:08:52.568Z",
+  "total_s": 216.612
+}
