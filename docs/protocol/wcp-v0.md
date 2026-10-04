@@ -263,14 +263,15 @@ highest id they injected into the model.
 
 For an incoming event E from session S (agent `a`, change `c`) with base `b`:
 
-- **W** = accepted records with `seq > b`, `change ≠ c`, and `kind ∈ {edit, land, revert}`.
+- **W** = accepted records with `seq > b`, `change ≠ c`, and `kind ∈ {edit, land, revert}`,
+  minus the `edit` records of `c`'s alternatives (§7.7).
 - **committed** records are `land` and `revert`; edits are **in flight**.
 - A change's **writes** accumulate across its accepted edits per key with the net kind:
   `new` stays `new` (unless later `deleted`), `deleted` and `signature` dominate `body`,
   and `deleted` then re-declared counts as `signature` (`mergeWriteKind`). A `land`
   draft without `writes` lands exactly this map.
 - **Active claims** on key k: claims with `expires_at > now`, held by a change other than
-  `c`, not shared with `c` (§7.4).
+  `c` and not an alternative of `c` (§7.7), not shared with `c` (§7.4).
 - **Seniority** (§7.1) orders changes.
 
 ### 6.2 Rules
@@ -445,6 +446,25 @@ The fourth loser option (`escalate`, §7.2) is a protocol action, not only a fee
   are cleared. Every session of the group receives a `kind:"control"` inbox item with the
   record. Contract/trunk broadcasts (§6.3) still reach members, and each member still lands
   on its own (a landing workflow SHOULD land a group together).
+
+### 7.7 Alternatives (best-of-N candidates)
+
+Two distinct changes whose `task` is the same (and set) are **alternatives**: competing
+candidates for one task, of which at most one lands (the platform's selection step). They
+never coordinate with each other while in flight:
+
+- W (§6.1) excludes the `edit` records of `c`'s alternatives, so R1/R2 never fire between
+  candidates of one task (a candidate's signature change is not a stale assumption for its
+  sibling, which may well choose a different signature).
+- Claims of alternatives are not active claims for each other (no R3 arbitration, no
+  `claim_wait`/`claim_wounded` between siblings).
+- `contract_changed` broadcasts (§6.3) for an `edit` skip the editor's alternatives.
+- `land` and `revert` records of an alternative are trunk like any other: they count in W
+  for the remaining siblings and broadcast `trunk_advanced`/`contract_changed` to them.
+
+Alternatives are still distinct changes for everything else: seniority, negotiation, merge.
+A merged group (§7.6) whose members carry the lead's task makes the lead's alternatives
+alternatives of every member too.
 
 ## 8. Agent sessions and capability levels
 
@@ -773,3 +793,6 @@ Proposed for `docs/design.md` (rule 7 of agent-rules):
   coordinator-appended), `control.cause`, negotiation dues in the stop gate
   (`gate.result.negotiations`, §8.4) and their redelivery to new sessions (§8.2). Scenarios
   `negotiation-overload-dues`, `escalation-merge`, `escalation-human`, `merge-by-agreement`.
+- 0.1 addition (2026-10-04, M2; additive): alternatives (§7.7) — changes of the same task
+  (best-of-N candidates) are exempt from in-flight R1/R2, claim arbitration and
+  `contract_changed` between each other. Scenario `alternatives-best-of-n`.

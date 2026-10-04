@@ -343,6 +343,17 @@ export class ReferenceCoordinator {
     return a !== undefined && b !== undefined && this.group(a) === this.group(b);
   }
 
+  /**
+   * Alternatives (spec §7.7): distinct changes of the same task, i.e. best-of-N candidates.
+   * At most one of them lands, so they never validate or arbitrate against each other's
+   * in-flight work; a landed or reverted alternative is trunk and counts like any other.
+   */
+  private alternatives(a: string | undefined, b: string | undefined): boolean {
+    if (a === undefined || b === undefined || a === b) return false;
+    const ta = this.changes.get(a)?.task;
+    return ta !== undefined && ta === this.changes.get(b)?.task;
+  }
+
   private members(lead: string): ChangeState[] {
     return [...this.changes.values()].filter((c) => this.group(c.id) === lead);
   }
@@ -428,7 +439,9 @@ export class ReferenceCoordinator {
 
   private activeClaims(key: SymbolKey, exceptChange: string): Claim[] {
     const now = this.now();
-    return this.claims.filter((c) => c.key === key && !this.sameGroup(c.change, exceptChange) && !c.shared.has(exceptChange) && c.expires_at > now);
+    return this.claims.filter(
+      (c) => c.key === key && !this.sameGroup(c.change, exceptChange) && !this.alternatives(c.change, exceptChange) && !c.shared.has(exceptChange) && c.expires_at > now,
+    );
   }
 
   private evaluate(s: Session, e: EventDraft): Diagnostic[] {
@@ -449,7 +462,12 @@ export class ReferenceCoordinator {
     if (e.kind !== "edit" && e.kind !== "claim") return out;
     const writes = e.writes ?? [];
     const W = this.log.filter(
-      (r) => r.status === "accepted" && r.seq > e.base_seq && !this.sameGroup(r.change, s.change) && (r.kind === "edit" || r.kind === "land" || r.kind === "revert"),
+      (r) =>
+        r.status === "accepted" &&
+        r.seq > e.base_seq &&
+        !this.sameGroup(r.change, s.change) &&
+        (r.kind === "edit" || r.kind === "land" || r.kind === "revert") &&
+        !(r.kind === "edit" && this.alternatives(r.change, s.change)),
     );
     const latest = (key: SymbolKey, pred: (r: EventRecord, w: Write) => boolean) => {
       for (let i = W.length - 1; i >= 0; i--) {
@@ -811,6 +829,7 @@ export class ReferenceCoordinator {
     if (rec.kind === "edit" || rec.kind === "land" || rec.kind === "revert") {
       for (const c of this.changes.values()) {
         if (c.id === rec.change || c.landed) continue;
+        if (rec.kind === "edit" && this.alternatives(c.id, rec.change)) continue;
         const targets = this.sessionsOf({ change: c.id });
         if (!targets.length) continue;
         if (rec.kind !== "edit") {
