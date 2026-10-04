@@ -43,6 +43,13 @@ this design, not an add-on.
    log is replayable and every diagnostic cites the event that caused it.
 8. Harness-neutral. WCP is a wire protocol; each harness gets a thin adapter over its
    native hooks. Claude Code first, Codex second, then Gemini CLI / Cursor / Copilot.
+9. The editor disappears. Agents change code with no human watching an editor. The
+   human surface is a FEED — intent, edits, squiggles, negotiations, landings, reverts —
+   readable on any device (first client: the Hérmes iOS app), with editor-free controls:
+   approve, undo, pause, message an agent. WCP has a read-only observer role and a
+   human-action scope for this. Every event carries a one-line human summary.
+10. Dogfood. Weft's own build is coordinated by Weft (Hermes adapter on the build's
+   kanban workers), and its change log is watched from the phone.
 
 ## 3. Core objects
 
