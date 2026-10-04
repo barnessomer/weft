@@ -1,0 +1,12 @@
+{
+  "name": "@weft/gateway",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit --strict --target ES2022 --lib ES2022 --module ESNext --moduleResolution Bundler --types @cloudflare/workers-types src/index.ts",
+    "test": "vitest run src/index.test.ts",
+    "dev": "wrangler dev",
+    "deploy:preview": "wrangler deploy --env preview"
+  }
+}

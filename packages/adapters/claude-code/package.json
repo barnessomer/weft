@@ -1,0 +1,10 @@
+{
+  "name": "@weft/adapter-claude-code",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --types vitest/globals,node src/index.test.ts",
+    "test": "vitest run src/index.test.ts"
+  }
+}
