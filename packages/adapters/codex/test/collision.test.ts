@@ -4,7 +4,7 @@ import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { analyzeChanges, unifiedDiff } from "../src/analysis";
 import { CodexAdapter, type HookInput } from "../src/hooks";
-import { applyChunks, parsePatch, patchPaths, proposedFiles } from "../src/edits";
+import { applyChunks, parsePatch, patchPaths, proposedFiles, shellPatch } from "../src/edits";
 import type { Loaded } from "../src/config";
 import type { Transport } from "../src/client";
 import { CART_V1, PRICING_V1, PRICING_V2, checkout, refTransport } from "./helpers";
@@ -71,6 +71,17 @@ describe("apply_patch grammar", () => {
   });
 });
 
+describe("apply_patch through the shell", () => {
+  it("extracts heredoc and argv forms, with an optional cd", () => {
+    const body = "*** Begin Patch\n*** Add File: a.ts\n+x\n*** End Patch";
+    expect(shellPatch(`apply_patch <<'PATCH'\n${body}\nPATCH`)).toEqual({ patch: body });
+    expect(shellPatch(`cd src && applypatch <<"EOF"\n${body}\nEOF`)).toEqual({ patch: body, cd: "src" });
+    expect(shellPatch(`apply_patch '${body}'`)).toEqual({ patch: body });
+    expect(shellPatch("cat README.md")).toBeUndefined();
+    expect(shellPatch("echo apply_patch")).toBeUndefined();
+  });
+});
+
 describe("Codex hooks against the reference coordinator", () => {
   it("A changes a signature; B's apply_patch Update adding a stale call is denied at PreToolUse; B adapts", async () => {
     const coord = new ReferenceCoordinator({ repo: "demo", now: () => 1_790_000_000_000 });
@@ -118,5 +129,37 @@ describe("Codex hooks against the reference coordinator", () => {
     const last = coord.log.at(-1)!;
     expect(last).toMatchObject({ agent: "codex-b", status: "accepted", kind: "edit" });
     expect(PRICING_V1).not.toBe(PRICING_V2);
+  });
+
+  it("same collision when the model sends apply_patch through Bash and Codex fires no PostToolUse", async () => {
+    const coord = new ReferenceCoordinator({ repo: "demo", now: () => 1_790_000_000_000 });
+    const t = refTransport(coord);
+    const rootA = checkout("sa");
+    const rootB = checkout("sb");
+    const A = adapter(rootA, "codex-a", "T-1", t);
+    const B = adapter(rootB, "codex-b", "T-2", t);
+    await B.handle(hook("sb", rootB, { hook_event_name: "SessionStart", source: "startup" }));
+    await A.handle(hook("sa", rootA, { hook_event_name: "SessionStart", source: "startup" }));
+    writeFileSync(join(rootA, "src/pricing.ts"), PRICING_V2);
+    const sigPatch = `*** Begin Patch\n*** Update File: src/pricing.ts\n@@\n-export function calcTotal(items: Item[]): number {\n+export function calcTotal(items: Item[], opts: PriceOptions): number {\n*** End Patch`;
+    // A: native tool, edit already on disk -> PostToolUse commits it (before = HEAD)
+    await A.handle(hook("sa", rootA, { hook_event_name: "PostToolUse", tool_name: "apply_patch", tool_input: { command: sigPatch }, tool_use_id: "a1", tool_response: "ok" }));
+    expect(coord.log.some((e) => e.agent === "codex-a" && e.status === "accepted" && e.writes?.some((w) => w.key === "src/pricing.ts#calcTotal" && w.kind === "signature"))).toBe(true);
+
+    const patch = (call: string) => `*** Begin Patch\n*** Update File: src/cart.ts\n@@\n-  return \`\${items.length} items\`;\n+  return \`\${items.length} items, total \${${call}}\`;\n*** End Patch`;
+    const bash = (cmd: string, id: string, event = "PreToolUse") => B.handle(hook("sb", rootB, { hook_event_name: event, tool_name: "Bash", tool_input: { command: cmd }, tool_use_id: id }));
+    const denied = (await bash(`apply_patch <<'PATCH'\n${patch("calcTotal(items)")}\nPATCH`, "b1")) as any;
+    expect(denied.hookSpecificOutput.permissionDecision).toBe("deny");
+    expect(denied.hookSpecificOutput.permissionDecisionReason).toContain("stale_assumption");
+
+    const ok = await bash(`apply_patch <<'PATCH'\n${patch("calcTotal(items, { taxRate: 0 })")}\nPATCH`, "b2");
+    expect((ok as any)?.hookSpecificOutput?.permissionDecision).toBeUndefined();
+    // Codex applies it; no PostToolUse arrives. The next hook commits the edit from disk.
+    const p = join(rootB, "src/cart.ts");
+    writeFileSync(p, readFileSync(p, "utf8").replace("return `${items.length} items`;", "return `${items.length} items, total ${calcTotal(items, { taxRate: 0 })}`;"));
+    const before = coord.log.length;
+    await bash('node --test "test/**/*.test.ts"', "b3");
+    const committed = coord.log.slice(before).find((e) => e.agent === "codex-b" && e.kind === "edit");
+    expect(committed).toMatchObject({ status: "accepted", mode: "commit", files: ["src/cart.ts"] });
   });
 });

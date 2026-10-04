@@ -27,7 +27,7 @@ import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, Verdict } from "@weft/protocol";
 import { WcpError, PROTOCOL, type Transport } from "./client";
 import { readState, withLock, writeState, type Loaded, type SessionState } from "./config";
-import { EDIT_TOOLS, isGitCommit, patchPaths, proposedFiles } from "./edits";
+import { EDIT_TOOLS, isGitCommit, patchPaths, proposedFiles, shellPatch } from "./edits";
 import { renderForModel, type EditedFile, type RenderCtx } from "./render";
 import type { Sets, FileChange } from "./analysis";
 
@@ -279,6 +279,17 @@ export class CodexAdapter {
 
   private async dispatch(input: HookInput, st: SessionState): Promise<HookOutput> {
     this.refreshFloor(st);
+    // Codex applies `apply_patch` sent through the shell itself, but reports it as Bash.
+    const viaShell = input.tool_name === "Bash" && typeof input.tool_input?.command === "string" ? shellPatch(input.tool_input.command) : undefined;
+    const call: HookInput = viaShell
+      ? { ...input, tool_name: "apply_patch", tool_input: { command: viaShell.patch }, cwd: viaShell.cd ? resolve(input.cwd ?? this.root, viaShell.cd) : input.cwd }
+      : input;
+    const flushed = await this.flushPending(st, input.hook_event_name === "PostToolUse" ? input.tool_use_id : undefined);
+    const out = await this.route(call, st);
+    return flushed ? withContext(out, call.hook_event_name, flushed) : out;
+  }
+
+  private async route(input: HookInput, st: SessionState): Promise<HookOutput> {
     switch (input.hook_event_name) {
       case "SessionStart":
         return this.sessionStart(input, st);
@@ -299,6 +310,33 @@ export class CodexAdapter {
       default:
         return undefined;
     }
+  }
+
+  /**
+   * Commit edits whose PostToolUse never came. Codex fires no PostToolUse for an apply_patch
+   * sent through the shell, so a pending pre-edit whose files changed on disk (or that is
+   * older than a minute) is committed from the real filesystem at the next hook. Returns the
+   * text for the model (verdict + inbox), if any.
+   */
+  private async flushPending(st: SessionState, except?: string): Promise<string> {
+    const texts: string[] = [];
+    for (const [callId, pend] of Object.entries(st.pending)) {
+      if (callId === except) continue;
+      const changed = Object.entries(pend.before).some(([rel, before]) => {
+        const abs = join(this.root, rel);
+        return (existsSync(abs) ? this.readText(abs) : null) !== before;
+      });
+      if (!changed && this.now() - pend.at < 60_000) continue; // the tool may not have run yet
+      if (!changed) {
+        delete st.pending[callId];
+        continue;
+      }
+      this.log(`no PostToolUse for ${callId}; committing its edit from disk`);
+      const out = await this.postEdit({ hook_event_name: "PostToolUse", session_id: st.codexSession, tool_name: pend.tool, tool_use_id: callId, tool_input: {}, cwd: this.root }, st, Object.keys(pend.before));
+      const text = (out as { hookSpecificOutput?: { additionalContext?: string } } | undefined)?.hookSpecificOutput?.additionalContext;
+      if (text) texts.push(text);
+    }
+    return texts.join("\n");
   }
 
   // ------------------------------------------------------------------ hooks
@@ -409,15 +447,15 @@ export class CodexAdapter {
     };
   }
 
-  private async postEdit(input: HookInput, st: SessionState): Promise<HookOutput> {
+  private async postEdit(input: HookInput, st: SessionState, rels?: string[]): Promise<HookOutput> {
     const tool = input.tool_name!;
     const args = input.tool_input ?? {};
     const callId = input.tool_use_id ?? "";
     const pend = st.pending[callId];
     delete st.pending[callId];
     const changes: FileChange[] = [];
-    for (const p of patchPaths(args)) {
-      const t = this.target(p, input.cwd);
+    for (const p of rels ?? patchPaths(args)) {
+      const t = this.target(p, rels ? this.root : input.cwd);
       if (!t) continue;
       let before: string | null | undefined = pend?.before[t.rel];
       if (before === undefined) before = this.git(["show", `HEAD:${t.rel}`]) ?? null;
@@ -562,3 +600,16 @@ export class CodexAdapter {
 }
 
 export type { Target };
+
+const CONTEXT_EVENTS = new Set(["SessionStart", "UserPromptSubmit", "PreToolUse", "PostToolUse"]);
+
+/** Add model-visible text to a hook output (additionalContext, or a Stop block's reason). */
+export function withContext(out: HookOutput, event: string, text: string): HookOutput {
+  const o = (out ?? {}) as { decision?: string; reason?: string; hookSpecificOutput?: Record<string, unknown> };
+  if (o.decision === "block" && typeof o.reason === "string") return { ...o, reason: `${text}\n${o.reason}` };
+  if (!CONTEXT_EVENTS.has(event)) return out;
+  const spec = { ...(o.hookSpecificOutput ?? { hookEventName: event }) };
+  if (typeof spec.permissionDecisionReason === "string") spec.permissionDecisionReason = `${text}\n${spec.permissionDecisionReason}`;
+  else spec.additionalContext = typeof spec.additionalContext === "string" ? `${text}\n${spec.additionalContext}` : text;
+  return { ...o, hookSpecificOutput: spec };
+}

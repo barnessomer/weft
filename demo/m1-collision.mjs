@@ -37,6 +37,18 @@ const RUNS = Number(opt("runs", "1"));
 const OUT = resolve(REPO, opt("out", "demo/evidence/m1"));
 const FIRST = Number(opt("first", "1"));
 const TIMEOUT_MS = 15 * 60_000;
+// Codex's model backend. Default: the logged-in ChatGPT account. WEFT_M1_CODEX_PROVIDER=openrouter
+// runs the same Codex CLI (same hooks, same adapter) against OpenRouter's Responses API with
+// OPENROUTER_API_KEY from the environment (model: WEFT_M1_CODEX_MODEL, default openai/gpt-6-sol).
+const CODEX_PROVIDER = process.env.WEFT_M1_CODEX_PROVIDER ?? "chatgpt";
+const CODEX_MODEL = process.env.WEFT_M1_CODEX_MODEL ?? (CODEX_PROVIDER === "openrouter" ? "openai/gpt-6-sol" : undefined);
+const CODEX_MODEL_ARGS =
+  CODEX_PROVIDER === "openrouter"
+    ? ["-c", "model_provider=openrouter", "-c", `model=${JSON.stringify(CODEX_MODEL)}`, "-c", 'model_providers.openrouter={name="OpenRouter",base_url="https://openrouter.ai/api/v1",env_key="OPENROUTER_API_KEY",wire_api="responses"}']
+    : CODEX_MODEL
+      ? ["-c", `model=${JSON.stringify(CODEX_MODEL)}`]
+      : [];
+if (CODEX_PROVIDER === "openrouter" && !process.env.OPENROUTER_API_KEY) throw new Error("WEFT_M1_CODEX_PROVIDER=openrouter needs OPENROUTER_API_KEY");
 
 const log = (m) => console.log(`[m1 ${new Date().toISOString().slice(11, 19)}] ${m}`);
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -109,7 +121,7 @@ function claude(cwd, out, prompt, env) {
 function codex(cwd, out, prompt, env, resumeId) {
   writeFileSync(out.replace(/\.jsonl$/, ".prompt.txt"), `cwd: ${cwd}\ncodex exec ${resumeId ? `resume ${resumeId} ` : ""}…\n\n${prompt}\n`);
   // workspace-write sandbox for the model's shell commands (hooks run outside it, unsandboxed)
-  const common = ["--json", "--dangerously-bypass-hook-trust", "-c", 'sandbox_mode="workspace-write"'];
+  const common = ["--json", "--dangerously-bypass-hook-trust", "-c", 'sandbox_mode="workspace-write"', ...CODEX_MODEL_ARGS];
   const args = resumeId ? ["exec", "resume", ...common, resumeId, prompt] : ["exec", ...common, "--cd", cwd, prompt];
   return harness("codex", args, cwd, out, env);
 }
@@ -185,7 +197,9 @@ async function oneRun(n) {
   }
   mark("b_joined");
   log("A (claude): change createSession's signature — running concurrently with B");
-  const ap = claude(dirA, join(evidence, "a-expiry.jsonl"), PROMPT_A, env);
+  const envA = { ...env };
+  delete envA.OPENROUTER_API_KEY;
+  const ap = claude(dirA, join(evidence, "a-expiry.jsonl"), PROMPT_A, envA);
   mark("a_started");
 
   // 2. wait for A's accepted signature change, and for B's plan turn to end
@@ -328,6 +342,7 @@ async function oneRun(n) {
     },
     model_tokens: { a: tokensA, b: tokensB, a_cost_usd: resultA?.total_cost_usd ?? null },
     checks: { a: codes(perBranch.a), b: codes(perBranch.b), merged: codes(merged) },
+    harnesses: { a: "claude-code (claude -p)", b: `codex exec (provider ${CODEX_PROVIDER}${CODEX_MODEL ? `, model ${CODEX_MODEL}` : ""})` },
     b_thread: thread ?? null,
     work,
   };

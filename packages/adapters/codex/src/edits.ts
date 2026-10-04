@@ -187,3 +187,22 @@ export function proposedText(tool: string, input: Record<string, unknown>, befor
 export function isGitCommit(command: string): boolean {
   return /(^|[\s;&|(])git(\s+-[cC]\s+\S+)*\s+commit\b/.test(command);
 }
+
+/**
+ * An apply_patch invoked through the shell tool. Codex intercepts `apply_patch <<'EOF' … EOF`
+ * (also `applypatch`, an optional leading `cd <dir> &&`, and the argv form
+ * `apply_patch '*** Begin Patch …'`) and applies it as a file change, but its hooks see
+ * `tool_name: "Bash"`. Models without Codex catalog metadata (e.g. via OpenRouter) get no
+ * native apply_patch tool and always edit this way, and Codex fires no PostToolUse for it
+ * (verified with codex-cli 0.154 in M1). Returns the patch text and the `cd` target, if any.
+ */
+export function shellPatch(command: string): { patch: string; cd?: string } | undefined {
+  if (!/(^|[\s;&|(])(apply_patch|applypatch)\b/.test(command)) return undefined;
+  const start = command.indexOf("*** Begin Patch");
+  if (start < 0) return undefined;
+  const endMark = command.indexOf("*** End Patch", start);
+  const patch = endMark < 0 ? command.slice(start) : command.slice(start, endMark + "*** End Patch".length);
+  const cd = command.slice(0, start).match(/(?:^|[\s;&(])cd\s+(?:"([^"]+)"|'([^']+)'|([^\s;&|]+))\s*&&/);
+  const dir = cd?.[1] ?? cd?.[2] ?? cd?.[3];
+  return { patch, ...(dir ? { cd: dir } : {}) };
+}
