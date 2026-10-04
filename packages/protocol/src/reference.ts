@@ -603,6 +603,9 @@ export class ReferenceCoordinator {
     }
     // Own open errors on touched keys are resolved by an accepted event.
     if (s) for (const k of [...rec.reads, ...rec.writes.map((w) => w.key)]) s.open.delete(k);
+    // Any accepted event from a change keeps its non-predicted claims alive (§7.5).
+    if (change && rec.actor.type === "agent")
+      for (const c of this.claims) if (c.change === change.id && c.source !== "predicted") c.expires_at = Math.max(c.expires_at, now + this.claimTtl);
 
     const p = rec.payload ?? {};
     switch (rec.kind) {
