@@ -42,6 +42,8 @@ importers:
         specifier: workspace:*
         version: link:../workflows
 
+  apps/policy: {}
+
   apps/previews: {}
 
   apps/production-signal: {}
