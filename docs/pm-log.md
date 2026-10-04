@@ -23,3 +23,9 @@ Append-only. One dated entry per heartbeat that changed something.
 - Landed wt/b2 (contains P1 WCP v0.1 spec + protocol pkg, RepoCoordinator DO + gateway). Gate green on main (protocol 108, sequencer 41, gateway 44, analyzer 13). Preview gateway responds 200. Worktrees b2/p1 removed, pushed.
 - B4/B5/B6 bouncing on Codex quota wall (resets 03:03). Decision: B4 (Claude Code adapter) + B6 (Artifacts) reassigned to default/Claude to keep the M1 critical path moving; B5 stays on Codex (needs it to probe). I1 hermes-ios landing deferred until I1b (editing the same worktree) finishes.
 - Day 1: ahead of plan (sequencer done; M1 due 10-07).
+
+## 2026-10-04 01:30 — B4, B6, B16 (+land script) landed
+- Landed wt/b16-land (incl. B16 Hermes adapter), wt/b4 (Claude Code L3 adapter), wt/b6 (Artifacts forks/candidates/Change-Ids). design.md/runbook.md conflicts resolved by keeping all sections. Gate green on main (protocol 108, sequencer 42, gateway 53, artifacts 16, claude-code 10, hermes 6, analyzer 13). weft_land.py --recent 20 posted lands #97–#99; preview gateway 200. Worktrees removed, pushed.
+- Codex quota wall (resets 03:03) bouncing B5/B7/B9/B14 every dispatch. Decision: B7 (gates B8, critical path) and B9 (M2 UI) → default/Claude; B5 stays (needs Codex to probe), B14 stays (first cut candidate).
+- I1 not landed into hermes-ios main: it is stacked on pushed branch review/attribution (builds 25–31, 11 commits not on main, another session's work). Decision: pushed wt/weft-feed to origin; land after review/attribution reaches main rather than landing someone else's branch.
+- Day 1: M1 waits only on B5 (Codex adapter) after quota reset. On track.
