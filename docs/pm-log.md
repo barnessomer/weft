@@ -66,3 +66,10 @@ Append-only. One dated entry per heartbeat that changed something.
 - weft_land #541–#544. Pushed. Gateway /v1/health 200. Worktrees removed.
 - I2 done: Hérmes build 34 on John's iPhone, live against weft-gateway-preview.elier.ai. Fast-forwarded hermes-ios main to wt/weft-feed (7a0fba7) without touching the main checkout (still on review/attribution), and pushed it.
 - M2 and R3a running. Day 1: every build card has landed. Remaining: M2 → R2/R3 → R4.
+
+## 2026-10-04 11:50 — M2, R2, R3a, evidence-urls landed
+- Landed wt/r2 (contains wt/m2): M2 full §8 demo, 18 live agents (Claude Code/Codex/OpenCode × 6 tasks); m2-report: 6 coordination beats PASS in 4/4 valid runs, all 7 beats (incl. auto-revert) PASS in runs 4–5. Plus README/try-it/WCP proposal (R2). Landed wt/r3a (video pre-production) and wt/evidence-urls (t_1ca7cdc5, legacy preview-origin rewrite).
+- Gate green on main (typecheck 0, test 0). Gateway /v1/health 200.
+- Scrubbed customer workers.dev subdomain from m2 run-2/run-3 auto-revert.json (→ *.elier.ai); git grep now 0 hits. Rationale: repo goes public at submission.
+- weft_land #638–#640. Worktrees m2/r2/r3a/evidence-urls removed. Pushed.
+- Remaining: R3 video (running) → R4 submit. Day 1, ~7 days ahead of plan (M2 was due 10-11).
