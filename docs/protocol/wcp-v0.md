@@ -537,10 +537,14 @@ From `docs/research/hooks.md` (official docs) plus local probes (2026-10-03).
 | Gemini CLI | `AfterTool` | `AfterTool` context / `BeforeAgent` | `BeforeTool` deny + reason | `AfterAgent` reject completion | tool_interception | documented only (fixture-only) |
 | Cursor | `postToolUse`, `afterFileEdit` | `postToolUse` `additional_context` | `preToolUse` `permission:"deny"` | `stop` `followup_message` (bounded by `loop_limit`) | tool_interception | documented only |
 | GitHub Copilot CLI | `postToolUse` | `postToolUse` `additionalContext` | `preToolUse` `permissionDecision:"deny"` + required reason | `agentStop` `decision:"block"` (8-block guard) | tool_interception | documented only |
-| File watcher (`@weft/adapter-watcher`) | fs events + `git diff` | — | — | — | false | n/a (L0 by construction) |
+| Cursor CLI (`@weft/adapter-cursor`) | `postToolUse`, `afterFileEdit` (dedup + before-text from edit records) | `postToolUse` `additional_context` | `preToolUse` `permission:"deny"` + `agent_message` | `stop` `followup_message` (`loop_limit` 5) | tool_interception | documented only (CLI login expired; fixture tests) |
+| OpenCode (`@weft/adapter-opencode`, plugin) | `tool.execute.after` | text appended to the tool output; welcome via `experimental.chat.system.transform` | `throw` in `tool.execute.before` | `session.idle` → `client.session.prompt(reason)` (long-lived process only) | tool_interception | **L0–L3 verified** (1.18.31) |
+| File watcher (`@weft/adapter-watcher`) | `fs.watch` + snapshot diff | — | — | — | `native` (git's own pre-commit hook) | **verified** (L0 by construction) |
 
-No reviewed harness documents a native atomic commit hook; `commit_gate:"native"` is
-reserved. Asynchronous hook modes (Claude/Codex/Gemini `async: true`, Copilot
+No reviewed harness documents a native atomic commit hook. `commit_gate:"native"` means the
+gate is git's own `pre-commit` hook rather than interception of the agent's shell tool; only
+the L0 file watcher declares it, because that hook is the one gate it has (hook-based adapters
+install the same git hook but declare their tool interception). `--no-verify` bypasses it. Asynchronous hook modes (Claude/Codex/Gemini `async: true`, Copilot
 notifications) give L0 or delayed L1 only. Every L2 adapter must map the denial reason
 into the harness's model-visible field; a deny without reason is non-conforming.
 

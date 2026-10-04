@@ -1,0 +1,680 @@
+{
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "repo": "demo-b12-20261004-092350",
+  "events": [
+    {
+      "seq": 1,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T09:23:52.647Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I90d1a259ab2a8e652e2fd042833ea00e9d173507",
+      "session": "s1",
+      "base_seq": 0,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "human-w joined (file-watcher, L0)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "file-watcher",
+        "level": 0
+      }
+    },
+    {
+      "seq": 2,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T09:23:59.875Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I9a3926eaa1fa35642e1d13853804fffec76858e7",
+      "session": "s2",
+      "base_seq": 1,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "opencode-c joined (opencode, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "opencode",
+        "level": 3
+      }
+    },
+    {
+      "seq": 3,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T09:24:00.617Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I419dddc865c6046b3dc16ff49f8063048316a76a",
+      "session": "s3",
+      "base_seq": 2,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-a joined (claude-code, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 4,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T09:24:13.368Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I419dddc865c6046b3dc16ff49f8063048316a76a",
+      "session": "s3",
+      "base_seq": 3,
+      "mode": "commit",
+      "files": [
+        "src/auth/session.ts"
+      ],
+      "reads": [],
+      "writes": [
+        {
+          "key": "src/auth/session.ts#createSession",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#createSession.createdAt",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#createSession.session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#getSession",
+          "kind": "body"
+        },
+        {
+          "key": "src/auth/session.ts#getSession.session",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#Session",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#SessionOptions",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/auth/session.ts b/src/auth/session.ts\n--- a/src/auth/session.ts\n+++ b/src/auth/session.ts\n@@ -1,19 +1,32 @@\n import { randomBytes } from \"node:crypto\";\n \n-export type Session = { token: string; userId: string; createdAt: number };\n+export type SessionOptions = { ttlMs: number };\n \n+export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };\n+\n const sessions = new Map<string, Session>();\n \n /** Start a session for a user and return it (the token is the bearer credential). */\n-export function createSession(userId: string): Session {\n-  const session: Session = { token: randomBytes(24).toString(\"base64url\"), userId, createdAt: Date.now() };\n+export function createSession(userId: string, opts: SessionOptions): Session {\n+  const createdAt = Date.now();\n+  const session: Session = {\n+    token: randomBytes(24).toString(\"base64url\"),\n+    userId,\n+    createdAt,\n+    expiresAt: createdAt + opts.ttlMs,\n+  };\n   sessions.set(session.token, session);\n   return session;\n }\n \n-/** The live session for a token, or undefined. */\n+/** The live session for a token, or undefined (expired sessions are forgotten). */\n export function getSession(token: string): Session | undefined {\n-  return sessions.get(token);\n+  const session = sessions.get(token);\n+  if (session && Date.now() >= session.expiresAt) {\n+    sessions.delete(token);\n+    return undefined;\n+  }\n+  return session;\n }\n \n export function revokeSession(token: string): boolean {\n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of createSession, createSession.session +1 more, edited getSession, added createSession.createdAt, getSession.se…",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "toolu_01UUDb3FCbAj2kmmgYkgu5BR",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 5,
+      "repo": "demo-b12-20261004-092350",
+      "status": "rejected",
+      "kind": "edit",
+      "ts": "2026-10-04T09:24:14.735Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I90d1a259ab2a8e652e2fd042833ea00e9d173507",
+      "session": "s1",
+      "base_seq": 1,
+      "mode": "commit",
+      "files": [
+        "src/ops/health.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#createSession"
+      ],
+      "writes": [
+        {
+          "key": "src/ops/health.ts#sessionSmoke",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/ops/health.ts b/src/ops/health.ts\n--- /dev/null\n+++ b/src/ops/health.ts\n@@ -0,0 +1,6 @@\n+import { createSession } from \"../auth/session.ts\";\n+\n+/** Smoke check used by ops: can we mint a session? */\n+export function sessionSmoke(): boolean {\n+  return createSession(\"u_health\").token.length > 0;\n+}\n",
+      "intent": "T-4: Health check",
+      "summary": "Blocked: human-w added sessionSmoke in src/ops/health.ts — Health check",
+      "diagnostics": [
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#createSession",
+          "message": "You use src/auth/session.ts#createSession, whose signature changed in #4 by claude-a after your base #1.",
+          "suggestion": "Read the new src/auth/session.ts#createSession (event #4) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 4,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        }
+      ],
+      "tool": {
+        "name": "Write",
+        "call_id": "watch-1791105854343-1",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 6,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T09:24:17.048Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I419dddc865c6046b3dc16ff49f8063048316a76a",
+      "session": "s3",
+      "base_seq": 3,
+      "mode": "commit",
+      "files": [
+        "src/api/routes.ts"
+      ],
+      "reads": [
+        "src/api/account.ts#accountRoutes",
+        "src/api/router.ts#Route",
+        "src/api/router.ts#createRouter",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/auth/session.ts#createSession",
+        "src/auth/users.ts#authenticate",
+        "src/ui/pages.ts#loginPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/routes.ts#login",
+          "kind": "body"
+        },
+        {
+          "key": "src/api/routes.ts#login.session",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/src/api/routes.ts b/src/api/routes.ts\n--- a/src/api/routes.ts\n+++ b/src/api/routes.ts\n@@ -8,7 +8,7 @@\n export function login(email: string, password: string): { token: string } | undefined {\n   const user = authenticate(email, password);\n   if (!user) return undefined;\n-  const session = createSession(user.id);\n+  const session = createSession(user.id, { ttlMs: 60 * 60 * 1000 });\n   return { token: session.token };\n }\n \n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of login.session, edited login in src/api/routes.ts — Session expiry",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "toolu_01Tt4qnpJ6ribpJ2Ey6HdYbT",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 7,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T09:24:23.416Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I419dddc865c6046b3dc16ff49f8063048316a76a",
+      "session": "s3",
+      "base_seq": 3,
+      "mode": "commit",
+      "files": [
+        "test/session.test.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#resetSessions",
+        "src/auth/session.ts#revokeSession"
+      ],
+      "writes": [
+        {
+          "key": "test/session.test.ts#a",
+          "kind": "signature"
+        },
+        {
+          "key": "test/session.test.ts#b",
+          "kind": "signature"
+        },
+        {
+          "key": "test/session.test.ts#opts",
+          "kind": "new"
+        },
+        {
+          "key": "test/session.test.ts#s",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/test/session.test.ts b/test/session.test.ts\n--- a/test/session.test.ts\n+++ b/test/session.test.ts\n@@ -2,18 +2,31 @@\n import assert from \"node:assert/strict\";\n import { createSession, getSession, resetSessions, revokeSession } from \"../src/auth/session.ts\";\n \n+const opts = { ttlMs: 60_000 };\n+\n beforeEach(() => resetSessions());\n \n test(\"createSession issues a unique token bound to the user\", () => {\n-  const a = createSession(\"u_1\");\n-  const b = createSession(\"u_1\");\n+  const a = createSession(\"u_1\", opts);\n+  const b = createSession(\"u_1\", opts);\n   assert.equal(a.userId, \"u_1\");\n   assert.notEqual(a.token, b.token);\n+  assert.equal(a.expiresAt, a.createdAt + opts.ttlMs);\n   assert.equal(getSession(a.token)?.userId, \"u_1\");\n });\n \n test(\"revokeSession ends the session\", () => {\n-  const s = createSession(\"u_2\");\n+  const s = createSession(\"u_2\", opts);\n   assert.equal(revokeSession(s.token), true);\n   assert.equal(getSession(s.token), undefined);\n+});\n+\n+test(\"getSession forgets a session once it expires\", (t) => {\n+  t.mock.timers.enable({ apis: [\"Date\"], now: 1_000 });\n+  const s = createSession(\"u_3\", opts);\n+  t.mock.timers.tick(opts.ttlMs - 1);\n+  assert.equal(getSession(s.token)?.userId, \"u_3\");\n+  t.mock.timers.tick(1);\n+  assert.equal(getSession(s.token), undefined);\n+  assert.equal(revokeSession(s.token), false);\n });\n",
+      "intent": "T-1: Session expiry",
+      "summary": "claude-a changed signature of a, b +1 more, added opts in test/session.test.ts — Session expiry",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "toolu_01HaSS6FX5393CXKzmTP9LBs",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 8,
+      "repo": "demo-b12-20261004-092350",
+      "status": "rejected",
+      "kind": "edit",
+      "ts": "2026-10-04T09:24:29.928Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I9a3926eaa1fa35642e1d13853804fffec76858e7",
+      "session": "s2",
+      "base_seq": 2,
+      "mode": "check",
+      "files": [
+        "src/auth/refresh.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#Session",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#revokeSession"
+      ],
+      "writes": [
+        {
+          "key": "src/auth/refresh.ts#refreshSession",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/refresh.ts#refreshSession.current",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/auth/refresh.ts b/src/auth/refresh.ts\n--- /dev/null\n+++ b/src/auth/refresh.ts\n@@ -0,0 +1,9 @@\n+import { createSession, getSession, revokeSession, type Session } from \"./session.ts\";\n+\n+/** Replace a token with a fresh session for the same user, or undefined if the token is not live. */\n+export function refreshSession(token: string): Session | undefined {\n+  const current = getSession(token);\n+  if (!current) return undefined;\n+  revokeSession(token);\n+  return createSession(current.userId);\n+}\n",
+      "intent": "T-3: Session refresh",
+      "summary": "Blocked: opencode-c added refreshSession, refreshSession.current in src/auth/refresh.ts — Session refresh",
+      "diagnostics": [
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#Session",
+          "message": "You use src/auth/session.ts#Session, whose signature changed in #4 by claude-a after your base #2.",
+          "suggestion": "Read the new src/auth/session.ts#Session (event #4) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 4,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        },
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#createSession",
+          "message": "You use src/auth/session.ts#createSession, whose signature changed in #4 by claude-a after your base #2.",
+          "suggestion": "Read the new src/auth/session.ts#createSession (event #4) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 4,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        },
+        {
+          "severity": "warning",
+          "code": "stale_read",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#getSession",
+          "message": "src/auth/session.ts#getSession body changed in #4 by claude-a after your base #2; its contract is unchanged.",
+          "caused_by_seq": 4,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        }
+      ],
+      "tool": {
+        "name": "Write",
+        "call_id": "call_85426cdb877346d2a3c806f9",
+        "harness_event": "PreToolUse"
+      }
+    },
+    {
+      "seq": 9,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T09:24:31.459Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I9a3926eaa1fa35642e1d13853804fffec76858e7",
+      "session": "s2",
+      "base_seq": 8,
+      "mode": "commit",
+      "files": [
+        "test/refresh.test.ts"
+      ],
+      "reads": [
+        "src/auth/refresh.ts#refreshSession",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#resetSessions"
+      ],
+      "writes": [
+        {
+          "key": "test/refresh.test.ts#next",
+          "kind": "new"
+        },
+        {
+          "key": "test/refresh.test.ts#old",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/test/refresh.test.ts b/test/refresh.test.ts\n--- /dev/null\n+++ b/test/refresh.test.ts\n@@ -0,0 +1,27 @@\n+import { test, beforeEach } from \"node:test\";\n+import assert from \"node:assert/strict\";\n+import { createSession, getSession, resetSessions } from \"../src/auth/session.ts\";\n+import { refreshSession } from \"../src/auth/refresh.ts\";\n+\n+beforeEach(() => resetSessions());\n+\n+test(\"refreshSession issues a new session for the same user\", () => {\n+  const old = createSession(\"u_1\");\n+  const next = refreshSession(old.token);\n+  assert.ok(next);\n+  assert.equal(next.userId, \"u_1\");\n+  assert.notEqual(next.token, old.token);\n+  assert.equal(getSession(next.token)?.userId, \"u_1\");\n+});\n+\n+test(\"refreshSession revokes the old token\", () => {\n+  const old = createSession(\"u_2\");\n+  const next = refreshSession(old.token);\n+  assert.ok(next);\n+  assert.equal(getSession(old.token), undefined);\n+  assert.equal(getSession(next.token)?.token, next.token);\n+});\n+\n+test(\"refreshSession returns undefined for an unknown token\", () => {\n+  assert.equal(refreshSession(\"nope\"), undefined);\n+});\n",
+      "intent": "T-3: Session refresh",
+      "summary": "opencode-c added next, old in test/refresh.test.ts — Session refresh",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "call_dbe33c5882a04bb291b7638e",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 10,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T09:24:32.086Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I419dddc865c6046b3dc16ff49f8063048316a76a",
+      "session": "s3",
+      "base_seq": 9,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "claude-code session end: other",
+      "summary": "claude-a left — claude-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 11,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T09:24:59.232Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I9a3926eaa1fa35642e1d13853804fffec76858e7",
+      "session": "s2",
+      "base_seq": 8,
+      "mode": "commit",
+      "files": [
+        "src/auth/refresh.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#Session",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#revokeSession"
+      ],
+      "writes": [
+        {
+          "key": "src/auth/refresh.ts#refreshSession",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/refresh.ts#refreshSession.current",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/auth/refresh.ts b/src/auth/refresh.ts\n--- /dev/null\n+++ b/src/auth/refresh.ts\n@@ -0,0 +1,9 @@\n+import { createSession, getSession, revokeSession, type Session } from \"./session.ts\";\n+\n+/** Replace a token with a fresh session for the same user, or undefined if the token is not live. */\n+export function refreshSession(token: string): Session | undefined {\n+  const current = getSession(token);\n+  if (!current) return undefined;\n+  revokeSession(token);\n+  return createSession(current.userId, { ttlMs: 60 * 60 * 1000 });\n+}\n",
+      "intent": "T-3: Session refresh",
+      "summary": "opencode-c added refreshSession, refreshSession.current in src/auth/refresh.ts — Session refresh",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "call_e1fdf267d90a46da84d503c0",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 12,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T09:25:03.274Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I9a3926eaa1fa35642e1d13853804fffec76858e7",
+      "session": "s2",
+      "base_seq": 8,
+      "mode": "commit",
+      "files": [
+        "test/refresh.test.ts"
+      ],
+      "reads": [
+        "src/auth/refresh.ts#refreshSession",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#resetSessions"
+      ],
+      "writes": [
+        {
+          "key": "test/refresh.test.ts#ttl",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/test/refresh.test.ts b/test/refresh.test.ts\n--- a/test/refresh.test.ts\n+++ b/test/refresh.test.ts\n@@ -3,10 +3,12 @@\n import { createSession, getSession, resetSessions } from \"../src/auth/session.ts\";\n import { refreshSession } from \"../src/auth/refresh.ts\";\n \n+const ttl = { ttlMs: 60 * 60 * 1000 };\n+\n beforeEach(() => resetSessions());\n \n test(\"refreshSession issues a new session for the same user\", () => {\n-  const old = createSession(\"u_1\");\n+  const old = createSession(\"u_1\", ttl);\n   const next = refreshSession(old.token);\n   assert.ok(next);\n   assert.equal(next.userId, \"u_1\");\n",
+      "intent": "T-3: Session refresh",
+      "summary": "opencode-c added ttl in test/refresh.test.ts — Session refresh",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "call_6f67ac6698ac4d4fbacd07e8",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 13,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T09:25:06.995Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I9a3926eaa1fa35642e1d13853804fffec76858e7",
+      "session": "s2",
+      "base_seq": 8,
+      "mode": "commit",
+      "files": [
+        "test/refresh.test.ts"
+      ],
+      "reads": [
+        "src/auth/refresh.ts#refreshSession",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#resetSessions"
+      ],
+      "writes": [
+        {
+          "key": "test/refresh.test.ts#old",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/test/refresh.test.ts b/test/refresh.test.ts\n--- a/test/refresh.test.ts\n+++ b/test/refresh.test.ts\n@@ -17,7 +17,7 @@\n });\n \n test(\"refreshSession revokes the old token\", () => {\n-  const old = createSession(\"u_2\");\n+  const old = createSession(\"u_2\", ttl);\n   const next = refreshSession(old.token);\n   assert.ok(next);\n   assert.equal(getSession(old.token), undefined);\n",
+      "intent": "T-3: Session refresh",
+      "summary": "opencode-c changed signature of old in test/refresh.test.ts — Session refresh",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "call_0c1759b5e4f84c1284909121",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 14,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T09:26:10.165Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I90d1a259ab2a8e652e2fd042833ea00e9d173507",
+      "session": "s1",
+      "base_seq": 5,
+      "mode": "commit",
+      "files": [
+        "src/ops/health.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#createSession"
+      ],
+      "writes": [
+        {
+          "key": "src/ops/health.ts#sessionSmoke",
+          "kind": "body"
+        }
+      ],
+      "diff": "diff --git a/src/ops/health.ts b/src/ops/health.ts\n--- a/src/ops/health.ts\n+++ b/src/ops/health.ts\n@@ -2,5 +2,5 @@\n \n /** Smoke check used by ops: can we mint a session? */\n export function sessionSmoke(): boolean {\n-  return createSession(\"u_health\").token.length > 0;\n+  return createSession(\"u_health\", { ttlMs: 1000 }).token.length > 0;\n }\n",
+      "intent": "T-4: Health check",
+      "summary": "human-w edited sessionSmoke in src/ops/health.ts — Health check",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "watch-1791105969881-2",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 15,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "checkpoint",
+      "ts": "2026-10-04T09:26:18.463Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I90d1a259ab2a8e652e2fd042833ea00e9d173507",
+      "session": "s1",
+      "base_seq": 5,
+      "mode": "commit",
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "T-4: Health check",
+      "summary": "human-w pushed checkpoint 0b25730 — Health check",
+      "diagnostics": [],
+      "payload": {
+        "sha": "0b257304906ae557f28b6b5f102b8c9c67b66b4a"
+      },
+      "tool": {
+        "name": "Bash",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 16,
+      "repo": "demo-b12-20261004-092350",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T09:26:19.663Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I90d1a259ab2a8e652e2fd042833ea00e9d173507",
+      "session": "s1",
+      "base_seq": 15,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "file-watcher session end: watcher stopped",
+      "summary": "human-w left — file-watcher session end: watcher stopped",
+      "diagnostics": [],
+      "payload": {
+        "harness": "file-watcher",
+        "level": 0
+      }
+    }
+  ]
+}

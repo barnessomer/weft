@@ -1,5 +1,7 @@
 > M1 (Claude Code + Codex, one coordinator): see `m1-report.md` and `m1/`.
 > B11 (negotiation: B proposes an overload, A accepts, both land): see `b11/README.md`.
+> B12 (more harnesses: Claude Code + Codex + OpenCode + L0 file watcher on one coordinator): see
+> `../scenarios/b12.md` and `b12-*/` (`summary.json` per run).
 
 # Evidence: two real Claude Code sessions vs one Weft coordinator
 

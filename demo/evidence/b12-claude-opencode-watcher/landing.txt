@@ -1,0 +1,102 @@
+agent-a commit: auth: sessions expire (T-1)
+
+Change-Id: I419dddc865c6046b3dc16ff49f8063048316a76a
+Task-Id: T-1
+Agent-Id: claude-a
+agent-c commit: auth: refreshSession (T-3)
+
+Change-Id: I9a3926eaa1fa35642e1d13853804fffec76858e7
+Task-Id: T-3
+Agent-Id: opencode-c
+--- merges: {"a":{"ok":true},"c":{"ok":true},"w":{"ok":true}}
+*   99e5afb Merge branch 'agent-w'
+|\  
+| * 0b25730 ops: session smoke check (T-4)
+* |   ebbaeeb Merge branch 'agent-c'
+|\ \  
+| * | 4c5827f auth: refreshSession (T-3)
+| |/  
+* |   f21e91c Merge branch 'agent-a'
+|\ \  
+| |/  
+|/|   
+| * 581f7c6 auth: sessions expire (T-1)
+|/  
+* b190446 target-app: initial
+--- main after merges: tsc exit 0
+
+--- main: node --test exit 0
+✔ login with valid credentials returns a token that works for /api/me (46.124416ms)
+✔ login rejects a wrong password and missing fields (42.650917ms)
+✔ logout revokes the token (44.029875ms)
+✔ pages render and unknown routes 404 (21.137458ms)
+✔ refreshSession issues a new session for the same user (0.558042ms)
+✔ refreshSession revokes the old token (0.090584ms)
+✔ refreshSession returns undefined for an unknown token (0.060042ms)
+✔ createSession issues a unique token bound to the user (0.568583ms)
+✔ revokeSession ends the session (0.08675ms)
+✔ getSession forgets a session once it expires (0.348542ms)
+ℹ tests 10
+ℹ suites 0
+ℹ pass 10
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 215.840542
+--- main:src/auth/refresh.ts
+import { createSession, getSession, revokeSession, type Session } from "./session.ts";
+
+/** Replace a token with a fresh session for the same user, or undefined if the token is not live. */
+export function refreshSession(token: string): Session | undefined {
+  const current = getSession(token);
+  if (!current) return undefined;
+  revokeSession(token);
+  return createSession(current.userId, { ttlMs: 60 * 60 * 1000 });
+}
+
+--- main:src/api/account.ts
+import { getUser, publicUser } from "../auth/users.ts";
+import { revokeSession } from "../auth/session.ts";
+import { field, html, json, sessionOf, type Route } from "./router.ts";
+import { accountPage } from "../ui/pages.ts";
+
+export const accountRoutes: Route[] = [
+  {
+    method: "GET",
+    path: "/api/me",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? json(200, publicUser(user)) : json(401, { error: "not signed in" });
+    },
+  },
+  {
+    method: "GET",
+    path: "/account",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? html(200, accountPage(publicUser(user))) : html(401, "<p>Please sign in.</p>");
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/logout",
+    handler: (req) => {
+      const session = sessionOf(req);
+      if (!session) return json(401, { error: "not signed in" });
+      revokeSession(session.token);
+      return json(200, { ok: field(req.body, "reason") ?? true });
+    },
+  },
+];
+
+--- main:src/ops/health.ts
+import { createSession } from "../auth/session.ts";
+
+/** Smoke check used by ops: can we mint a session? */
+export function sessionSmoke(): boolean {
+  return createSession("u_health", { ttlMs: 1000 }).token.length > 0;
+}
+

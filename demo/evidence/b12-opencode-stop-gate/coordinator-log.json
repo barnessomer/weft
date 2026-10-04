@@ -1,0 +1,166 @@
+{
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "repo": "demo-b12-20261004-093805",
+  "events": [
+    {
+      "seq": 1,
+      "repo": "demo-b12-20261004-093805",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T09:38:09.260Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I2727c677a1daa257546b7086fc9a64c361df23cd",
+      "session": "s1",
+      "base_seq": 0,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "opencode-c joined (opencode, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "opencode",
+        "level": 3
+      }
+    },
+    {
+      "seq": 2,
+      "repo": "demo-b12-20261004-093805",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T09:38:09.865Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "scripted"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "claude-a/T-1",
+      "session": "s2",
+      "base_seq": 1,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-a joined (scripted, L0)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "scripted",
+        "level": 0
+      }
+    },
+    {
+      "seq": 3,
+      "repo": "demo-b12-20261004-093805",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T09:38:10.190Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "scripted"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "claude-a/T-1",
+      "session": "s2",
+      "base_seq": 2,
+      "mode": "commit",
+      "files": [
+        "src/auth/session.ts"
+      ],
+      "reads": [],
+      "writes": [
+        {
+          "key": "src/auth/session.ts#createSession",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#SessionOptions",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#Session",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/src/auth/session.ts b/src/auth/session.ts\nindex b10a19c..b366e47 100644\n--- a/src/auth/session.ts\n+++ b/src/auth/session.ts\n@@ -1,12 +1,14 @@\n import { randomBytes } from \"node:crypto\";\n \n-export type Session = { token: string; userId: string; createdAt: number };\n+export type SessionOptions = { ttlMs: number };\n+export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };\n \n const sessions = new Map<string, Session>();\n \n /** Start a session for a user and return it (the token is the bearer credential). */\n-export function createSession(userId: string): Session {\n-  const session: Session = { token: randomBytes(24).toString(\"base64url\"), userId, createdAt: Date.now() };\n+export function createSession(userId: string, opts: SessionOptions): Session {\n+  const now = Date.now();\n+  const session: Session = { token: randomBytes(24).toString(\"base64url\"), userId, createdAt: now, expiresAt: now + opts.ttlMs };\n   sessions.set(session.token, session);\n   return session;\n }\n",
+      "summary": "claude-a changed signature of createSession, Session, added SessionOptions in src/auth/session.ts",
+      "diagnostics": []
+    },
+    {
+      "seq": 4,
+      "repo": "demo-b12-20261004-093805",
+      "status": "rejected",
+      "kind": "edit",
+      "ts": "2026-10-04T09:38:31.740Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I2727c677a1daa257546b7086fc9a64c361df23cd",
+      "session": "s1",
+      "base_seq": 1,
+      "mode": "check",
+      "files": [
+        "src/auth/refresh.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#Session",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#revokeSession"
+      ],
+      "writes": [
+        {
+          "key": "src/auth/refresh.ts#refreshSession",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/refresh.ts#refreshSession.current",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/auth/refresh.ts b/src/auth/refresh.ts\n--- /dev/null\n+++ b/src/auth/refresh.ts\n@@ -0,0 +1,9 @@\n+import { createSession, getSession, revokeSession, type Session } from \"./session.ts\";\n+\n+/** Rotate a session token: revoke the old one and start a fresh one for the same user. */\n+export function refreshSession(token: string): Session | undefined {\n+  const current = getSession(token);\n+  if (!current) return undefined;\n+  revokeSession(current.token);\n+  return createSession(current.userId);\n+}\n",
+      "intent": "T-3: Session refresh",
+      "summary": "Blocked: opencode-c added refreshSession, refreshSession.current in src/auth/refresh.ts — Session refresh",
+      "diagnostics": [
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#Session",
+          "message": "You use src/auth/session.ts#Session, whose signature changed in #3 by claude-a after your base #1.",
+          "suggestion": "Read the new src/auth/session.ts#Session (event #3) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 3,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        },
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#createSession",
+          "message": "You use src/auth/session.ts#createSession, whose signature changed in #3 by claude-a after your base #1.",
+          "suggestion": "Read the new src/auth/session.ts#createSession (event #3) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 3,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        }
+      ],
+      "tool": {
+        "name": "Write",
+        "call_id": "call_01a106477ef176359b09d068",
+        "harness_event": "PreToolUse"
+      }
+    }
+  ]
+}

@@ -1,0 +1,8 @@
+2026-10-04T09:38:09.235Z hello opencode-c change I2727c677a1daa257546b7086fc9a64c361df23cd -> s1 head #1 base #1
+2026-10-04T09:38:31.884Z check src/auth/refresh.ts base #1 -> reject #4 (stale_assumption,stale_assumption)
+2026-10-04T09:38:33.962Z stop gate refused #1 (stale_assumption:src/auth/session.ts#Session,stale_assumption:src/auth/session.ts#createSession)
+2026-10-04T09:38:44.402Z stop gate refused #2 (stale_assumption:src/auth/session.ts#Session,stale_assumption:src/auth/session.ts#createSession)
+2026-10-04T09:38:48.407Z stop gate refused #3 (stale_assumption:src/auth/session.ts#Session,stale_assumption:src/auth/session.ts#createSession)
+2026-10-04T09:38:50.520Z stop gate refused #4 (stale_assumption:src/auth/session.ts#Session,stale_assumption:src/auth/session.ts#createSession)
+2026-10-04T09:38:53.745Z stop gate refused #5 (stale_assumption:src/auth/session.ts#Session,stale_assumption:src/auth/session.ts#createSession)
+2026-10-04T09:38:57.814Z stop gate: letting the agent stop after 5 refusals; open errors stay visible in the feed (stale_assumption:src/auth/session.ts#Session,stale_assumption:src/auth/session.ts#createSession)

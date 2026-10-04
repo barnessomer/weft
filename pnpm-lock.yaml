@@ -105,9 +105,37 @@ importers:
         specifier: ^0.25.4
         version: 0.25.4
 
-  packages/adapters/cursor: {}
+  packages/adapters/cursor:
+    dependencies:
+      '@weft/analyzer':
+        specifier: workspace:*
+        version: link:../../analyzer
+      '@weft/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+    devDependencies:
+      esbuild:
+        specifier: ^0.25.4
+        version: 0.25.4
 
-  packages/adapters/gemini: {}
+  packages/adapters/gemini:
+    dependencies:
+      '@weft/analyzer':
+        specifier: workspace:*
+        version: link:../../analyzer
+      '@weft/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+    devDependencies:
+      esbuild:
+        specifier: ^0.25.4
+        version: 0.25.4
 
   packages/adapters/hermes:
     dependencies:
@@ -122,7 +150,37 @@ importers:
         specifier: ^0.25.4
         version: 0.25.4
 
-  packages/adapters/watcher: {}
+  packages/adapters/opencode:
+    dependencies:
+      '@weft/analyzer':
+        specifier: workspace:*
+        version: link:../../analyzer
+      '@weft/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+    devDependencies:
+      esbuild:
+        specifier: ^0.25.4
+        version: 0.25.4
+
+  packages/adapters/watcher:
+    dependencies:
+      '@weft/analyzer':
+        specifier: workspace:*
+        version: link:../../analyzer
+      '@weft/protocol':
+        specifier: workspace:*
+        version: link:../../protocol
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+    devDependencies:
+      esbuild:
+        specifier: ^0.25.4
+        version: 0.25.4
 
   packages/analyzer:
     dependencies:

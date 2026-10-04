@@ -330,3 +330,31 @@ WCP v0.1 is specified in `docs/protocol/wcp-v0.md` (normative; implemented by `p
   the web UI shows negotiation records generically by summary (thread view is a follow-up); the
   Hermes adapter has no `negotiate` command yet; a Codex agent needs
   `sandbox_workspace_write.network_access=true` for its shell to reach the coordinator.
+
+## Update 2026-10-04 (B12, more harnesses + L0 watcher)
+- **One WCP core, thin translators.** The Claude Code adapter's core (`ClaudeAdapter`) now takes
+  an `identity {harness, adapter, capabilities}`; `claude-code/src/host.ts` holds everything
+  that is not harness-specific (install, git hooks, heartbeat, `negotiate`/`inbox`, status,
+  hooks.jsonl timing, "carry" of context a harness cannot deliver at the hook that produced it)
+  and `tools.ts` normalizes tool calls by argument shape. New adapters are translators of a
+  few hundred lines each: `packages/adapters/{cursor,opencode,gemini,watcher}`. Codex still has
+  its own copy of the core (apply_patch multi-file); folding it in is a follow-up.
+- **OpenCode (live, L3 with a caveat).** A generated plugin bridges `tool.execute.before`
+  (throw = deny), `tool.execute.after` (append to tool output), `experimental.chat.system.transform`
+  (welcome) and `session.idle` (`client.session.prompt` = stop refusal) to the Node bundle.
+  Verified live on 1.18.31 with `opencode/big-pickle`. The stop gate needs a long-lived OpenCode
+  process (`opencode serve` + `run --attach`, or the TUI): one-shot `opencode run` exits on idle.
+  OpenCode reads its project dir from `$PWD`. `apply_patch` is accounted after the fact only.
+- **Cursor CLI (documented L3, not live-verified).** `.cursor/hooks.json`: `preToolUse` deny with
+  `agent_message`, `postToolUse` `additional_context`, `stop` `followup_message` (`loop_limit` 5),
+  `afterFileEdit` as a deduplicated safety net. The live run was blocked by an expired
+  `cursor-agent` login (browser OAuth needed from the account owner). Cursor does not document
+  its edit tools' schemas, so edit detection is by argument shape.
+- **Gemini CLI (fixture-only, labelled).** `BeforeTool`/`AfterTool`/`AfterAgent`/`BeforeAgent`
+  mapping per the reference; no usable Gemini auth.
+- **L0 file watcher.** `weft-watch run|scan`: snapshot diff per changed file → `commit` edit
+  with analysis; diagnostics printed for the human; git pre-commit gate. Declares
+  `{level 0, observe async, inject false, commit_gate "native"}` (spec §8.5 now defines `native`
+  as git's own pre-commit hook).
+- Demo: `demo/b12-harnesses.mjs` (Claude Code + Codex + OpenCode + watcher on one coordinator;
+  `--sim-a`, `--give-up` for the stop-gate proof). Evidence `demo/evidence/b12*/`.

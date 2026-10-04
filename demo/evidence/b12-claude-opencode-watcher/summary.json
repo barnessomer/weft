@@ -1,0 +1,68 @@
+{
+  "repo": "demo-b12-20261004-092350",
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "pass": true,
+  "criteria": {
+    "a_finished": true,
+    "c_denied_at_edit_time_by_a": true,
+    "c_changed_approach": true,
+    "c_finished": true,
+    "w_l0_reported_and_commit_gated": true,
+    "merged_cleanly": true,
+    "tests_green": true
+  },
+  "a_signature_seq": 4,
+  "per_agent": {
+    "c": {
+      "rejected_seq": 8,
+      "deny_hook": true,
+      "accepted_after": [
+        9,
+        11,
+        12,
+        13
+      ]
+    },
+    "w": {
+      "reported_stale": true,
+      "reported_fix_accepted": true,
+      "refused_first": true,
+      "refusal": "weft: commit refused — 1 open error(s):\n[weft error] stale_assumption src/auth/session.ts:8:17: You use src/auth/session.ts#createSession, whose signature changed in #4 by claude-a after your base #1. (caused by claude-a · task T-1 · event #4). Suggestion: Read the new src/auth/session.ts#createSession (event #4) and update this call site, or negotiate with claude-a.\n  ↳ event #4 by claude-a changed src/auth/session.ts (their change is not in your checkout yet):\n    @@ -1,19 +1,32 @@\n     import { randomBytes } from \"node:crypto\";\n     \n    -export type Session = { token: string; userId: strin",
+      "committed_after_fix": true
+    }
+  },
+  "harnesses": {
+    "a": "claude-code (claude -p)",
+    "c": "opencode run (opencode/big-pickle, + --session)",
+    "w": "weft-watch run (L0 file watcher)"
+  },
+  "declared_capabilities": {
+    "human-w": {
+      "harness": "file-watcher",
+      "level": 0
+    },
+    "opencode-c": {
+      "harness": "opencode",
+      "level": 3
+    },
+    "claude-a": {
+      "harness": "claude-code",
+      "level": 3
+    }
+  },
+  "timeline_ms": {
+    "planners_joined": 7966,
+    "a_started": 7968,
+    "a_signature_accepted": 22097,
+    "plans_done": 29289,
+    "impl_started": 29289,
+    "a_done": 40448,
+    "impl_done": 136603
+  },
+  "durations_ms": {
+    "a": 32480,
+    "c1": 22334,
+    "c2": 79269
+  },
+  "work": "/private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-092350"
+}

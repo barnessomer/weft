@@ -40,7 +40,7 @@ export const CAPABILITIES: Capabilities = {
   refuse_stop: true,
   commit_gate: "tool_interception",
 };
-const SKIP_PARTS = new Set([".git", ".weft", ".claude", "node_modules", ".wrangler", "dist", ".turbo"]);
+const SKIP_PARTS = new Set([".git", ".weft", ".claude", ".cursor", ".opencode", ".gemini", "node_modules", ".wrangler", "dist", ".turbo"]);
 const DRAIN_MIN_INTERVAL_MS = 2000;
 const MAX_FILE_BYTES = 1 << 20;
 
@@ -73,6 +73,12 @@ export type AdapterDeps = {
   /** Shell command the model runs for `negotiate` / `inbox` (e.g. `<checkout>/.weft/bin/weft`). */
   cli?: string;
   sleep?: (ms: number) => Promise<void>;
+  /**
+   * Who is speaking WCP. Defaults to Claude Code; harness translators that reuse this
+   * core (Cursor CLI, OpenCode, Gemini CLI) pass their own identity and the capabilities
+   * they actually achieve on that harness (spec §8.1: declare what you deliver).
+   */
+  identity?: { harness: string; adapter: string; capabilities: Capabilities };
 };
 
 export type CliResult = { text: string; code: number };
@@ -168,13 +174,13 @@ export class ClaudeAdapter {
     const t = this.deps.transport;
     const agent = {
       id: config.agent,
-      harness: "claude-code",
-      adapter: `@weft/adapter-claude-code@${ADAPTER_VERSION}`,
+      harness: this.deps.identity?.harness ?? "claude-code",
+      adapter: this.deps.identity?.adapter ?? `@weft/adapter-claude-code@${ADAPTER_VERSION}`,
       ...(this.deps.harnessVersion ? { harness_version: this.deps.harnessVersion } : {}),
       ...(this.deps.model ? { model: this.deps.model } : {}),
     };
     const task = { id: config.task.id, ...(config.task.title ? { title: config.task.title } : {}), ...(config.task.priority !== undefined ? { priority: config.task.priority } : {}) };
-    const welcome = await t.hello({ type: "hello", protocol: PROTOCOL, agent, capabilities: CAPABILITIES, task, change: config.change });
+    const welcome = await t.hello({ type: "hello", protocol: PROTOCOL, agent, capabilities: this.deps.identity?.capabilities ?? CAPABILITIES, task, change: config.change });
     // A new session cannot claim more than it was delivered; an older base (what this
     // Claude conversation actually saw) is kept so stale knowledge stays visible to R1/R2.
     st.base = st.wcpSession === undefined && st.base === 0 ? welcome.delivered_through : Math.min(st.base || welcome.delivered_through, welcome.delivered_through);
@@ -474,7 +480,7 @@ export class ClaudeAdapter {
     st.stopRefusals = { fingerprint, count };
     const max = this.loaded.config.maxStopRefusals ?? 5;
     if (count > max) {
-      this.log(`stop gate: letting Claude stop after ${max} refusals; open errors stay visible in the feed (${fingerprint})`);
+      this.log(`stop gate: letting the agent stop after ${max} refusals; open errors stay visible in the feed (${fingerprint})`);
       return undefined;
     }
     const errors = result.open_errors.length ? await renderForModel(result.open_errors, [], this.ctx()) : "";
@@ -511,7 +517,7 @@ export class ClaudeAdapter {
       this.log(`session end gate check failed: ${String(err)}`);
     }
     try {
-      await this.deps.transport.bye(st.wcpSession, `claude-code session end${input.reason ? `: ${input.reason}` : ""}`);
+      await this.deps.transport.bye(st.wcpSession, `${this.deps.identity?.harness ?? "claude-code"} session end${input.reason ? `: ${input.reason}` : ""}`);
     } catch (err) {
       this.log(`bye failed: ${String(err)}`);
     }
