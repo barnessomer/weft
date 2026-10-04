@@ -4,6 +4,7 @@
 // Artifacts fake, an in-process coordinator and weft-job.mjs run as a child process.
 
 import type { EventDraft, EventRecord } from "@weft/protocol";
+import type { EvidenceCapabilities } from "./evidence";
 
 // ------------------------------------------------------------------ durable steps
 
@@ -161,6 +162,8 @@ export interface Deps {
   jobPoll?: { interval: Duration; max: number };
   /** Landing queue: how long to wait between turn checks and how many checks (default 10 s × 360). */
   queuePoll?: { interval: Duration; max: number };
+  /** B10 preview, Browser Rendering, storage and AI Gateway adapters. */
+  evidence?: EvidenceCapabilities;
 }
 
 export type ChangeRow = {

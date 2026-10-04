@@ -10,6 +10,7 @@
 //                    it (waitForEvent) -> LandChange for the winner
 
 import { bounceText, landOpId, needsApproval, rank, revertOpId, runJob, short, type Ranked } from "./common";
+import { collectVisualEvidence } from "./evidence";
 import { revisionStatus, Store } from "./store";
 import type { BestOfNParams, ChangeRow, Deps, JobRequest, JobResult, LandChangeParams, ProcessRevisionParams, RepoConfig, RevertOperationParams, StepLike } from "./types";
 
@@ -18,6 +19,7 @@ type Ctx = {
   trunk: { name: string; remote: string; branch: string };
   cfg: RepoConfig;
   title: string | null;
+  risk: "low" | "medium" | "high";
 };
 
 async function loadCtx(store: Store, repo: string, changeId: string): Promise<Ctx | { skip: string }> {
@@ -26,7 +28,7 @@ async function loadCtx(store: Store, repo: string, changeId: string): Promise<Ct
   const trunk = await store.trunk(repo);
   if (!trunk) return { skip: `repo ${repo} has no Artifacts trunk` };
   const task = await store.task(repo, change.task);
-  return { change, trunk: { name: trunk.trunk, remote: trunk.remote, branch: trunk.default_branch }, cfg: trunk.cfg, title: task?.title ?? null };
+  return { change, trunk: { name: trunk.trunk, remote: trunk.remote, branch: trunk.default_branch }, cfg: trunk.cfg, title: task?.title ?? null, risk: task?.risk ?? "medium" };
 }
 
 function jobFor(ctx: Ctx, job: "rebase" | "land", sha: string, extra: Record<string, unknown>, access: { trunk: "read" | "write"; fork: "read" | "write" }): JobRequest {
@@ -122,6 +124,12 @@ export async function processRevision(p: ProcessRevisionParams, step: StepLike, 
     }
     return null;
   });
+
+  if (deps.evidence && (r.status === "up_to_date" || r.status === "clean" || r.status === "resolved") && r.tests?.status !== "fail") {
+    await step.do("collect visual evidence", () =>
+      collectVisualEvidence(store, deps.evidence, { repo: p.repo, change: p.change, sha: p.sha, result: r, intent: ctx.title, risk: ctx.risk }),
+    );
+  }
 
   let bounced: number | null = null;
   if (r.status === "conflict")
