@@ -69,19 +69,45 @@ pnpm --filter @weft/gateway exec wrangler d1 migrations apply weft-preview --rem
 pnpm --filter @weft/production-signal deploy:preview
 ```
 
-Attach the deployed `weft-production-signal-preview` service as a Tail Consumer of the demo
-target's preview Worker in that target's Wrangler configuration (the Tail Consumer declaration
-belongs to the target, not this consumer):
+Demo target (live since 2026-10-04): Worker `weft-demo`
+(https://weft-demo.redacted-subdomain.workers.dev) is connected to **Workers Builds** from the
+Artifacts trunk `weft-preview/weft-demo` (branch `main`, deploy `npx wrangler deploy`, Preview
+builds on). Every trunk push deploys it in ~5–40 s. The connection was made in the dashboard
+(*Workers & Pages → Create application → Continue with Artifacts*): the Workers Builds API needs
+"Workers CI" permissions that the wrangler OAuth token does not carry (`403 code 10000`). If the
+Worker is ever deleted, repeat that once; nothing else is manual.
 
-```toml
-[[tail_consumers]]
-service = "weft-production-signal-preview"
+The Tail Consumer is declared by the target, so it lives in the trunk's `wrangler.jsonc`:
+
+```jsonc
+"tail_consumers": [{ "service": "weft-production-signal-preview" }]
 ```
 
-For a controlled proof, land a throwaway demo change whose route throws, invoke it at least
-`WEFT_SPIKE_THRESHOLD` times inside `WEFT_SPIKE_WINDOW_SECONDS`, and verify one
-`prod-revert-<land-op-id>` workflow plus the reopened task/evidence. Remove the planted bug and
-the Tail Consumer after the proof. Do not run this against production without explicit approval.
+`node apps/production-signal/scripts/live.mjs seed` (re)writes `src/worker.ts` (quote API) and
+`wrangler.jsonc` on trunk; other cards' seeds (B8 catalog, B10 storefront) leave both files alone.
+
+Proof (planted bug → auto-revert, ~2.5 min, no human step after the land):
+
+```sh
+node apps/production-signal/scripts/live.mjs prove   # -> demo/evidence/b13-auto-revert-live/run.json
+```
+
+It lands a change whose `/quote` handler throws, waits for Workers Builds to deploy it, sends 8
+requests, and checks `prod-revert-<land op>` (D1 `production_reverts` latch), the revert commit and
+redeploy, the reopened task and the `production_tail_error` evidence. The bug never outlives the
+run: the revert redeploys the healthy trunk.
+
+Detector knobs (`wrangler.toml` vars): `WEFT_SPIKE_THRESHOLD` (5 exceptions) and
+`WEFT_SPIKE_WINDOW_SECONDS` (600; covers Workers Builds latency after the land). Only exceptions
+count (5xx responses without an exception are ignored). Inspect:
+
+```sh
+wrangler d1 execute weft-preview --remote --env preview --command "SELECT * FROM production_reverts"
+# Analytics Engine (SQL API): SELECT blob1 AS script, count() FROM weft_prod_preview WHERE index1 = 'weft-demo' GROUP BY blob1
+```
+
+Production (`weft-production-signal`, queue `weft-prod-events`, dataset `weft_prod`, D1 `weft`) is
+configured but not deployed; a production target would name `weft-production-signal` instead.
 
 ## Gateway + sequencer (B2)
 

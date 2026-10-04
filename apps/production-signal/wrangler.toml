@@ -3,6 +3,8 @@ main = "src/index.ts"
 compatibility_date = "2025-09-06"
 workers_dev = true
 
+# Tail Worker for the repo's production Worker (the target names this service in its own
+# `tail_consumers`; the preview demo target is `weft-demo`, see docs/runbook.md B13).
 # Tail events are written to `weft_prod` and fanned out through this queue. Create the
 # queue once (`wrangler queues create weft-prod-events`) before the first deployment.
 [[queues.producers]]

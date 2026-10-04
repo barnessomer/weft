@@ -56,7 +56,9 @@ async function api(method, path, token, body, expect) {
 }
 async function wf(kind, id) {
   const r = await fetch(`${WF}/v1/workflows/${kind}/${id}`, { headers: { authorization: `Bearer ${WFTOK}` } });
-  return r.status === 404 ? { status: "absent" } : r.json();
+  // The operator API answers 400 `instance.not_found` for an id nobody has started yet.
+  if (r.status === 404 || r.status === 400) return { status: "absent", http: r.status };
+  return r.json();
 }
 async function waitWf(kind, id, until = ["complete", "errored", "terminated"], maxMs = 900_000) {
   const t = Date.now();
@@ -91,6 +93,17 @@ function write(dir, files) {
   }
 }
 const read = (dir, f) => readFileSync(join(dir, f), "utf8");
+const D1_PREVIEW = "7bd18baa-103a-4712-8dcd-5bbac18000b1";
+async function d1(sql, params = []) {
+  const r = await cf("POST", `/d1/database/${D1_PREVIEW}/query`, { sql, params });
+  return r[0]?.results ?? [];
+}
+async function aeSql(sql) {
+  const tok = /oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(join(homedir(), "Library/Preferences/.wrangler/config/default.toml"), "utf8"))[1];
+  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/analytics_engine/sql`, { method: "POST", headers: { authorization: `Bearer ${tok}` }, body: sql });
+  const t = await r.text();
+  try { return JSON.parse(t).data; } catch { return { status: r.status, body: t.slice(0, 300) }; }
+}
 async function demo(path) {
   const t = Date.now();
   try {
@@ -226,8 +239,9 @@ async function prove() {
     const landed = await waitWf("land", land.workflow);
     if (landed.output?.status !== "landed") throw new Error(`land: ${JSON.stringify(landed.output ?? landed.error)}`);
     const landedAt = Date.now();
+    const landRow = (await d1(`SELECT op_id, kind, status, created_at FROM landings WHERE op_id = ?`, [landed.output.op_id]))[0];
     const opId = landed.output.op_id;
-    step("landed (LandChange)", { workflow: land.workflow, output: landed.output });
+    step("landed (LandChange)", { workflow: land.workflow, output: landed.output, d1_landing: landRow });
 
     // 4. Workers Builds deploys the bug; production traffic hits it
     const broken = await waitDemo("/quote?sku=pear&qty=2", (x) => x.status >= 500, "bug deploy");
@@ -246,7 +260,8 @@ async function prove() {
       if (Date.now() - tr > 300_000) throw new Error(`no ${revertId} after 300 s`);
       await sleep(3000);
     }
-    step("detector started RevertOperation", { workflow: revertId, after_last_request_s: (Date.now() - tr) / 1000, status: started.status });
+    const latch = await d1(`SELECT land_op_id, triggered_at, error_count, workflow_id FROM production_reverts WHERE land_op_id = ?`, [opId]);
+    step("detector started RevertOperation", { workflow: revertId, status: started.status, d1_latch: latch, land_row_to_trigger_s: latch[0] && landRow ? (latch[0].triggered_at - landRow.created_at) / 1000 : null });
     const rv = await waitWf("revert", revertId);
     step("reverted (RevertOperation)", { status: rv.status, output: rv.output, error: rv.error ?? null });
     if (rv.output?.status !== "reverted") throw new Error("revert did not complete");
@@ -262,7 +277,9 @@ async function prove() {
     const tasks = (await api("GET", `/v1/repos/${REPO}/tasks`, SYS, undefined, 200)).tasks.filter((x) => (x.task ?? x.id) === task).map((x) => ({ id: x.task ?? x.id, status: x.status, candidates: x.candidates.map((y) => [y.agent, y.status]) }));
     const ops = (await api("GET", `/v1/repos/${REPO}/system/ops`, SYS, undefined, 200)).ops.filter((o) => [opId, rv.output.op_id].includes(o.op_id));
     const events = (await api("GET", `/v1/repos/${REPO}/events?kind=land,revert,message&after=0&limit=500`, SYS, undefined, 200)).events.filter((e) => e.change === c.change).map((e) => ({ seq: e.seq, kind: e.kind, actor: e.actor, summary: e.summary }));
-    step("final", { change_status: ch.change?.status ?? ch.status, task: tasks, ops, events, evidence: prodEv, trunk_log: git(["log", "--format=%h %an %s", "-3"], { cwd: fin.dir }).split("\n"), worker_ts_matches_seed: read(fin.dir, "src/worker.ts") === WORKER });
+    await sleep(20_000); // Analytics Engine ingestion lag
+    const ae = await aeSql(`SELECT blob1 AS script, count() AS errors, min(double1) AS first_ms, max(double1) AS last_ms FROM weft_prod_preview WHERE index1 = '${REPO}' AND double1 >= ${landedAt - 120_000} GROUP BY blob1`);
+    step("final", { analytics_engine_weft_prod_preview: ae, change_status: ch.change?.status ?? ch.status, task: tasks, ops, events, evidence: prodEv, trunk_log: git(["log", "--format=%h %an %s", "-3"], { cwd: fin.dir }).split("\n"), worker_ts_matches_seed: read(fin.dir, "src/worker.ts") === WORKER });
   } finally {
     if (sub) await cf("DELETE", `/event_subscriptions/subscriptions/${sub.id}`).catch(() => undefined);
   }
