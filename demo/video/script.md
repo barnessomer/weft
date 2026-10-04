@@ -1,4 +1,4 @@
-# Weft — demo video script (R3a pre-production)
+# Weft — demo video script (final cut, R3)
 
 Target length 7:30 (hard limits 5–10 min). Judging asks three things: what we built,
 what it enables agents and developers to do, how it works. Every section below answers
@@ -53,7 +53,7 @@ Facts: `demo/evidence/m1-report.md` ("Without Weft … Git merged both branches 
 Weft is a coordination layer for coding agents, built on Cloudflare. Every tool call that edits code becomes an event in one strictly ordered log per repository. A sequencer, one Durable Object per repo, checks each edit against everything that landed since the agent last looked, down to the symbol. Nothing is locked; agents keep working, and Weft validates instead. The verdict goes straight back into the agent's run as a diagnostic: the multi-agent version of your editor's red squiggle. The wire format is an open protocol, the Weft Coordination Protocol.
 ```
 
-Shots: S02a (architecture diagram, animated build: agent → adapter → gateway → RepoCoordinator DO → diagnostics back), S02b (Live view: a record with reads/writes `sig`/`body` chips).
+Shots: S02a (animated architecture diagram, `rig/render-diagram.mjs`: agents → adapters → gateway → sequencer DO → ordered log → verdict back into the agent), S02b from "The wire format" (Live view: a record with reads/writes `sig`/`body` chips).
 Facts: `docs/design.md` §1, §4; `docs/protocol/wcp-v0.md`.
 
 ## 03 · The squiggle  (1:45–2:50) [enables · how]
@@ -70,11 +70,11 @@ Facts: `demo/evidence/m1/run-1/` (`coordinator-log.json`, `b-hooks.jsonl`, `land
 ## 04 · Negotiation  (2:50–3:35) [enables · how]
 
 ```narration
-Being stopped is not the only option. The losing agent can retreat, wait, negotiate, or escalate, and each one is a protocol action. Here, the second agent proposes a deal: keep the old one-argument form as an overload. The proposal is injected into the first agent's next tool call. It accepts, writes real TypeScript overloads, and Weft won't let it finish until it has. Both changes land. Five out of five runs.
+Being stopped is not the only option. The losing agent can retreat, wait, negotiate, or escalate, and each one is a protocol action. Here, the second agent proposes a deal: keep the old one-argument form as an overload. The proposal is injected into the first agent's next tool call. It accepts, writes real TypeScript overloads, and Weft won't let it finish until it has. Both changes land. Six runs out of six, the last one live on Cloudflare.
 ```
 
-Shots: S04a (Live view filtered to negotiation: `negotiate.propose` #11 → `accept` #14 → edit #13), S04b (terminal: run-5 transcript excerpt — A sees `[weft negotiation] … proposes to you: overload on createSession`), S04c (code: the two overload signatures).
-Facts: `demo/evidence/b11/README.md` (5/5 valid runs; run 5 live injection at PreToolUse), `demo/evidence/b11/run-5/transcript.md`.
+Shots: S04a (Live view of `demo-b11-20261004-144005-r6` filtered to negotiation: rejected #8 → `negotiate.propose` #10 → A's overload edit #13 → `accept` #20), S04b (terminal: preview run-6 transcript excerpt — A sees `[weft negotiation] #10 … proposes to you: overload on createSession`), S04c (code: the two overload signatures).
+Facts: `demo/evidence/b11/README.md` (5/5 valid local runs) + `demo/evidence/b11-preview/README.md` (run 6 on the deployed preview gateway, PASS, live injection at PreToolUse:Edit) = 6/6.
 
 ## 05 · Candidates and evidence  (3:35–4:30) [enables · how]
 
@@ -98,11 +98,11 @@ Facts: `demo/evidence/b13-auto-revert-live/README.md` (land → 500 in 5.8 s; de
 ## 07 · Many harnesses, one protocol  (5:15–5:50) [what · how]
 
 ```narration
-Weft does not care which agent you use. Each harness gets a thin adapter over its own hooks, and they all speak the same protocol. Claude Code, Codex and OpenCode run live against one coordinator, and a plain file watcher covers any tool with no hooks at all. Hermes, the agent that built this project, has its own adapter too. Adapters declare what they can do: observe, inject context, block an edit, or refuse to finish while an error is open.
+Weft does not care which agent you use. Each harness gets a thin adapter over its own hooks, and they all speak the same protocol. In our full end-to-end run, eighteen live agents, six each of Claude Code, Codex and OpenCode, worked six tasks against one coordinator. A plain file watcher covers any tool with no hooks at all, and Hermes, the agent that built this project, has its own adapter too. Adapters declare what they can do: observe, inject context, block an edit, or refuse to finish while an error is open.
 ```
 
-Shots: S07a (split-screen terminals: three agents' transcripts from B12, each showing a weft line), S07b (Live view: Agents panel with harness + level badges), S07c (diagram: L0–L3 ladder).
-Facts: `demo/evidence/b12-*/summary.json` (Claude Code + Codex + OpenCode + watcher on one coordinator), design.md B12 update. Cursor adapter is documented-not-live and Gemini is fixture-only: do NOT name them as live. [R3: re-check against M2 evidence; if M2 runs four live harnesses, say "four".]
+Shots: S07b (Live view of `weft-demo` filtered to M2 run 5 (`-r5`), replayed 64×: Claude Code, Codex and OpenCode agents' edits, warnings and evidence checkpoints in one log), S07c (card: L0–L3 ladder).
+Facts: `demo/evidence/m2-report.md` (18 live agents = 6 tasks × Claude Code + Codex + OpenCode on one coordinator, runs 2–5), `demo/evidence/b12-*/summary.json` (file watcher live on one coordinator with the three), `adapters/hermes` (B16). Cursor adapter is documented-not-live and Gemini is fixture-only: do NOT name them as live.
 
 ## 08 · The editor disappears  (5:50–6:25) [enables]
 
@@ -110,18 +110,18 @@ Facts: `demo/evidence/b12-*/summary.json` (Claude Code + Codex + OpenCode + watc
 When agents write the code, nobody is watching an editor. So Weft's human surface is a feed. This is Hermes, on a phone: every intent, edit, squiggle, negotiation, landing and revert, live, across repos. Tap a squiggle to see what caused it. Approve a candidate, undo a landing, pause an agent, or send it a message, from wherever you are. The same feed runs in a browser.
 ```
 
-Shots: S08a (iOS simulator: Changes feed, live), S08b (iOS: event detail of the squiggle with its cause), S08c (R3 only: approve sheet on the R3 demo repo).
+Shots: S08a (iOS simulator: Changes feed across weft-demo, B11 run 6 and M1 run 1 — edits, accepts, landings; observe-only token scoped to those repos), S08b (iOS: event detail of the squiggle with its cause).
 Facts: `~/code/hermes-ios/.worktrees/weft-feed/docs/weft.md` (build 33 verified live against the preview gateway).
 Pronunciation note: the app is "Hérmes"; narration spells "Hermes" so TTS says it naturally.
 
 ## 09 · Built under Weft  (6:25–7:00) [enables]
 
 ```narration
-Weft was built by agents, under Weft. Since the first night of the build, every kanban worker on this project ran the Weft adapter. In ten hours, its own log recorded 571 events: 420 edits from three agent profiles across 22 tasks, 66 checkpoints and 18 landings, with 59 warnings that told one agent to wait for another. The first time two workers reached for the same function, the second was told to wait, waited, and finished cleanly. This is that log.
+Weft was built by agents, under Weft. Since the first night of the build, every kanban worker on this project ran the Weft adapter. In eleven hours, its own log recorded 627 events: 460 edits from three agent profiles across 25 tasks, 73 checkpoints and 18 landings, with 59 warnings that told one agent to wait for another. The first time two workers reached for the same function, the second was told to wait, waited, and finished cleanly. This is that log.
 ```
 
-Shots: S09a (Live view of repo `weft`, squiggles only), S09c (stat card from `dogfood-stats.json`), S09b (iOS feed, repo `weft`, only conflicts).
-Facts: `node demo/video/rig/dogfood-stats.mjs --write demo/video/dogfood-stats.json` (as of 2026-10-04T13:04:05.430Z: 571 records, 420 edits, 66 checkpoints, 18 lands, 22 tasks, 3 agents, 59 `claim_wait`, 0 rejected); the sentence above is its `--sentence` output, `demo/beats/built-under-weft.md`. **Refresh at R3** — the numbers will grow; keep the sentence shape.
+Shots: S09a (Live view of repo `weft`, squiggles only), S09c (stat card from `dogfood-stats.json`), S09b (iOS: event #6 of repo `weft`, the first collision — `claim_wait` on builtUnderWeft, caused by #5).
+Facts: `node demo/video/rig/dogfood-stats.mjs --write demo/video/dogfood-stats.json` (refreshed at R3, see `dogfood-stats.json` `as_of`: 627 records, 460 edits, 73 checkpoints, 18 lands, 25 tasks, 3 agents, 59 `claim_wait`); the sentence above is its `--sentence` output, `demo/beats/built-under-weft.md`.
 
 ## 10 · An open standard  (7:00–7:25) [what]
 
@@ -138,7 +138,7 @@ Facts: https://aaif.io/blog/from-skills-and-tools-to-portable-agent-plugins ("ag
 Everything runs on Cloudflare, and every product carries weight. Artifacts holds every repo, fork and preview. Durable Objects are the sequencers. Workflows run rebase, landing, revert and best-of-N. Containers run agents and git with no secrets inside. Queues carry pushes and production errors, Tail Workers watch production, Browser Rendering takes the screenshots, Workers AI and AI Gateway run the reviewer, D1 and R2 hold the evidence. Weft. Coordination at edit time.
 ```
 
-Shots: S11a (architecture diagram, products highlighted as named), S11b (end card: repo URL github.com/celador/weft, elier.ai, "Weft Coordination Protocol — MIT").
+Shots: S11a (animated architecture diagram, `rig/render-diagram.mjs`: each product lights up as it is named), S11b (end card: repo URL github.com/celador/weft, elier.ai, "Weft Coordination Protocol — MIT").
 Facts: design.md §7 + B6/B7/B8/B10/B13 updates.
 
 ---

@@ -5,8 +5,8 @@
     {
       "id": "S03b",
       "note": "What Codex saw: the PreToolUse deny for its apply_patch, with Claude's diff quoted.",
-      "lineMs": 70,
-      "hold": 4000,
+      "lineMs": 160,
+      "hold": 12000,
       "blocks": [
         {
           "banner": "codex-b (Codex CLI) · tool result from the Weft pre-edit hook · M1 run 1"
@@ -63,8 +63,8 @@
     {
       "id": "S03d",
       "note": "Landing: B alone fails tsc (coded against A's in-flight signature); main after both merges is green.",
-      "lineMs": 110,
-      "hold": 4000,
+      "lineMs": 260,
+      "hold": 13900,
       "blocks": [
         {
           "banner": "M1 run 1 · landing.txt (merge of both agents' branches)"
@@ -83,19 +83,19 @@
     },
     {
       "id": "S04b",
-      "note": "Negotiation: the proposal as injected into claude-a's next tool call (B11 run 5).",
+      "note": "Negotiation: the proposal as injected into claude-a's next tool call (B11 run 6, deployed preview gateway).",
       "lineMs": 90,
-      "hold": 4500,
+      "hold": 5600,
       "blocks": [
         {
-          "banner": "claude-a (Claude Code) · injected at its next PreToolUse:Edit · B11 run 5"
+          "banner": "claude-a (Claude Code) · injected at its next PreToolUse:Edit · B11 run 6 (preview gateway)"
         },
         {
           "pause": 500
         },
         {
-          "file": "demo/evidence/b11/run-5/transcript.md",
-          "from": "^\\[weft negotiation\\] #11",
+          "file": "demo/evidence/b11-preview/run-6/transcript.md",
+          "from": "^\\[weft negotiation\\] #10",
           "to": "Answer from the shell"
         }
       ],
@@ -105,8 +105,8 @@
     {
       "id": "S06c",
       "note": "B13 timeline from run.json (the live run's own samples).",
-      "lineMs": 450,
-      "hold": 4000,
+      "lineMs": 800,
+      "hold": 7500,
       "blocks": [
         {
           "banner": "B13 live run · planted bug → production errors → auto-revert (run.json)"
@@ -126,7 +126,9 @@
       "id": "S10c",
       "note": "Live command: the WCP conformance + protocol test suite.",
       "exec": "pnpm --filter @weft/protocol test 2>&1 | tail -n 14",
-      "hold": 4000
+      "hold": 11000,
+      "cwd": "main-checkout",
+      "fontSize": 32
     }
   ]
 }
