@@ -179,3 +179,9 @@ WCP v0.1 is specified in `docs/protocol/wcp-v0.md` (normative; implemented by `p
 - In-flight overlaps are arbitrated through claims (every accepted edit is a soft claim); §4 rule 1 errors only on committed (landed/reverted) writers. §4 rule 2 stays literal (signature change ⇒ error).
 - Seniority = task priority, then first-accepted-event seq; wound-wait default, wait-die per repo.
 - Added kinds `message`, `control`, `join`/`leave`, `negotiate.counter`; observer + human API per §9 of the spec.
+
+## Update 2026-10-03 (B2, sequencer)
+- `RepoCoordinator` (one DO per repo, SQLite) runs `SqlCoordinator`, a table-backed port of the protocol reference; differential tests require identical output to the reference on every conformance step.
+- Every state change goes through an **input journal** (`journal` table: op, args, clock). Replaying it into an empty DO reproduces the log and all state byte-for-byte; one operation runs at one frozen instant (found by the replay test: the local runtime clock advanced mid-call).
+- Tokens/repos live in a `Registry` DO, issued via `/v1/admin` (operator secret). Observer views redact secrets in `diff`/`intent` (spec §13); the log keeps originals.
+- Not yet: `/v1/feed/stream` (spec SHOULD), rate limiting of `check` (SHOULD), Access-gated human tokens (SHOULD). Preview Worker is `weft-gateway-preview` (runbook's preview env); the bare `weft-gateway` name is left for the PM's production deploy.
