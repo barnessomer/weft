@@ -1,0 +1,222 @@
+{
+  "total": 442.88,
+  "shots": [
+    {
+      "section": "00",
+      "shot": "S00a",
+      "at": 0,
+      "seconds": 12.55,
+      "clip_seconds": 6.2
+    },
+    {
+      "section": "00",
+      "shot": "S00b",
+      "at": 12.55,
+      "seconds": 1.68,
+      "clip_seconds": 4
+    },
+    {
+      "section": "01",
+      "shot": "S01a",
+      "at": 14.23,
+      "seconds": 14.71,
+      "clip_seconds": 6
+    },
+    {
+      "section": "01",
+      "shot": "S01c",
+      "at": 28.94,
+      "seconds": 24.13,
+      "clip_seconds": 12.2
+    },
+    {
+      "section": "02",
+      "shot": "S02a",
+      "at": 53.07,
+      "seconds": 26.25,
+      "clip_seconds": 7
+    },
+    {
+      "section": "02",
+      "shot": "S02b",
+      "at": 79.32,
+      "seconds": 12.94,
+      "clip_seconds": 7.93
+    },
+    {
+      "section": "03",
+      "shot": "S03a",
+      "at": 92.26,
+      "seconds": 28.49,
+      "clip_seconds": 18.13
+    },
+    {
+      "section": "03",
+      "shot": "S03b",
+      "at": 120.75,
+      "seconds": 16.98,
+      "clip_seconds": 6.2
+    },
+    {
+      "section": "03",
+      "shot": "S03c",
+      "at": 137.73,
+      "seconds": 3.82,
+      "clip_seconds": 7.76
+    },
+    {
+      "section": "03",
+      "shot": "S03d",
+      "at": 141.55,
+      "seconds": 18.43,
+      "clip_seconds": 7.2
+    },
+    {
+      "section": "04",
+      "shot": "S04a",
+      "at": 159.97,
+      "seconds": 17.13,
+      "clip_seconds": 6.03
+    },
+    {
+      "section": "04",
+      "shot": "S04b",
+      "at": 177.1,
+      "seconds": 5.34,
+      "clip_seconds": 5.72
+    },
+    {
+      "section": "04",
+      "shot": "S04c",
+      "at": 182.44,
+      "seconds": 10.84,
+      "clip_seconds": 5
+    },
+    {
+      "section": "05",
+      "shot": "S05a",
+      "at": 193.28,
+      "seconds": 30.71,
+      "clip_seconds": 6.03
+    },
+    {
+      "section": "05",
+      "shot": "S05b",
+      "at": 223.99,
+      "seconds": 12.62,
+      "clip_seconds": 11.1
+    },
+    {
+      "section": "05",
+      "shot": "S05c",
+      "at": 236.61,
+      "seconds": 8.08,
+      "clip_seconds": 6.03
+    },
+    {
+      "section": "06",
+      "shot": "S06a",
+      "at": 244.69,
+      "seconds": 10.71,
+      "clip_seconds": 7
+    },
+    {
+      "section": "06",
+      "shot": "S06c",
+      "at": 255.4,
+      "seconds": 11.36,
+      "clip_seconds": 7.36
+    },
+    {
+      "section": "06",
+      "shot": "S05c",
+      "at": 266.76,
+      "seconds": 3.58,
+      "clip_seconds": 6.03
+    },
+    {
+      "section": "06",
+      "shot": "S06d",
+      "at": 270.34,
+      "seconds": 6.7,
+      "clip_seconds": 9.07
+    },
+    {
+      "section": "07",
+      "shot": "S07b",
+      "at": 277.04,
+      "seconds": 23.13,
+      "clip_seconds": 10.13
+    },
+    {
+      "section": "07",
+      "shot": "S07c",
+      "at": 300.17,
+      "seconds": 10.11,
+      "clip_seconds": 5
+    },
+    {
+      "section": "08",
+      "shot": "S08a",
+      "at": 310.28,
+      "seconds": 17.59,
+      "clip_seconds": 9
+    },
+    {
+      "section": "08",
+      "shot": "S08b",
+      "at": 327.87,
+      "seconds": 12.36,
+      "clip_seconds": 8
+    },
+    {
+      "section": "09",
+      "shot": "S09a",
+      "at": 340.22,
+      "seconds": 10.77,
+      "clip_seconds": 8.07
+    },
+    {
+      "section": "09",
+      "shot": "S09c",
+      "at": 350.99,
+      "seconds": 16.1,
+      "clip_seconds": 5
+    },
+    {
+      "section": "09",
+      "shot": "S09b",
+      "at": 367.09,
+      "seconds": 9.85,
+      "clip_seconds": 7
+    },
+    {
+      "section": "10",
+      "shot": "S10a",
+      "at": 376.94,
+      "seconds": 11.61,
+      "clip_seconds": 6
+    },
+    {
+      "section": "10",
+      "shot": "S10c",
+      "at": 388.55,
+      "seconds": 13.27,
+      "clip_seconds": 8.44
+    },
+    {
+      "section": "11",
+      "shot": "S11a",
+      "at": 401.82,
+      "seconds": 35.33,
+      "clip_seconds": 8
+    },
+    {
+      "section": "11",
+      "shot": "S11b",
+      "at": 437.15,
+      "seconds": 5.73,
+      "clip_seconds": 6
+    }
+  ]
+}

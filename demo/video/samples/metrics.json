@@ -1,0 +1,42 @@
+{
+  "cf-aura2-athena": {
+    "wer": 1.5,
+    "seconds": 43.5,
+    "wpm": 185,
+    "pitch_median_hz": 167,
+    "pitch_sd_semitones": 4.38,
+    "silence_frac": 0.18
+  },
+  "cf-aura2-orion": {
+    "wer": 0.0,
+    "seconds": 48.1,
+    "wpm": 167,
+    "pitch_median_hz": 126,
+    "pitch_sd_semitones": 5.64,
+    "silence_frac": 0.14
+  },
+  "edge-andrew": {
+    "wer": 0.0,
+    "seconds": 45.9,
+    "wpm": 175,
+    "pitch_median_hz": 121,
+    "pitch_sd_semitones": 3.77,
+    "silence_frac": 0.25
+  },
+  "edge-aria": {
+    "wer": 0.0,
+    "seconds": 50.7,
+    "wpm": 158,
+    "pitch_median_hz": 205,
+    "pitch_sd_semitones": 3.43,
+    "silence_frac": 0.31
+  },
+  "say-samantha": {
+    "wer": 3.0,
+    "seconds": 41.6,
+    "wpm": 193,
+    "pitch_median_hz": 176,
+    "pitch_sd_semitones": 2.98,
+    "silence_frac": 0.14
+  }
+}
