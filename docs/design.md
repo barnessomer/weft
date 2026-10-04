@@ -158,3 +158,8 @@ apps/web              board, candidates, evidence UI
 demo/                 demo target repo + scripted scenario
 docs/                 design, protocol spec, research, runbook
 ```
+
+## Update 2026-10-03 (PM, from S1)
+- Artifacts binding is read-only for git objects (create/fork/info/readFile/createToken); landing = `git push` with a short-lived write token from a trusted git client (sandbox). No binding-level ref CAS: rely on push semantics.
+- Per-fork Workers Builds previews have no documented API; previews use one preconfigured repo with candidate branches.
+- Account is on Workers Free → Artifacts/Containers return access denied until upgraded to Workers Paid. All Artifacts/sandbox code sits behind ArtifactsLike/SandboxLike interfaces with a local git-backed fake.
