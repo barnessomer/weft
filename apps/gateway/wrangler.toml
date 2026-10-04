@@ -16,10 +16,37 @@ class_name = "Registry"
 tag = "v1"
 new_sqlite_classes = ["RepoCoordinator", "Registry"]
 
+# Cross-repo index: tasks, changes (candidates), revisions, evidence, Artifacts event intake.
+[[d1_databases]]
+binding = "WEFT_DB"
+database_name = "weft"
+database_id = "d2cbb845-8748-4c45-8697-abbeb505eb95"
+migrations_dir = "migrations"
+
+# Artifacts: trunks + one fork per candidate change (needs wrangler >= 4.14x to deploy).
+[[artifacts]]
+binding = "ARTIFACTS"
+namespace = "weft"
+
+# Per-fork Queues event subscriptions (`pushed`) deliver here; consumer = this Worker's queue().
+[[queues.consumers]]
+queue = "weft-artifacts-events"
+max_batch_size = 10
+max_batch_timeout = 2
+max_retries = 8
+
+[vars]
+WEFT_ARTIFACTS_NAMESPACE = "weft"
+WEFT_CF_ACCOUNT_ID = "2d659dee148763a8d64c80135da7165d"
+WEFT_EVENTS_QUEUE_ID = "a8419287d5f34deaa49e8ba10250c2c2"
+
 [observability]
 enabled = true
 
-# Secrets (wrangler secret put WEFT_ADMIN_TOKEN [--env preview]): WEFT_ADMIN_TOKEN
+# Secrets (wrangler secret put <NAME> [--env preview]):
+#   WEFT_ADMIN_TOKEN   operator secret for /v1/admin
+#   WEFT_CF_API_TOKEN  Cloudflare API token with Queues edit (per-fork event subscriptions);
+#                      without it new candidates get subscription_status=pending (see runbook).
 
 [env.preview]
 name = "weft-gateway-preview"
@@ -36,3 +63,51 @@ class_name = "Registry"
 [[env.preview.migrations]]
 tag = "v1"
 new_sqlite_classes = ["RepoCoordinator", "Registry"]
+
+[[env.preview.d1_databases]]
+binding = "WEFT_DB"
+database_name = "weft-preview"
+database_id = "7bd18baa-103a-4712-8dcd-5bbac18000b1"
+migrations_dir = "migrations"
+
+[[env.preview.artifacts]]
+binding = "ARTIFACTS"
+namespace = "weft-preview"
+
+[[env.preview.queues.consumers]]
+queue = "weft-artifacts-events-preview"
+max_batch_size = 10
+max_batch_timeout = 2
+max_retries = 8
+
+[env.preview.vars]
+WEFT_ARTIFACTS_NAMESPACE = "weft-preview"
+WEFT_CF_ACCOUNT_ID = "2d659dee148763a8d64c80135da7165d"
+WEFT_EVENTS_QUEUE_ID = "3d609144a2a5458492dc665f49ce88ee"
+
+# Vitest only (never deployed): same bindings minus the queue consumer (miniflare allows one
+# consumer per queue and the pool runs one worker per test file; tests call queue() directly)
+# and minus Artifacts (tests inject a fake).
+[env.test]
+name = "weft-gateway-test"
+
+[[env.test.durable_objects.bindings]]
+name = "WEFT_REPO"
+class_name = "RepoCoordinator"
+
+[[env.test.durable_objects.bindings]]
+name = "WEFT_REGISTRY"
+class_name = "Registry"
+
+[[env.test.migrations]]
+tag = "v1"
+new_sqlite_classes = ["RepoCoordinator", "Registry"]
+
+[[env.test.d1_databases]]
+binding = "WEFT_DB"
+database_name = "weft-test"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"
+
+[env.test.vars]
+WEFT_ARTIFACTS_NAMESPACE = "weft-test"

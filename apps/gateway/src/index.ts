@@ -17,11 +17,12 @@ import {
   type Result,
 } from "@weft/sequencer";
 import { REPO_NAME, Registry, sha256Hex, type TokenSpec } from "./registry";
+import { artifactsAdmin, artifactsRoute, handleArtifactsBatch, type ArtifactsEnv, type Kit } from "./artifacts";
 
 export { RepoCoordinator } from "@weft/sequencer";
 export { Registry };
 
-export interface Env {
+export interface Env extends ArtifactsEnv {
   WEFT_REPO: DurableObjectNamespace<RepoCoordinator>;
   WEFT_REGISTRY: DurableObjectNamespace<Registry>;
   /** Operator secret for /v1/admin (wrangler secret). The admin API is disabled when unset. */
@@ -159,6 +160,19 @@ function eventQuery(u: URL): EventQuery {
   };
 }
 
+/** Helpers handed to feature modules (./artifacts) so they share auth and error mapping. */
+function kit(env: Env): Kit {
+  return {
+    fail(code, message, details) {
+      throw new HttpError(code, message, details);
+    },
+    json,
+    authenticate: (req) => authenticate(req, env),
+    authorize,
+    readJson,
+  };
+}
+
 function forwardSocket(req: Request, env: Env, repo: string, headers: Record<string, string>): Promise<Response> {
   const h = new Headers(req.headers);
   h.delete("authorization");
@@ -226,6 +240,10 @@ async function route(req: Request, env: Env): Promise<Response> {
     }
     throw new HttpError("not_found", `no socket at ${path}`);
   }
+
+  // ----- Artifacts: candidates (forks + tokens + Change-Ids), changes, trunk tokens
+  const ar = await artifactsRoute(req, env, kit(env), repo, rest);
+  if (ar) return ar;
 
   const g = await authenticate(req, env);
 
@@ -368,6 +386,8 @@ async function admin(req: Request, env: Env, path: string, m: string): Promise<R
     if (!ok) throw new HttpError("not_found", "no such active token");
     return new Response(null, { status: 204 });
   }
+  const aa = await artifactsAdmin(req, env, kit(env), path);
+  if (aa) return aa;
   throw new HttpError("not_found", `no route ${m} ${path}`);
 }
 
@@ -380,5 +400,9 @@ export default {
       console.error("gateway internal error", e instanceof Error ? e.stack : String(e));
       return errorResponse("internal", "internal error");
     }
+  },
+  /** Queue `weft-artifacts-events`: Artifacts `pushed` events -> revisions + WCP checkpoints. */
+  async queue(batch: MessageBatch<unknown>, env: Env, _ctx: ExecutionContext): Promise<void> {
+    await handleArtifactsBatch(batch, env);
   },
 } satisfies ExportedHandler<Env>;

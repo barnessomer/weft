@@ -46,7 +46,7 @@ Roles and token scopes:
 | Agent adapter | `agent` | open a session, submit events, drain its inbox, heartbeat, ask gates |
 | Observer | `observe` | list repos, read/stream events, read the combined feed |
 | Human | `human` (implies `observe`) | approve, undo, pause/resume, message an agent |
-| System | `system` | append `land`, `revert`, `release` (landing queue, workflows, claim expiry) |
+| System | `system` | append `land`, `revert`, `release`, `checkpoint` (landing queue, workflows, claim expiry, Artifacts push events) |
 
 ## 2. Transport
 
@@ -148,7 +148,7 @@ present (possibly empty).
 |---|---|---|---|
 | `intent` | agent | — | no |
 | `edit` | agent | — (`writes` required, non-empty) | R0–R3 |
-| `checkpoint` | agent | `{sha, ref?}` (a push of the change's fork) | R0 |
+| `checkpoint` | agent, system | `{sha, ref?}` (a push of the change's fork; the system appends it when the Artifacts `pushed` event arrives, attributed to the change) | R0 (agent only) |
 | `claim` | agent | `{firm, source: explicit\|predicted, ttl_ms?}`; keys in `writes` | R0, R3 |
 | `release` | agent, system | `{keys?, reason?}`; no keys = all of the change's claims | no |
 | `negotiate.propose` | agent | `{to: {agent?\|change?}, keys[], terms: {kind, text}}` | refs (§7.4) |
