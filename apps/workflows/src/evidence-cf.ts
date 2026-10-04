@@ -19,7 +19,7 @@ export interface EvidenceEnv {
   AI?: Ai;
   BROWSER?: Fetcher;
   EVIDENCE?: R2Bucket;
-  /** Origin of weft-previews (e.g. https://weft-previews-preview.<sub>.workers.dev). */
+  /** Origin of weft-previews (e.g. https://weft-previews-preview.elier.ai). */
   WEFT_PREVIEWS_URL?: string;
   WEFT_PREVIEW_KEY?: string;
   /** AI Gateway id for model calls (the `weft` gateway once created; `default` until then). */

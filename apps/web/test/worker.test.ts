@@ -168,6 +168,25 @@ describe("gateway proxy", () => {
     expect(gw.calls).toHaveLength(6);
   });
 
+  it("rewrites legacy *.workers.dev previews origins in relayed JSON (append-only x_evidence)", async () => {
+    // Synthetic subdomain: the real one is never written down (AGENTS.md rule 7).
+    const legacy = "https://weft-previews-preview.acme-co.workers.dev";
+    const legacyProd = "https://weft-previews.acme-co.workers.dev";
+    const body = {
+      events: [{ seq: 1, x_evidence: { preview_url: `${legacy}/p/r/${"a".repeat(40)}/SIG/`, screenshots: [`${legacy}/e/SIG/shots/x.png`, `${legacyProd}/e/S2/k.png`] } }],
+      other: "https://weft-web.example.workers.dev/untouched",
+    };
+    const gw = fakeGateway(() => Response.json(body));
+    const env = baseEnv({ GATEWAY: gw.fetcher });
+    const r = await handle(new Request(`${ORIGIN}/api/repos/weft/events?tail=1`, { headers: { cookie: await keyCookie(env) } }), env);
+    const text = await r.text();
+    expect(text).not.toContain("acme-co");
+    const out = JSON.parse(text);
+    expect(out.events[0].x_evidence.preview_url).toBe(`https://weft-previews-preview.elier.ai/p/r/${"a".repeat(40)}/SIG/`);
+    expect(out.events[0].x_evidence.screenshots).toEqual(["https://weft-previews-preview.elier.ai/e/SIG/shots/x.png", "https://weft-previews.elier.ai/e/S2/k.png"]);
+    expect(out.other).toBe(body.other); // only the previews worker's origin is mapped
+  });
+
   it("keeps gateway error statuses", async () => {
     const gw = fakeGateway(() => Response.json({ type: "error", error: { code: "repo_not_found", message: "x" } }, { status: 404 }));
     const env = baseEnv({ GATEWAY: gw.fetcher });
