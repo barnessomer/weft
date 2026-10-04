@@ -58,3 +58,11 @@ Append-only. One dated entry per heartbeat that changed something.
 - B14 sat in ready for 7.8h because the dispatcher guarded it as blocker_auth on a stale Codex quota error (the reset was 08:04). Cleared last_failure_error, commented the merge-main + elier.ai rule, and dispatched it. M2 is now waiting only on B14.
 - Day 1, still well ahead of plan.
 - 2026-10-04 (Hermes, for John): Weft hostnames moved to *.elier.ai custom domains (weft-gateway-preview / weft-web-preview / weft-sandbox-preview / weft-workflows-preview / weft-previews-preview / weft-demo .elier.ai). workers.dev disabled on all Weft workers: the account's workers.dev subdomain is a customer's company name. wrangler.toml now has workers_dev=false + custom_domain routes; weft-workflows-preview redeployed so its WEFT_GATEWAY_URL/WEFT_PREVIEWS_URL point at elier.ai. Worktrees branched before 2fdb62a still default to the old URLs in live scripts: rebase.
+
+## 2026-10-04 09:55 — B14, B15, M1 run-6 landed; I2 on phone
+- Landed wt/t_1b412791 (+wt/m1b): M1 run 6 PASS with noninteractive Claude auth (summary.json pass=true, all 5 criteria); driver preflights `claude auth status`. Landed wt/b14 (AI task planner) and wt/b15 (policy-as-code, analytics, email). pnpm-lock conflict resolved from main + reinstall.
+- Gate on main went red after the merges: gateway test files raced on shared-storage D1 migrations ("table already exists") and timed out at 5 s under load. Fixed in place (apply-migrations retries on "already exists"; testTimeout 20 s). 3/3 gateway reruns green, full gate green (260d465). Rationale: faster than a card and it blocks every landing.
+- Scrubbed the customer workers.dev subdomain from demo/b12-harnesses.mjs and 44 evidence files (rewritten to the *.elier.ai hostnames) before the repo goes public.
+- weft_land #541–#544. Pushed. Gateway /v1/health 200. Worktrees removed.
+- I2 done: Hérmes build 34 on John's iPhone, live against weft-gateway-preview.elier.ai. Fast-forwarded hermes-ios main to wt/weft-feed (7a0fba7) without touching the main checkout (still on review/attribution), and pushed it.
+- M2 and R3a running. Day 1: every build card has landed. Remaining: M2 → R2/R3 → R4.
