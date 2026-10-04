@@ -187,6 +187,26 @@ describe("SqlCoordinator persistence and extras", () => {
     expect(j.coord.ops()).toEqual([expect.objectContaining({ op_id: "op-1", seq: 3, kind: "land", change_id: "A", sha: "abc1234" })]);
   });
 
+  it("system checkpoint (Artifacts push) matches the reference and is attributed to the change", () => {
+    const { j } = fresh();
+    const ref = new ReferenceCoordinator({ repo: "r", now: () => Date.parse("2026-10-05T12:00:00.000Z") });
+    const a = j.call<{ session: string }>("hello", hello("a", "A"));
+    ref.hello(hello("a", "A"));
+    const sys = { type: "system" as const, id: "artifacts" };
+    const draft = { kind: "checkpoint" as const, base_seq: 1, change: "A", payload: { sha: "a".repeat(40), ref: "refs/heads/main" } };
+    const rec = j.call<{ seq: number; kind: string; agent?: string; change?: string; status: string; actor: unknown }>("system", draft, sys);
+    expect(rec).toMatchObject({ kind: "checkpoint", status: "accepted", agent: "a", change: "A", actor: sys });
+    const rrec = ref.system(draft, sys);
+    expect({ ...rrec, ts: undefined, repo: undefined }).toEqual({ ...rec, ts: undefined, repo: undefined });
+    // Unknown change (no session yet): recorded with the draft's change/task, no agent.
+    const anon = j.call<{ agent?: string; change?: string; task?: string }>("system", { kind: "checkpoint", base_seq: 2, change: "B", task: "T", payload: { sha: "b".repeat(40) } }, sys);
+    expect(anon).toMatchObject({ change: "B", task: "T" });
+    expect(anon.agent).toBeUndefined();
+    expect(a.session).toBeTruthy();
+    // Still forbidden: kinds outside the system set.
+    expect(() => j.call("system", { kind: "edit", base_seq: 3, writes: [{ key: "x#y", kind: "body" }] }, sys)).toThrow(WcpProtocolError);
+  });
+
   it("nextExpiry reports the earliest claim or session expiry", () => {
     const { clock, j } = fresh({ claim_ttl_ms: 1000, session_ttl_ms: 5000 });
     expect(j.coord.nextExpiry()).toBeNull();

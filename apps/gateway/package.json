@@ -10,6 +10,7 @@
     "deploy:preview": "wrangler deploy --env preview"
   },
   "dependencies": {
+    "@weft/artifacts": "workspace:*",
     "@weft/protocol": "workspace:*",
     "@weft/sequencer": "workspace:*"
   }
