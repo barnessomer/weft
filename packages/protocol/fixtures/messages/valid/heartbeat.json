@@ -1,0 +1,6 @@
+{
+  "schema": "Heartbeat",
+  "value": {
+    "type": "heartbeat"
+  }
+}

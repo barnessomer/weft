@@ -1,0 +1,28 @@
+{
+  "schema": "Hello",
+  "value": {
+    "type": "hello",
+    "protocol": "wcp/0.1",
+    "agent": {
+      "id": "claude-a",
+      "harness": "claude-code",
+      "harness_version": "2.1.289",
+      "model": "claude-opus-5",
+      "adapter": "@weft/adapter-claude-code@0.1.0"
+    },
+    "capabilities": {
+      "level": 3,
+      "observe": "sync",
+      "inject": "immediate",
+      "deny_edit": true,
+      "refuse_stop": true,
+      "commit_gate": "tool_interception"
+    },
+    "task": {
+      "id": "T-1",
+      "title": "Retry budget for token refresh",
+      "priority": 1
+    },
+    "change": "I4f2a"
+  }
+}

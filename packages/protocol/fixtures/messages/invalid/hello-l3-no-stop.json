@@ -1,0 +1,20 @@
+{
+  "schema": "Hello",
+  "expect_issue_path": "/capabilities/refuse_stop",
+  "value": {
+    "type": "hello",
+    "protocol": "wcp/0.1",
+    "agent": {
+      "id": "a",
+      "harness": "codex"
+    },
+    "capabilities": {
+      "level": 3,
+      "observe": "sync",
+      "inject": "immediate",
+      "deny_edit": true,
+      "refuse_stop": false,
+      "commit_gate": "tool_interception"
+    }
+  }
+}

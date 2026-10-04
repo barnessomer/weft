@@ -1,0 +1,22 @@
+{
+  "schema": "Submit",
+  "expect_issue_path": "/event/payload/to/agent",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "negotiate.propose",
+      "base_seq": 1,
+      "payload": {
+        "to": {},
+        "keys": [
+          "a.ts#f"
+        ],
+        "terms": {
+          "kind": "share",
+          "text": "x"
+        }
+      }
+    }
+  }
+}

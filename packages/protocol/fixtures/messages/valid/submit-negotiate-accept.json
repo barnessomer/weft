@@ -1,0 +1,14 @@
+{
+  "schema": "Submit",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "negotiate.accept",
+      "base_seq": 15,
+      "payload": {
+        "reply_to": 15
+      }
+    }
+  }
+}

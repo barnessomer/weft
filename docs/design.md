@@ -170,3 +170,12 @@ docs/                 design, protocol spec, research, runbook
 - Artifacts binding is read-only for git objects (create/fork/info/readFile/createToken); landing = `git push` with a short-lived write token from a trusted git client (sandbox). No binding-level ref CAS: rely on push semantics.
 - Per-fork Workers Builds previews have no documented API; previews use one preconfigured repo with candidate branches.
 - Account is on Workers Free → Artifacts/Containers return access denied until upgraded to Workers Paid. All Artifacts/sandbox code sits behind ArtifactsLike/SandboxLike interfaces with a local git-backed fake.
+
+## Update 2026-10-03 (P1, protocol spec)
+WCP v0.1 is specified in `docs/protocol/wcp-v0.md` (normative; implemented by `packages/protocol`). Refinements to §3–§5 (details: spec Appendix B):
+- Rejected events are logged (seq, `status: rejected`) without effects, so conflicts show in the feed and can be cited.
+- Pre-edit validation is a side-effect-free `check` submission (L2); the post-edit `commit` enters the log.
+- `base_seq` may not exceed what the coordinator delivered to the session; landings count toward base only after the agent rebased.
+- In-flight overlaps are arbitrated through claims (every accepted edit is a soft claim); §4 rule 1 errors only on committed (landed/reverted) writers. §4 rule 2 stays literal (signature change ⇒ error).
+- Seniority = task priority, then first-accepted-event seq; wound-wait default, wait-die per repo.
+- Added kinds `message`, `control`, `join`/`leave`, `negotiate.counter`; observer + human API per §9 of the spec.

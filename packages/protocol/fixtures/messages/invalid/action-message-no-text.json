@@ -1,0 +1,11 @@
+{
+  "schema": "HumanAction",
+  "expect_issue_path": "/text",
+  "value": {
+    "type": "action",
+    "action": "message",
+    "to": {
+      "agent": "a"
+    }
+  }
+}

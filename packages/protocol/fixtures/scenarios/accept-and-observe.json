@@ -1,0 +1,192 @@
+{
+  "name": "accept-and-observe",
+  "description": "A clean edit is accepted, sequenced, summarized and visible to observers; a passing check appends nothing.",
+  "covers": [
+    "5.1",
+    "5.3",
+    "6.4",
+    "9.3"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ],
+          "intent": "retry 401 once",
+          "diff": "--- a\n+++ b\n"
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "mode": "commit",
+        "seq": 2,
+        "head_seq": 2,
+        "diagnostics": [],
+        "inbox": [],
+        "delivered_through": 2,
+        "summary": "claude-a edited refreshToken in src/auth/session.ts — retry 401 once"
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "check",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "body"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "mode": "check",
+        "seq": null,
+        "head_seq": 2
+      }
+    },
+    {
+      "op": "events",
+      "after": 0,
+      "expect": {
+        "type": "events",
+        "repo": "demo",
+        "head_seq": 2,
+        "next_after": 2,
+        "has_more": false,
+        "events": [
+          {
+            "seq": 1,
+            "kind": "join",
+            "status": "accepted",
+            "actor": {
+              "type": "agent",
+              "id": "claude-a"
+            },
+            "summary": "claude-a joined (claude-code, L3)"
+          },
+          {
+            "seq": 2,
+            "kind": "edit",
+            "status": "accepted",
+            "has_diff": true,
+            "diff": "$absent",
+            "files": [
+              "src/auth/session.ts"
+            ],
+            "task": "T-1",
+            "change": "I-a",
+            "base_seq": 1,
+            "mode": "commit"
+          }
+        ]
+      }
+    },
+    {
+      "op": "events",
+      "after": 0,
+      "limit": 1,
+      "expect": {
+        "next_after": 1,
+        "has_more": true,
+        "events": {
+          "$len": 1
+        }
+      }
+    },
+    {
+      "op": "events",
+      "tail": true,
+      "limit": 1,
+      "expect": {
+        "next_after": 2,
+        "has_more": false,
+        "events": [
+          {
+            "seq": 2
+          }
+        ]
+      }
+    },
+    {
+      "op": "events",
+      "before": 2,
+      "limit": 5,
+      "expect": {
+        "events": [
+          {
+            "seq": 1
+          }
+        ]
+      }
+    },
+    {
+      "op": "event",
+      "seq": 2,
+      "expect": {
+        "seq": 2,
+        "diff": "--- a\n+++ b\n",
+        "intent": "retry 401 once"
+      }
+    },
+    {
+      "op": "event",
+      "seq": 3,
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "not_found"
+        }
+      }
+    }
+  ]
+}

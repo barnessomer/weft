@@ -1,0 +1,13 @@
+{
+  "schema": "Submit",
+  "expect_issue_path": "/event/payload/reply_to",
+  "value": {
+    "type": "submit",
+    "mode": "commit",
+    "event": {
+      "kind": "negotiate.accept",
+      "base_seq": 1,
+      "payload": {}
+    }
+  }
+}

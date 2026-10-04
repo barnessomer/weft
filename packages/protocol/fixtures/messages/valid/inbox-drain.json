@@ -1,0 +1,7 @@
+{
+  "schema": "InboxDrain",
+  "value": {
+    "type": "inbox.drain",
+    "ack": 4
+  }
+}

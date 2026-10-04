@@ -1,0 +1,44 @@
+{
+  "schema": "Verdict",
+  "value": {
+    "type": "verdict",
+    "verdict": "accept",
+    "mode": "commit",
+    "seq": 14,
+    "head_seq": 14,
+    "diagnostics": [
+      {
+        "severity": "warning",
+        "code": "claim_wait",
+        "file": "src/auth/session.ts",
+        "symbol": "src/auth/session.ts#refreshToken",
+        "message": "src/auth/session.ts#refreshToken is being edited by claude-a (claude-a/T-1), which has precedence.",
+        "caused_by_seq": 12,
+        "caused_by_agent": "claude-a",
+        "caused_by_task": "T-1",
+        "arbitration": {
+          "policy": "wound-wait",
+          "outcome": "wait",
+          "winner": {
+            "agent": "claude-a",
+            "change": "I4f2a"
+          },
+          "loser": {
+            "agent": "codex-b",
+            "change": "I9c01"
+          },
+          "options": [
+            "retreat",
+            "wait",
+            "negotiate",
+            "escalate"
+          ]
+        }
+      }
+    ],
+    "summary": "codex-b edited refreshToken in src/auth/session.ts",
+    "inbox": [],
+    "delivered_through": 14,
+    "context": "[weft warning] claim_wait src/auth/session.ts#refreshToken: ..."
+  }
+}

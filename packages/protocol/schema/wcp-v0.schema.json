@@ -1,0 +1,2352 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://weft.elier.ai/schema/wcp-v0.schema.json",
+  "title": "Weft Coordination Protocol v0",
+  "$defs": {
+    "Seq": {
+      "type": "integer",
+      "minimum": 0
+    },
+    "SymbolKey": {
+      "type": "string",
+      "pattern": "^[^#\\s]+#[^#\\s]+$",
+      "maxLength": 1024
+    },
+    "RepoId": {
+      "type": "string",
+      "pattern": "^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$"
+    },
+    "Timestamp": {
+      "type": "string",
+      "pattern": "^\\d{4}-\\d{2}-\\d{2}T\\d{2}:\\d{2}:\\d{2}(\\.\\d+)?Z$"
+    },
+    "WriteKind": {
+      "enum": [
+        "signature",
+        "body",
+        "new",
+        "deleted"
+      ]
+    },
+    "Write": {
+      "type": "object",
+      "properties": {
+        "key": {
+          "$ref": "#/$defs/SymbolKey"
+        },
+        "kind": {
+          "$ref": "#/$defs/WriteKind"
+        }
+      },
+      "required": [
+        "key",
+        "kind"
+      ]
+    },
+    "Position": {
+      "type": "object",
+      "properties": {
+        "line": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "character": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "line",
+        "character"
+      ]
+    },
+    "Range": {
+      "type": "object",
+      "properties": {
+        "start": {
+          "$ref": "#/$defs/Position"
+        },
+        "end": {
+          "$ref": "#/$defs/Position"
+        }
+      },
+      "required": [
+        "start",
+        "end"
+      ]
+    },
+    "AgentRef": {
+      "type": "object",
+      "properties": {
+        "agent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "change": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [],
+      "anyOf": [
+        {
+          "required": [
+            "agent"
+          ]
+        },
+        {
+          "required": [
+            "change"
+          ]
+        }
+      ]
+    },
+    "Arbitration": {
+      "type": "object",
+      "properties": {
+        "policy": {
+          "enum": [
+            "wound-wait",
+            "wait-die"
+          ]
+        },
+        "outcome": {
+          "enum": [
+            "wait",
+            "die",
+            "wound",
+            "none"
+          ]
+        },
+        "winner": {
+          "type": "object",
+          "properties": {
+            "agent": {
+              "type": "string",
+              "minLength": 1
+            },
+            "change": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "agent",
+            "change"
+          ]
+        },
+        "loser": {
+          "type": "object",
+          "properties": {
+            "agent": {
+              "type": "string",
+              "minLength": 1
+            },
+            "change": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "agent",
+            "change"
+          ]
+        },
+        "options": {
+          "type": "array",
+          "items": {
+            "enum": [
+              "retreat",
+              "wait",
+              "negotiate",
+              "escalate"
+            ]
+          }
+        }
+      },
+      "required": [
+        "policy",
+        "outcome",
+        "winner",
+        "loser",
+        "options"
+      ]
+    },
+    "Diagnostic": {
+      "type": "object",
+      "properties": {
+        "severity": {
+          "enum": [
+            "info",
+            "warning",
+            "error"
+          ]
+        },
+        "code": {
+          "enum": [
+            "stale_overwrite",
+            "stale_assumption",
+            "stale_read",
+            "claim_wait",
+            "claim_die",
+            "claim_wounded",
+            "claim_contended",
+            "claim_predicted_overlap",
+            "contract_changed",
+            "trunk_advanced",
+            "agent_paused"
+          ]
+        },
+        "file": {
+          "type": "string"
+        },
+        "range": {
+          "$ref": "#/$defs/Range"
+        },
+        "symbol": {
+          "type": "string"
+        },
+        "message": {
+          "type": "string",
+          "minLength": 1
+        },
+        "caused_by_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "caused_by_agent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "caused_by_task": {
+          "type": "string",
+          "minLength": 1
+        },
+        "suggestion": {
+          "type": "string"
+        },
+        "arbitration": {
+          "$ref": "#/$defs/Arbitration"
+        }
+      },
+      "required": [
+        "severity",
+        "code",
+        "file",
+        "symbol",
+        "message",
+        "caused_by_seq",
+        "caused_by_agent"
+      ]
+    },
+    "Actor": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "enum": [
+            "agent",
+            "human",
+            "system"
+          ]
+        },
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "harness": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "type",
+        "id"
+      ]
+    },
+    "ToolRef": {
+      "type": "object",
+      "properties": {
+        "name": {
+          "type": "string",
+          "minLength": 1
+        },
+        "call_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "harness_event": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "name"
+      ]
+    },
+    "TranscriptRef": {
+      "type": "object",
+      "properties": {
+        "uri": {
+          "type": "string",
+          "minLength": 1
+        },
+        "offset": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "uri"
+      ]
+    },
+    "NegotiationTerms": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "overload",
+            "transfer",
+            "share",
+            "sequence",
+            "merge_tasks",
+            "other"
+          ]
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "kind",
+        "text"
+      ]
+    },
+    "ClaimPayload": {
+      "type": "object",
+      "properties": {
+        "firm": {
+          "type": "boolean"
+        },
+        "source": {
+          "enum": [
+            "explicit",
+            "predicted"
+          ]
+        },
+        "ttl_ms": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "firm",
+        "source"
+      ]
+    },
+    "ReleasePayload": {
+      "type": "object",
+      "properties": {
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SymbolKey"
+          }
+        },
+        "reason": {
+          "enum": [
+            "done",
+            "expired",
+            "abandoned",
+            "negotiated",
+            "landed"
+          ]
+        }
+      },
+      "required": []
+    },
+    "CheckpointPayload": {
+      "type": "object",
+      "properties": {
+        "sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,64}$"
+        },
+        "ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "sha"
+      ]
+    },
+    "LandPayload": {
+      "type": "object",
+      "properties": {
+        "sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,64}$"
+        },
+        "op_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "trunk_ref": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "sha",
+        "op_id"
+      ]
+    },
+    "RevertPayload": {
+      "type": "object",
+      "properties": {
+        "op_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "reverts_seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reverts_op_id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "sha": {
+          "type": "string",
+          "pattern": "^[0-9a-f]{7,64}$"
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        },
+        "requested_by": {
+          "$ref": "#/$defs/Actor"
+        }
+      },
+      "required": [
+        "op_id",
+        "reason"
+      ],
+      "anyOf": [
+        {
+          "required": [
+            "reverts_seq"
+          ]
+        },
+        {
+          "required": [
+            "reverts_op_id"
+          ]
+        }
+      ]
+    },
+    "ProposePayload": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "$ref": "#/$defs/AgentRef"
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SymbolKey"
+          },
+          "minItems": 1
+        },
+        "terms": {
+          "$ref": "#/$defs/NegotiationTerms"
+        }
+      },
+      "required": [
+        "to",
+        "keys",
+        "terms"
+      ]
+    },
+    "CounterPayload": {
+      "type": "object",
+      "properties": {
+        "reply_to": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "terms": {
+          "$ref": "#/$defs/NegotiationTerms"
+        }
+      },
+      "required": [
+        "reply_to",
+        "terms"
+      ]
+    },
+    "AcceptPayload": {
+      "type": "object",
+      "properties": {
+        "reply_to": {
+          "type": "integer",
+          "minimum": 1
+        }
+      },
+      "required": [
+        "reply_to"
+      ]
+    },
+    "RejectPayload": {
+      "type": "object",
+      "properties": {
+        "reply_to": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "reply_to"
+      ]
+    },
+    "MessagePayload": {
+      "type": "object",
+      "properties": {
+        "to": {
+          "$ref": "#/$defs/AgentRef"
+        },
+        "text": {
+          "type": "string",
+          "minLength": 1
+        },
+        "intent": {
+          "enum": [
+            "steer",
+            "negotiate",
+            "info"
+          ]
+        }
+      },
+      "required": [
+        "to",
+        "text"
+      ]
+    },
+    "ControlPayload": {
+      "type": "object",
+      "properties": {
+        "action": {
+          "enum": [
+            "pause",
+            "resume",
+            "approve",
+            "undo"
+          ]
+        },
+        "target": {
+          "type": "object",
+          "properties": {
+            "agent": {
+              "type": "string",
+              "minLength": 1
+            },
+            "change": {
+              "type": "string",
+              "minLength": 1
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "op_id": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": []
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "action",
+        "target"
+      ]
+    },
+    "PresencePayload": {
+      "type": "object",
+      "properties": {
+        "harness": {
+          "type": "string",
+          "minLength": 1
+        },
+        "level": {
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        }
+      },
+      "required": [
+        "harness",
+        "level"
+      ]
+    },
+    "EventDraft": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "intent",
+            "edit",
+            "checkpoint",
+            "claim",
+            "release",
+            "negotiate.propose",
+            "negotiate.accept",
+            "negotiate.reject",
+            "negotiate.counter",
+            "land",
+            "revert",
+            "message",
+            "control",
+            "join",
+            "leave"
+          ]
+        },
+        "base_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "task": {
+          "type": "string",
+          "minLength": 1
+        },
+        "change": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reads": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SymbolKey"
+          }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Write"
+          }
+        },
+        "diff": {
+          "type": "string"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "object"
+        },
+        "tool": {
+          "$ref": "#/$defs/ToolRef"
+        },
+        "transcript": {
+          "$ref": "#/$defs/TranscriptRef"
+        },
+        "summary_hint": {
+          "type": "string",
+          "maxLength": 140
+        }
+      },
+      "required": [
+        "kind",
+        "base_seq"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "edit"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "required": [
+              "writes"
+            ],
+            "properties": {
+              "writes": {
+                "type": "array",
+                "minItems": 1
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "checkpoint"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/CheckpointPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "claim"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/ClaimPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "release"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/ReleasePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "negotiate.propose"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/ProposePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "negotiate.accept"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/AcceptPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "negotiate.reject"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/RejectPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "negotiate.counter"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/CounterPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "land"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/LandPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "revert"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/RevertPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "message"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/MessagePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "control"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/ControlPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "join"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/PresencePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "leave"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/PresencePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        }
+      ]
+    },
+    "EventRecord": {
+      "type": "object",
+      "properties": {
+        "kind": {
+          "enum": [
+            "intent",
+            "edit",
+            "checkpoint",
+            "claim",
+            "release",
+            "negotiate.propose",
+            "negotiate.accept",
+            "negotiate.reject",
+            "negotiate.counter",
+            "land",
+            "revert",
+            "message",
+            "control",
+            "join",
+            "leave"
+          ]
+        },
+        "base_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "task": {
+          "type": "string",
+          "minLength": 1
+        },
+        "change": {
+          "type": "string",
+          "minLength": 1
+        },
+        "files": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          }
+        },
+        "reads": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SymbolKey"
+          }
+        },
+        "writes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Write"
+          }
+        },
+        "diff": {
+          "type": "string"
+        },
+        "intent": {
+          "type": "string"
+        },
+        "payload": {
+          "type": "object"
+        },
+        "tool": {
+          "$ref": "#/$defs/ToolRef"
+        },
+        "transcript": {
+          "$ref": "#/$defs/TranscriptRef"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "repo": {
+          "$ref": "#/$defs/RepoId"
+        },
+        "status": {
+          "enum": [
+            "accepted",
+            "rejected"
+          ]
+        },
+        "ts": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "actor": {
+          "$ref": "#/$defs/Actor"
+        },
+        "agent": {
+          "type": "string",
+          "minLength": 1
+        },
+        "session": {
+          "type": "string",
+          "minLength": 1
+        },
+        "mode": {
+          "enum": [
+            "check",
+            "commit"
+          ]
+        },
+        "has_diff": {
+          "type": "boolean"
+        },
+        "summary": {
+          "type": "string",
+          "minLength": 1,
+          "maxLength": 140
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        }
+      },
+      "required": [
+        "seq",
+        "repo",
+        "status",
+        "kind",
+        "ts",
+        "actor",
+        "files",
+        "reads",
+        "writes",
+        "summary",
+        "diagnostics"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "checkpoint"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/CheckpointPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "claim"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/ClaimPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "release"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/ReleasePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "negotiate.propose"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/ProposePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "negotiate.accept"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/AcceptPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "negotiate.reject"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/RejectPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "negotiate.counter"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/CounterPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "land"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/LandPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "revert"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/RevertPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "message"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/MessagePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "control"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/ControlPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "join"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/PresencePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "leave"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/PresencePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        }
+      ]
+    },
+    "Capabilities": {
+      "type": "object",
+      "properties": {
+        "level": {
+          "enum": [
+            0,
+            1,
+            2,
+            3
+          ]
+        },
+        "observe": {
+          "enum": [
+            "sync",
+            "async"
+          ]
+        },
+        "inject": {
+          "enum": [
+            "immediate",
+            "delayed",
+            false
+          ]
+        },
+        "deny_edit": {
+          "type": "boolean"
+        },
+        "refuse_stop": {
+          "type": "boolean"
+        },
+        "commit_gate": {
+          "enum": [
+            "native",
+            "tool_interception",
+            false
+          ]
+        }
+      },
+      "required": [
+        "level",
+        "observe",
+        "inject",
+        "deny_edit",
+        "refuse_stop",
+        "commit_gate"
+      ],
+      "allOf": [
+        {
+          "if": {
+            "properties": {
+              "level": {
+                "enum": [
+                  1,
+                  2,
+                  3
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "inject": {
+                "enum": [
+                  "immediate",
+                  "delayed"
+                ]
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "level": {
+                "enum": [
+                  2,
+                  3
+                ]
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "deny_edit": {
+                "const": true
+              },
+              "observe": {
+                "const": "sync"
+              }
+            }
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "level": {
+                "const": 3
+              }
+            }
+          },
+          "then": {
+            "properties": {
+              "refuse_stop": {
+                "const": true
+              }
+            }
+          }
+        }
+      ]
+    },
+    "AgentInfo": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "harness": {
+          "type": "string",
+          "minLength": 1
+        },
+        "harness_version": {
+          "type": "string",
+          "minLength": 1
+        },
+        "model": {
+          "type": "string",
+          "minLength": 1
+        },
+        "adapter": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "id",
+        "harness"
+      ]
+    },
+    "TaskRef": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "string",
+          "minLength": 1
+        },
+        "title": {
+          "type": "string"
+        },
+        "priority": {
+          "type": "integer"
+        }
+      },
+      "required": [
+        "id"
+      ]
+    },
+    "InboxItem": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "kind": {
+          "enum": [
+            "diagnostic",
+            "negotiation",
+            "message",
+            "control",
+            "trunk"
+          ]
+        },
+        "diagnostic": {
+          "$ref": "#/$defs/Diagnostic"
+        },
+        "record": {
+          "$ref": "#/$defs/EventRecord"
+        },
+        "requires_rebase": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "id",
+        "seq",
+        "kind"
+      ]
+    },
+    "Hello": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "hello"
+        },
+        "protocol": {
+          "type": "string",
+          "pattern": "^wcp/\\d+\\.\\d+$"
+        },
+        "agent": {
+          "$ref": "#/$defs/AgentInfo"
+        },
+        "capabilities": {
+          "$ref": "#/$defs/Capabilities"
+        },
+        "task": {
+          "$ref": "#/$defs/TaskRef"
+        },
+        "change": {
+          "type": "string",
+          "minLength": 1
+        },
+        "resume_session": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "type",
+        "protocol",
+        "agent",
+        "capabilities"
+      ]
+    },
+    "Welcome": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "welcome"
+        },
+        "protocol": {
+          "type": "string",
+          "pattern": "^wcp/\\d+\\.\\d+$"
+        },
+        "session": {
+          "type": "string",
+          "minLength": 1
+        },
+        "repo": {
+          "$ref": "#/$defs/RepoId"
+        },
+        "head_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delivered_through": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "heartbeat_interval_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "session_ttl_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "claim_ttl_ms": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "policy": {
+          "type": "object",
+          "properties": {
+            "arbitration": {
+              "enum": [
+                "wound-wait",
+                "wait-die"
+              ]
+            }
+          },
+          "required": [
+            "arbitration"
+          ]
+        },
+        "limits": {
+          "type": "object",
+          "properties": {
+            "max_diff_bytes": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_keys": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "max_page": {
+              "type": "integer",
+              "minimum": 1
+            }
+          },
+          "required": [
+            "max_diff_bytes",
+            "max_keys",
+            "max_page"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "protocol",
+        "session",
+        "repo",
+        "head_seq",
+        "delivered_through",
+        "heartbeat_interval_ms",
+        "session_ttl_ms",
+        "claim_ttl_ms",
+        "policy",
+        "limits"
+      ]
+    },
+    "Submit": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "submit"
+        },
+        "mode": {
+          "enum": [
+            "check",
+            "commit"
+          ]
+        },
+        "event": {
+          "$ref": "#/$defs/EventDraft"
+        },
+        "inbox_ack": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "type",
+        "mode",
+        "event"
+      ]
+    },
+    "Verdict": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "verdict"
+        },
+        "verdict": {
+          "enum": [
+            "accept",
+            "reject"
+          ]
+        },
+        "mode": {
+          "enum": [
+            "check",
+            "commit"
+          ]
+        },
+        "seq": {
+          "anyOf": [
+            {
+              "type": "integer",
+              "minimum": 1
+            },
+            {
+              "type": "null"
+            }
+          ]
+        },
+        "head_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "diagnostics": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        },
+        "summary": {
+          "type": "string"
+        },
+        "inbox": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InboxItem"
+          }
+        },
+        "delivered_through": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "context": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "verdict",
+        "mode",
+        "seq",
+        "head_seq",
+        "diagnostics",
+        "inbox",
+        "delivered_through"
+      ]
+    },
+    "InboxDrain": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "inbox.drain"
+        },
+        "ack": {
+          "type": "integer",
+          "minimum": 0
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "InboxBatch": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "inbox"
+        },
+        "items": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/InboxItem"
+          }
+        },
+        "head_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "delivered_through": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "open_errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        },
+        "paused": {
+          "type": "boolean"
+        },
+        "context": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type",
+        "items",
+        "head_seq",
+        "delivered_through",
+        "open_errors",
+        "paused"
+      ]
+    },
+    "Heartbeat": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "heartbeat"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "HeartbeatAck": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "heartbeat.ack"
+        },
+        "head_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "inbox_pending": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "session_expires_at": {
+          "$ref": "#/$defs/Timestamp"
+        }
+      },
+      "required": [
+        "type",
+        "head_seq",
+        "inbox_pending",
+        "session_expires_at"
+      ]
+    },
+    "Gate": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "gate"
+        },
+        "gate": {
+          "enum": [
+            "stop",
+            "commit"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "gate"
+      ]
+    },
+    "GateResult": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "gate.result"
+        },
+        "gate": {
+          "enum": [
+            "stop",
+            "commit"
+          ]
+        },
+        "allow": {
+          "type": "boolean"
+        },
+        "reason": {
+          "type": "string"
+        },
+        "open_errors": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/Diagnostic"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "gate",
+        "allow",
+        "open_errors"
+      ]
+    },
+    "Bye": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "bye"
+        },
+        "reason": {
+          "type": "string"
+        }
+      },
+      "required": [
+        "type"
+      ]
+    },
+    "RepoSummary": {
+      "type": "object",
+      "properties": {
+        "repo": {
+          "$ref": "#/$defs/RepoId"
+        },
+        "head_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_agents": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "active_changes": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "open_conflicts": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "last_event_at": {
+          "$ref": "#/$defs/Timestamp"
+        },
+        "policy": {
+          "type": "object",
+          "properties": {
+            "arbitration": {
+              "enum": [
+                "wound-wait",
+                "wait-die"
+              ]
+            }
+          },
+          "required": [
+            "arbitration"
+          ]
+        }
+      },
+      "required": [
+        "repo",
+        "head_seq",
+        "active_agents",
+        "active_changes",
+        "open_conflicts",
+        "policy"
+      ]
+    },
+    "RepoList": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "repos"
+        },
+        "repos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/RepoSummary"
+          }
+        }
+      },
+      "required": [
+        "type",
+        "repos"
+      ]
+    },
+    "EventPage": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "events"
+        },
+        "repo": {
+          "$ref": "#/$defs/RepoId"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EventRecord"
+          }
+        },
+        "head_seq": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "next_after": {
+          "type": "integer",
+          "minimum": 0
+        },
+        "has_more": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "repo",
+        "events",
+        "head_seq",
+        "next_after",
+        "has_more"
+      ]
+    },
+    "FeedPage": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "feed"
+        },
+        "events": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/EventRecord"
+          }
+        },
+        "cursor": {
+          "type": "string"
+        },
+        "has_more": {
+          "type": "boolean"
+        }
+      },
+      "required": [
+        "type",
+        "events",
+        "cursor",
+        "has_more"
+      ]
+    },
+    "StreamFrame": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "event"
+            },
+            "event": {
+              "$ref": "#/$defs/EventRecord"
+            }
+          },
+          "required": [
+            "type",
+            "event"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "replay.done"
+            },
+            "head_seq": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "type",
+            "head_seq"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "ping"
+            },
+            "head_seq": {
+              "type": "integer",
+              "minimum": 0
+            }
+          },
+          "required": [
+            "type",
+            "head_seq"
+          ]
+        }
+      ]
+    },
+    "HumanAction": {
+      "oneOf": [
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "action"
+            },
+            "action": {
+              "const": "approve"
+            },
+            "change": {
+              "type": "string",
+              "minLength": 1
+            },
+            "task": {
+              "type": "string",
+              "minLength": 1
+            },
+            "note": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "action",
+            "change"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "action"
+            },
+            "action": {
+              "const": "undo"
+            },
+            "seq": {
+              "type": "integer",
+              "minimum": 1
+            },
+            "op_id": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string",
+              "minLength": 1
+            }
+          },
+          "required": [
+            "type",
+            "action",
+            "reason"
+          ],
+          "anyOf": [
+            {
+              "required": [
+                "seq"
+              ]
+            },
+            {
+              "required": [
+                "op_id"
+              ]
+            }
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "action"
+            },
+            "action": {
+              "enum": [
+                "pause",
+                "resume"
+              ]
+            },
+            "agent": {
+              "type": "string",
+              "minLength": 1
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "action",
+            "agent"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "action"
+            },
+            "action": {
+              "const": "message"
+            },
+            "to": {
+              "$ref": "#/$defs/AgentRef"
+            },
+            "text": {
+              "type": "string",
+              "minLength": 1
+            },
+            "intent": {
+              "enum": [
+                "steer",
+                "negotiate",
+                "info"
+              ]
+            }
+          },
+          "required": [
+            "type",
+            "action",
+            "to",
+            "text"
+          ]
+        }
+      ]
+    },
+    "ActionResult": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "action.result"
+        },
+        "seq": {
+          "type": "integer",
+          "minimum": 1
+        },
+        "record": {
+          "$ref": "#/$defs/EventRecord"
+        }
+      },
+      "required": [
+        "type",
+        "seq",
+        "record"
+      ]
+    },
+    "WcpError": {
+      "type": "object",
+      "properties": {
+        "type": {
+          "const": "error"
+        },
+        "error": {
+          "type": "object",
+          "properties": {
+            "code": {
+              "enum": [
+                "invalid_message",
+                "unsupported_version",
+                "unauthorized",
+                "forbidden",
+                "repo_not_found",
+                "not_found",
+                "session_expired",
+                "base_ahead",
+                "invalid_reference",
+                "payload_too_large",
+                "rate_limited",
+                "internal",
+                "unavailable"
+              ]
+            },
+            "message": {
+              "type": "string",
+              "minLength": 1
+            },
+            "retryable": {
+              "type": "boolean"
+            },
+            "details": {
+              "type": "object"
+            }
+          },
+          "required": [
+            "code",
+            "message",
+            "retryable"
+          ]
+        }
+      },
+      "required": [
+        "type",
+        "error"
+      ]
+    }
+  }
+}
