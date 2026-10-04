@@ -25,6 +25,7 @@ const scenarios = readdirSync(scenarioDir)
 const initOf = (sc: Scenario) => ({
   repo: sc.repo,
   ...(sc.policy ? { policy: sc.policy } : {}),
+  ...(sc.escalation ? { escalation: sc.escalation } : {}),
   ...(sc.claim_ttl_ms ? { claim_ttl_ms: sc.claim_ttl_ms } : {}),
   ...(sc.session_ttl_ms ? { session_ttl_ms: sc.session_ttl_ms } : {}),
 });
@@ -207,11 +208,46 @@ describe("SqlCoordinator persistence and extras", () => {
     expect(() => j.call("system", { kind: "edit", base_seq: 3, writes: [{ key: "x#y", kind: "body" }] }, sys)).toThrow(WcpProtocolError);
   });
 
+  it("system message (workflow bounce) reaches the change's agent inbox, same as the reference", () => {
+    const { j } = fresh();
+    const ref = new ReferenceCoordinator({ repo: "r", now: () => Date.parse("2026-10-05T12:00:00.000Z") });
+    const a = j.call<{ session: string }>("hello", hello("a", "A"));
+    ref.hello(hello("a", "A"));
+    const sys = { type: "system" as const, id: "workflows" };
+    const draft = { kind: "message" as const, base_seq: 1, change: "A", payload: { to: { change: "A" }, text: "rebase conflict in src/x.ts", intent: "steer" } };
+    const rec = j.call<{ seq: number; status: string; change?: string }>("system", draft, sys);
+    expect(rec).toMatchObject({ status: "accepted", change: "A" });
+    const rrec = ref.system(draft, sys);
+    expect({ ...rrec, ts: undefined, repo: undefined }).toEqual({ ...rec, ts: undefined, repo: undefined });
+    const inbox = j.call<{ items: Array<{ kind: string; seq: number }> }>("drain", a.session);
+    expect(inbox.items.some((i) => i.kind === "message" && i.seq === rec.seq)).toBe(true);
+  });
+
   it("nextExpiry reports the earliest claim or session expiry", () => {
     const { clock, j } = fresh({ claim_ttl_ms: 1000, session_ttl_ms: 5000 });
     expect(j.coord.nextExpiry()).toBeNull();
     const a = j.call<{ session: string }>("hello", hello("a", "A"));
     j.call("submit", a.session, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key: "src/x.ts#f", kind: "body" }] } });
     expect(j.coord.nextExpiry()).toBe(clock.now() + 1000);
+  });
+});
+
+describe("schema migration", () => {
+  it("adds changes.merged_into to a v1 database and keeps its data", () => {
+    const sql = nodeSql();
+    // The v1 changes table (before B11) had no merged_into column.
+    sql.exec(`CREATE TABLE changes (id TEXT PRIMARY KEY, ord INTEGER NOT NULL, agent TEXT NOT NULL, task TEXT, priority INTEGER NOT NULL, birth INTEGER,
+      landed INTEGER NOT NULL DEFAULT 0, approved INTEGER NOT NULL DEFAULT 0)`).toArray();
+    sql.exec(`INSERT INTO changes (id, ord, agent, task, priority) VALUES ('I-old', 1, 'claude-a', 'T-1', 0)`).toArray();
+    sql.exec(`CREATE TABLE meta (k TEXT PRIMARY KEY, v TEXT NOT NULL)`).toArray();
+    sql.exec(`INSERT INTO meta (k, v) VALUES ('schema_version', '1')`).toArray();
+    SqlCoordinator.init(sql, { repo: "demo" });
+    const cols = sql.exec<{ name: string }>(`PRAGMA table_info(changes)`).toArray().map((r) => r.name);
+    expect(cols).toContain("merged_into");
+    expect(sql.exec<{ id: string; merged_into: string | null }>(`SELECT id, merged_into FROM changes`).toArray()).toEqual([{ id: "I-old", merged_into: null }]);
+    expect(sql.exec<{ v: string }>(`SELECT v FROM meta WHERE k = 'schema_version'`).toArray()[0]!.v).toBe("2");
+    // A config written before B11 has no escalation field: it reads as auto.
+    sql.exec(`UPDATE meta SET v = ? WHERE k = 'config'`, JSON.stringify({ repo: "demo", policy: "wound-wait", claim_ttl_ms: 1, session_ttl_ms: 1, heartbeat_interval_ms: 1, limits: { max_diff_bytes: 1, max_keys: 1, max_page: 1 } })).toArray();
+    expect(new SqlCoordinator(sql).escalation).toBe("auto");
   });
 });

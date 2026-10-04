@@ -1,0 +1,104 @@
+agent-b commit: api: POST /api/signup (T-2)
+
+Change-Id: I3de6443a0e891facdd5062f4b3d66d2692d16f8d
+Task-Id: T-2
+Agent-Id: codex-b
+agent-c commit: auth: refreshSession (T-3)
+
+Change-Id: I104f44923d3efe1dc70dd591bd2ebb6ecfefaadc
+Task-Id: T-3
+Agent-Id: opencode-c
+--- merges: {"b":{"ok":true},"c":{"ok":true},"w":{"ok":true}}
+*   fb8c0db Merge branch 'agent-w'
+|\  
+| * 8cc5a73 ops: session smoke check (T-4)
+* |   c81c8f1 Merge branch 'agent-c'
+|\ \  
+| * | ad0c68b auth: refreshSession (T-3)
+| |/  
+* |   2c59162 Merge branch 'agent-b'
+|\ \  
+| |/  
+|/|   
+| * 035d866 api: POST /api/signup (T-2)
+|/  
+* 6a24630 target-app: initial
+(A simulated: no merged checks)
+--- main:src/auth/refresh.ts
+import { createSession, getSession, revokeSession, type Session } from "./session.ts";
+
+/** Lifetime of the replacement session; keep in step with the TTL login() starts sessions with. */
+const REFRESHED_SESSION_TTL_MS = 12 * 60 * 60 * 1000;
+
+/** Revoke the token's session and start a fresh one for the same user, or undefined if there is none. */
+export function refreshSession(token: string): Session | undefined {
+  const current = getSession(token);
+  if (!current) return undefined;
+  revokeSession(token);
+  return createSession(current.userId, { ttlMs: REFRESHED_SESSION_TTL_MS });
+}
+--- main:src/api/account.ts
+import { createUser, getUser, publicUser, UserError } from "../auth/users.ts";
+import { createSession, revokeSession } from "../auth/session.ts";
+import { field, html, json, sessionOf, type Route } from "./router.ts";
+import { accountPage } from "../ui/pages.ts";
+
+export const accountRoutes: Route[] = [
+  {
+    method: "POST",
+    path: "/api/signup",
+    handler: (req) => {
+      const email = field(req.body, "email");
+      const name = field(req.body, "name");
+      const password = field(req.body, "password");
+      if (email === undefined || name === undefined || password === undefined) {
+        return json(400, { error: "email, name and password are required" });
+      }
+      try {
+        const user = createUser(email, name, password);
+        const session = createSession(user.id, { ttlMs: 24 * 60 * 60 * 1000 });
+        return json(201, { token: session.token, user: publicUser(user) });
+      } catch (err) {
+        if (err instanceof UserError) return json(400, { error: err.message });
+        throw err;
+      }
+    },
+  },
+  {
+    method: "GET",
+    path: "/api/me",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? json(200, publicUser(user)) : json(401, { error: "not signed in" });
+    },
+  },
+  {
+    method: "GET",
+    path: "/account",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? html(200, accountPage(publicUser(user))) : html(401, "<p>Please sign in.</p>");
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/logout",
+    handler: (req) => {
+      const session = sessionOf(req);
+      if (!session) return json(401, { error: "not signed in" });
+      revokeSession(session.token);
+      return json(200, { ok: field(req.body, "reason") ?? true });
+    },
+  },
+];
+
+--- main:src/ops/health.ts
+import { createSession } from "../auth/session.ts";
+
+/** Smoke check used by ops: can we mint a session? */
+export function sessionSmoke(): boolean {
+  return createSession("u_health", { ttlMs: 1000 }).token.length > 0;
+}
+

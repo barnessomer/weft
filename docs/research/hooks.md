@@ -263,3 +263,29 @@ Every L2 implementation needs a model-visible reason; otherwise the model cannot
 | Gemini CLI, Cursor, Copilot | documented only | documented only | documented only | documented only | official docs (not installed / fixture-only per plan) |
 
 Downstream: B4 can build on Claude Code L3 directly. B5 must re-run `run_codex_probe.sh` to confirm L1–L3 on Codex. Codex edits arrive as `apply_patch` text, which the adapter parses into WCP `edit.patch` (feed it to `analyzeDiff`).
+
+## OpenCode, Cursor CLI, Gemini CLI: adapter verification (B12, 2026-10-04)
+
+OpenCode is not in the five-vendor matrix above: it has no command hooks. Its extension point
+is a JS plugin loaded into the OpenCode process (`.opencode/plugin/*.js`, `@opencode-ai/plugin`
+types), with `tool.execute.before(input, output)`, `tool.execute.after(input, output)`, an
+`event` bus (`session.idle`, `session.created`, `session.deleted`, …),
+`experimental.chat.system.transform` and a `client` SDK bound to the running server.
+
+| Runtime | L0 observe | L1 inject | L2 deny edit | L3 refuse stop | Evidence |
+|---|---|---|---|---|---|
+| OpenCode 1.18.31 | **verified** (`tool.execute.before/after` with `{tool, sessionID, callID}` + `args`: `write {filePath, content}`, `edit {filePath, oldString, newString, replaceAll}`, `bash {command}`) | **verified** (text appended to `output.output` in `tool.execute.after` reached the model; welcome via `experimental.chat.system.transform`) | **verified** (a `throw` in `tool.execute.before` fails the tool call; the model read the error text and rewrote the call) | **verified in a long-lived process** (`session.idle` → `client.session.prompt(reason)` started a new user turn, 5×); **not** in one-shot `opencode run`, which exits on idle before the continuation runs | scratch probe (`.opencode/plugin/probe.js`), then `demo/b12-harnesses.mjs` → `demo/evidence/b12*/` (`c-hooks.jsonl`, `c-session-messages.json`) |
+| Cursor CLI (`cursor-agent` 2026.04.17) | documented only | documented only | documented only | documented only | live probe blocked: `cursor-agent status` → "Not logged in" (expired login; re-login needs the account owner's browser OAuth). Payload shapes from https://cursor.com/docs/hooks; built-in edit tool names/arguments are **not documented** |
+| Gemini CLI | documented only | documented only | documented only | documented only | no usable auth (free OAuth tier retired); fixture tests only |
+
+OpenCode facts learned live (not in its docs):
+
+- OpenCode resolves its project directory from `$PWD`, not from the process cwd: a driver that
+  spawns `opencode run` with `cwd` set but an inherited `PWD` makes the agent work in the
+  parent's directory. Set `PWD` (or `--dir`).
+- `opencode run` (one-shot) ends at the first `session.idle`; a plugin's follow-up prompt only
+  runs when the plugin's process outlives the turn (TUI, or `opencode serve` + `opencode run
+  --attach <url>`).
+- The free `opencode/big-pickle` model is enough for these probes; `openrouter/*` hit the
+  OpenRouter account's daily budget during B12.
+

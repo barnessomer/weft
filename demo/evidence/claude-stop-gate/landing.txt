@@ -1,0 +1,59 @@
+agent-a: committed
+agent-b: commit refused: weft: commit refused — 1 open error(s):
+[weft error] stale_assumption src/pricing.ts:4:17: You use src/pricing.ts#calcTotal, whose signature changed in #4 by claude-a after your base #1. (caused by claude-a · task T-1 · event #4). Suggestion: Read the new src/pricing.ts#calcTotal (event #4) and update this call site, or negotiate with claude-a.
+  ↳ event #4 by claude-a changed src/pricing.ts (their change is not in your checkout yet):
+    @@ -1,6 +1,9 @@
+     export type Item = { sku: string; price: number; qty: number };
+     
+    -/** Sum of price × quantity over the cart. */
+    -export function calcTotal(items: Item[]): number {
+    -  return items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    +export type PriceOptions = { taxRate: number };
+    +
+    +/** Sum of price × quantity over the cart, including tax. */
+    +export function calcTotal(items: Item[], opts: PriceOptions): number {
+    +  const net = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+    +  return net * (1 + opts.taxRate);
+     }
+    
+
+agent-a HEAD:
+pricing: apply tax in calcTotal
+
+Change-Id: I662ea1a9f8373696d1e6fc3c6fb32b331426f940
+Task-Id: T-1
+Agent-Id: claude-a
+agent-b HEAD:
+ts-shop: initial
+--- B checkout alone (A's change not merged yet): tsc
+tsc: exit 0 (clean)
+--- main after merging agent-a then agent-b:
+bc5ac10 pricing: apply tax in calcTotal
+a1be247 ts-shop: initial
+tsc: exit 0 (clean)
+--- main:src/cart.ts
+import type { Item } from "./pricing";
+
+export class Cart {
+  private items: Item[] = [];
+
+  add(item: Item): void {
+    this.items.push(item);
+  }
+
+  list(): Item[] {
+    return [...this.items];
+  }
+}
+
+--- main:src/pricing.ts
+export type Item = { sku: string; price: number; qty: number };
+
+export type PriceOptions = { taxRate: number };
+
+/** Sum of price × quantity over the cart, including tax. */
+export function calcTotal(items: Item[], opts: PriceOptions): number {
+  const net = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  return net * (1 + opts.taxRate);
+}
+

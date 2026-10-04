@@ -1,0 +1,29 @@
+// Stage the WCP adapter bundles into image/vendor/ (the Docker build context is apps/sandbox).
+// Run before `wrangler deploy` / `docker build`. Adapters that are not built yet are skipped
+// with a note (the image still ships their harness CLI).
+import { execFileSync } from "node:child_process";
+import { cpSync, existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { dirname, join } from "node:path";
+import { fileURLToPath } from "node:url";
+
+const app = dirname(dirname(fileURLToPath(import.meta.url)));
+const repo = join(app, "..", "..");
+const vendor = join(app, "image", "vendor", "adapters");
+rmSync(vendor, { recursive: true, force: true });
+mkdirSync(vendor, { recursive: true });
+
+// claude-code (B4): esbuild bundle + split chunk that lazy-loads typescript.
+const claude = join(repo, "packages", "adapters", "claude-code");
+execFileSync(process.execPath, [join(claude, "scripts", "build.mjs")], { stdio: "inherit" });
+const pkg = JSON.parse(readFileSync(join(claude, "package.json"), "utf8"));
+mkdirSync(join(vendor, "claude-code"), { recursive: true });
+cpSync(join(claude, "dist"), join(vendor, "claude-code", "dist"), { recursive: true });
+writeFileSync(join(vendor, "claude-code", "package.json"), JSON.stringify({ name: pkg.name, version: pkg.version, private: true, type: "module" }, null, 2) + "\n");
+console.log(`staged ${pkg.name}@${pkg.version}`);
+
+// codex (B5): ship when its bundle exists.
+const codexDist = join(repo, "packages", "adapters", "codex", "dist");
+if (existsSync(codexDist)) {
+  cpSync(codexDist, join(vendor, "codex", "dist"), { recursive: true });
+  console.log("staged @weft/adapter-codex");
+} else console.log("skip @weft/adapter-codex (no dist yet; B5)");

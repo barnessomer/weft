@@ -1,0 +1,10 @@
+{
+  "extends": "../../tsconfig.base.json",
+  "compilerOptions": {
+    "lib": ["ES2022", "DOM", "ESNext.Disposable"],
+    "types": ["vitest/globals", "node"],
+    "allowJs": true,
+    "checkJs": false
+  },
+  "include": ["test/**/*.ts", "src/core/**/*.ts"]
+}

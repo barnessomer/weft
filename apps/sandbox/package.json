@@ -1,12 +1,18 @@
 {
   "name": "@weft/sandbox",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit --strict --target ES2022 --lib ES2022 --module ESNext --moduleResolution Bundler --types @cloudflare/workers-types src/index.ts",
-    "test": "vitest run src/index.test.ts",
-    "dev": "wrangler dev",
-    "deploy:preview": "wrangler deploy --env preview"
+    "stage": "node scripts/stage.mjs",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+    "test": "node ../../packages/adapters/claude-code/scripts/build.mjs && vitest run",
+    "image": "node scripts/stage.mjs && docker build --platform linux/amd64 -t weft-sandbox:dev .",
+    "dev": "node scripts/stage.mjs && wrangler dev",
+    "deploy:preview": "node scripts/stage.mjs && wrangler deploy --env preview",
+    "live": "node scripts/live.mjs"
+  },
+  "dependencies": {
+    "@weft/artifacts": "workspace:*"
   }
 }

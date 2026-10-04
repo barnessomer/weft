@@ -207,6 +207,7 @@ async function run(sc: Scenario) {
   const coord = new ReferenceCoordinator({
     repo: sc.repo,
     ...(sc.policy ? { policy: sc.policy } : {}),
+    ...(sc.escalation ? { escalation: sc.escalation } : {}),
     ...(sc.claim_ttl_ms ? { claim_ttl_ms: sc.claim_ttl_ms } : {}),
     ...(sc.session_ttl_ms ? { session_ttl_ms: sc.session_ttl_ms } : {}),
     now: clock.now,

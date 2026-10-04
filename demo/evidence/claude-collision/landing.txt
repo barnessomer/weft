@@ -1,0 +1,57 @@
+agent-a: committed
+agent-b: committed
+agent-a HEAD:
+pricing: apply tax in calcTotal
+
+Change-Id: I0fef764f5307469f20ee2fec1334805902662e2a
+Task-Id: T-1
+Agent-Id: claude-a
+agent-b HEAD:
+cart: add total()
+
+Change-Id: I5a3ea2c5dd34cfb785a14e2e67924d3460378a76
+Task-Id: T-2
+Agent-Id: claude-b
+--- B checkout alone (A's change not merged yet): tsc
+tsc: exit 2
+src/cart.ts(1,37): error TS2305: Module '"./pricing"' has no exported member 'PriceOptions'.
+src/cart.ts(17,34): error TS2554: Expected 1 arguments, but got 2.
+
+--- main after merging agent-a then agent-b:
+f2ab1fd Merge branch 'agent-b'
+2411a43 cart: add total()
+cafb834 pricing: apply tax in calcTotal
+c3f5268 ts-shop: initial
+tsc: exit 0 (clean)
+--- main:src/cart.ts
+import { calcTotal, type Item, type PriceOptions } from "./pricing";
+
+export class Cart {
+  private items: Item[] = [];
+
+  constructor(private readonly priceOptions: PriceOptions) {}
+
+  add(item: Item): void {
+    this.items.push(item);
+  }
+
+  list(): Item[] {
+    return [...this.items];
+  }
+
+  total(): number {
+    return calcTotal(this.items, this.priceOptions);
+  }
+}
+
+--- main:src/pricing.ts
+export type Item = { sku: string; price: number; qty: number };
+
+export type PriceOptions = { taxRate: number };
+
+/** Sum of price × quantity over the cart, including tax. */
+export function calcTotal(items: Item[], opts: PriceOptions): number {
+  const net = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  return net * (1 + opts.taxRate);
+}
+

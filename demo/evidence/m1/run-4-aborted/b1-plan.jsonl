@@ -1,0 +1,11 @@
+{"type":"thread.started","thread_id":"01a105ab-7bd6-7541-ae8f-0ef7a5e539bf"}
+{"type":"item.completed","item":{"id":"item_0","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"item.completed","item":{"id":"item_1","type":"error","message":"`--dangerously-bypass-hook-trust` is enabled. Enabled hooks may run without review for this invocation."}}
+{"type":"turn.started"}
+{"type":"error","message":"Reconnecting... 1/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523d50287283ea-EZE)"}
+{"type":"error","message":"Reconnecting... 2/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523d52ef301ea8-EZE)"}
+{"type":"error","message":"Reconnecting... 3/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523d56d9848bc2-EZE)"}
+{"type":"error","message":"Reconnecting... 4/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523d5d4e04db36-EZE)"}
+{"type":"error","message":"Reconnecting... 5/5 (unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523d67da7011ca-EZE)"}
+{"type":"error","message":"unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523d7dfd30c191-EZE"}
+{"type":"turn.failed","error":{"message":"unexpected status 403 Forbidden: Budget limit exceeded (daily limit). Contact your org admin., url: https://openrouter.ai/api/v1/responses, cf-ray: a4523d7dfd30c191-EZE"}}

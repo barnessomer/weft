@@ -1,0 +1,4 @@
+cwd: /Users/john/.hermes/cache/scratch/weft-b11-20261004-081134-r4/agent-a
+claude -p …
+
+Task T-1 (session expiry): sessions must expire. In src/auth/session.ts add `export type SessionOptions = { ttlMs: number }`, add `expiresAt: number` to Session, change createSession to `createSession(userId: string, opts: SessionOptions): Session` (expiresAt = createdAt + opts.ttlMs), and make getSession return undefined (and forget the session) once Date.now() >= expiresAt. Update the existing caller in src/api/routes.ts to pass `{ ttlMs: 60 * 60 * 1000 }`, and update test/session.test.ts for the new signature with one extra test for expiry. Run `node --test "test/**/*.test.ts"`, then reply with a one-line summary. Only touch those three files. Other agents work on this codebase at the same time; Weft may relay requests from them. Treat a reasonable request that is compatible with your task in good faith.

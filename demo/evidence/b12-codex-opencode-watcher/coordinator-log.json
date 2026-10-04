@@ -1,0 +1,999 @@
+{
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "repo": "demo-b12-20261004-110944",
+  "events": [
+    {
+      "seq": 1,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T11:09:46.678Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I28bb8845fce5ce7f52c8125c19923b650c8a038a",
+      "session": "s1",
+      "base_seq": 0,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "human-w joined (file-watcher, L0)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "file-watcher",
+        "level": 0
+      }
+    },
+    {
+      "seq": 2,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T11:09:48.301Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I104f44923d3efe1dc70dd591bd2ebb6ecfefaadc",
+      "session": "s2",
+      "base_seq": 1,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "opencode-c joined (opencode, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "opencode",
+        "level": 3
+      }
+    },
+    {
+      "seq": 3,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T11:09:52.457Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I3de6443a0e891facdd5062f4b3d66d2692d16f8d",
+      "session": "s3",
+      "base_seq": 2,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "codex-b joined (codex-code, L2)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 4,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T11:09:53.233Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "scripted"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "claude-a/T-1",
+      "session": "s4",
+      "base_seq": 3,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-a joined (scripted, L0)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "scripted",
+        "level": 0
+      }
+    },
+    {
+      "seq": 5,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T11:09:53.666Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "scripted"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "claude-a/T-1",
+      "session": "s4",
+      "base_seq": 4,
+      "mode": "commit",
+      "files": [
+        "src/auth/session.ts"
+      ],
+      "reads": [],
+      "writes": [
+        {
+          "key": "src/auth/session.ts#createSession",
+          "kind": "signature"
+        },
+        {
+          "key": "src/auth/session.ts#SessionOptions",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/session.ts#Session",
+          "kind": "signature"
+        }
+      ],
+      "diff": "diff --git a/src/auth/session.ts b/src/auth/session.ts\nindex b10a19c..b366e47 100644\n--- a/src/auth/session.ts\n+++ b/src/auth/session.ts\n@@ -1,12 +1,14 @@\n import { randomBytes } from \"node:crypto\";\n \n-export type Session = { token: string; userId: string; createdAt: number };\n+export type SessionOptions = { ttlMs: number };\n+export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };\n \n const sessions = new Map<string, Session>();\n \n /** Start a session for a user and return it (the token is the bearer credential). */\n-export function createSession(userId: string): Session {\n-  const session: Session = { token: randomBytes(24).toString(\"base64url\"), userId, createdAt: Date.now() };\n+export function createSession(userId: string, opts: SessionOptions): Session {\n+  const now = Date.now();\n+  const session: Session = { token: randomBytes(24).toString(\"base64url\"), userId, createdAt: now, expiresAt: now + opts.ttlMs };\n   sessions.set(session.token, session);\n   return session;\n }\n",
+      "summary": "claude-a changed signature of createSession, Session, added SessionOptions in src/auth/session.ts",
+      "diagnostics": []
+    },
+    {
+      "seq": 6,
+      "repo": "demo-b12-20261004-110944",
+      "status": "rejected",
+      "kind": "edit",
+      "ts": "2026-10-04T11:09:54.327Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I28bb8845fce5ce7f52c8125c19923b650c8a038a",
+      "session": "s1",
+      "base_seq": 1,
+      "mode": "commit",
+      "files": [
+        "src/ops/health.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#createSession"
+      ],
+      "writes": [
+        {
+          "key": "src/ops/health.ts#sessionSmoke",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/ops/health.ts b/src/ops/health.ts\n--- /dev/null\n+++ b/src/ops/health.ts\n@@ -0,0 +1,6 @@\n+import { createSession } from \"../auth/session.ts\";\n+\n+/** Smoke check used by ops: can we mint a session? */\n+export function sessionSmoke(): boolean {\n+  return createSession(\"u_health\").token.length > 0;\n+}\n",
+      "intent": "T-4: Health check",
+      "summary": "Blocked: human-w added sessionSmoke in src/ops/health.ts — Health check",
+      "diagnostics": [
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#createSession",
+          "message": "You use src/auth/session.ts#createSession, whose signature changed in #5 by claude-a after your base #1.",
+          "suggestion": "Read the new src/auth/session.ts#createSession (event #5) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 5,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        }
+      ],
+      "tool": {
+        "name": "Write",
+        "call_id": "watch-1791112194149-1",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 7,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T11:10:26.378Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I3de6443a0e891facdd5062f4b3d66d2692d16f8d",
+      "session": "s3",
+      "base_seq": 6,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "codex-code session end: other",
+      "summary": "codex-b left — codex-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 8,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T11:10:50.436Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I3de6443a0e891facdd5062f4b3d66d2692d16f8d",
+      "session": "s5",
+      "base_seq": 7,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "codex-b joined (codex-code, L2)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 9,
+      "repo": "demo-b12-20261004-110944",
+      "status": "rejected",
+      "kind": "edit",
+      "ts": "2026-10-04T11:10:56.092Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I104f44923d3efe1dc70dd591bd2ebb6ecfefaadc",
+      "session": "s2",
+      "base_seq": 2,
+      "mode": "check",
+      "files": [
+        "src/auth/refresh.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#Session",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#revokeSession"
+      ],
+      "writes": [
+        {
+          "key": "src/auth/refresh.ts#refreshSession",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/refresh.ts#refreshSession.current",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/auth/refresh.ts b/src/auth/refresh.ts\n--- /dev/null\n+++ b/src/auth/refresh.ts\n@@ -0,0 +1,9 @@\n+import { createSession, getSession, revokeSession, type Session } from \"./session.ts\";\n+\n+/** Revoke the token's session and start a fresh one for the same user, or undefined if there is none. */\n+export function refreshSession(token: string): Session | undefined {\n+  const current = getSession(token);\n+  if (!current) return undefined;\n+  revokeSession(token);\n+  return createSession(current.userId);\n+}\n",
+      "intent": "T-3: Session refresh",
+      "summary": "Blocked: opencode-c added refreshSession, refreshSession.current in src/auth/refresh.ts — Session refresh",
+      "diagnostics": [
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#Session",
+          "message": "You use src/auth/session.ts#Session, whose signature changed in #5 by claude-a after your base #2.",
+          "suggestion": "Read the new src/auth/session.ts#Session (event #5) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 5,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        },
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#createSession",
+          "message": "You use src/auth/session.ts#createSession, whose signature changed in #5 by claude-a after your base #2.",
+          "suggestion": "Read the new src/auth/session.ts#createSession (event #5) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 5,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        }
+      ],
+      "tool": {
+        "name": "Write",
+        "call_id": "call_01a1069c180575e99a3fc167",
+        "harness_event": "PreToolUse"
+      }
+    },
+    {
+      "seq": 10,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T11:10:57.311Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I104f44923d3efe1dc70dd591bd2ebb6ecfefaadc",
+      "session": "s2",
+      "base_seq": 9,
+      "mode": "commit",
+      "files": [
+        "test/refresh.test.ts"
+      ],
+      "reads": [
+        "src/auth/refresh.ts#refreshSession",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#resetSessions"
+      ],
+      "writes": [
+        {
+          "key": "test/refresh.test.ts#fresh",
+          "kind": "new"
+        },
+        {
+          "key": "test/refresh.test.ts#old",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/test/refresh.test.ts b/test/refresh.test.ts\n--- /dev/null\n+++ b/test/refresh.test.ts\n@@ -0,0 +1,20 @@\n+import { test, beforeEach } from \"node:test\";\n+import assert from \"node:assert/strict\";\n+import { createSession, getSession, resetSessions } from \"../src/auth/session.ts\";\n+import { refreshSession } from \"../src/auth/refresh.ts\";\n+\n+beforeEach(() => resetSessions());\n+\n+test(\"refreshSession replaces the session with a fresh one for the same user\", () => {\n+  const old = createSession(\"u_1\");\n+  const fresh = refreshSession(old.token);\n+  assert.ok(fresh);\n+  assert.equal(fresh.userId, \"u_1\");\n+  assert.notEqual(fresh.token, old.token);\n+  assert.equal(getSession(old.token), undefined);\n+  assert.equal(getSession(fresh.token)?.userId, \"u_1\");\n+});\n+\n+test(\"refreshSession returns undefined when the token has no live session\", () => {\n+  assert.equal(refreshSession(\"nope\"), undefined);\n+});\n",
+      "intent": "T-3: Session refresh",
+      "summary": "opencode-c added fresh, old in test/refresh.test.ts — Session refresh",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "call_01a1069c180575e99a3fc168",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 11,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "negotiate.propose",
+      "ts": "2026-10-04T11:11:19.273Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I104f44923d3efe1dc70dd591bd2ebb6ecfefaadc",
+      "session": "s2",
+      "base_seq": 10,
+      "mode": "commit",
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "opencode-c → claude-a/T-1: proposes overload on Session",
+      "diagnostics": [],
+      "payload": {
+        "to": {
+          "change": "claude-a/T-1"
+        },
+        "keys": [
+          "src/auth/session.ts#Session"
+        ],
+        "terms": {
+          "kind": "overload",
+          "text": "T-3 refreshSession needs to start the fresh session exactly the way login() in src/api/routes.ts does. Please make the second param optional: createSession(userId: string, opts?: SessionOptions) with a default TTL (and export that TTL constant if useful). Keep explicit opts working for login so your callers are unaffected; then my call site createSession(current.userId) typechecks and refresh inherits your TTL policy rather than me guessing a number. If you prefer the TTL to stay mandatory, counter with the exact call login will use and I'll mirror it."
+        }
+      },
+      "tool": {
+        "name": "weft-cli",
+        "harness_event": "Bash"
+      }
+    },
+    {
+      "seq": 12,
+      "repo": "demo-b12-20261004-110944",
+      "status": "rejected",
+      "kind": "edit",
+      "ts": "2026-10-04T11:11:33.726Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I3de6443a0e891facdd5062f4b3d66d2692d16f8d",
+      "session": "s5",
+      "base_seq": 3,
+      "mode": "check",
+      "files": [
+        "src/api/account.ts",
+        "test/signup.test.ts"
+      ],
+      "reads": [
+        "src/api/router.ts#Route",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/api/router.ts#sessionOf",
+        "src/api/routes.ts#app",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#resetSessions",
+        "src/auth/session.ts#revokeSession",
+        "src/auth/users.ts#UserError",
+        "src/auth/users.ts#authenticate",
+        "src/auth/users.ts#createUser",
+        "src/auth/users.ts#getUser",
+        "src/auth/users.ts#publicUser",
+        "src/auth/users.ts#resetUsers",
+        "src/ui/pages.ts#accountPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/account.ts#accountRoutes",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.email",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.err",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.name",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.password",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#bodies",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#body",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#duplicate",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#key",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#me",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#missing",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#registered",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#res",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#signup",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#valid",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/api/account.ts b/src/api/account.ts\n--- a/src/api/account.ts\n+++ b/src/api/account.ts\n@@ -1,9 +1,29 @@\n-import { getUser, publicUser } from \"../auth/users.ts\";\n-import { revokeSession } from \"../auth/session.ts\";\n+import { createUser, getUser, publicUser, UserError } from \"../auth/users.ts\";\n+import { createSession, revokeSession } from \"../auth/session.ts\";\n import { field, html, json, sessionOf, type Route } from \"./router.ts\";\n import { accountPage } from \"../ui/pages.ts\";\n \n export const accountRoutes: Route[] = [\n+  {\n+    method: \"POST\",\n+    path: \"/api/signup\",\n+    handler: (req) => {\n+      const email = field(req.body, \"email\");\n+      const name = field(req.body, \"name\");\n+      const password = field(req.body, \"password\");\n+      if (email === undefined || name === undefined || password === undefined) {\n+        return json(400, { error: \"email, name and password are required\" });\n+      }\n+      try {\n+        const user = createUser(email, name, password);\n+        const session = createSession(user.id);\n+        return json(201, { token: session.token, user: publicUser(user) });\n+      } catch (err) {\n+        if (err instanceof UserError) return json(400, { error: err.message });\n+        throw err;\n+      }\n+    },\n+  },\n   {\n     method: \"GET\",\n     path: \"/api/me\",\ndiff --git a/test/signup.test.ts b/test/signup.test.ts\n--- /dev/null\n+++ b/test/signup.test.ts\n@@ -0,0 +1,87 @@\n+import { test, beforeEach } from \"node:test\";\n+import assert from \"node:assert/strict\";\n+import { app } from \"../src/api/routes.ts\";\n+import { authenticate, publicUser, resetUsers } from \"../src/auth/users.ts\";\n+import { resetSessions } from \"../src/auth/session.ts\";\n+\n+const signup = (body: unknown) =>\n+  app({ method: \"POST\", path: \"/api/signup\", body, headers: {} });\n+\n+beforeEach(() => {\n+  resetUsers();\n+  resetSessions();\n+});\n+\n+test(\"signup registers a user and returns a working session\", async () => {\n+  const res = await signup({\n+    email: \" ADA@example.com \",\n+    name: \" Ada \",\n+    password: \"correct horse\",\n+  });\n+  assert.equal(res.status, 201);\n+\n+  const registered = authenticate(\"ada@example.com\", \"correct horse\");\n+  assert.ok(registered);\n+  const { token, user } = res.body as {\n+    token: string;\n+    user: ReturnType<typeof publicUser>;\n+  };\n+  assert.equal(typeof token, \"string\");\n+  assert.ok(token.length > 0);\n+  assert.deepEqual(user, {\n+    id: registered.id,\n+    email: \"ada@example.com\",\n+    name: \"Ada\",\n+  });\n+\n+  const me = await app({\n+    method: \"GET\",\n+    path: \"/api/me\",\n+    headers: { authorization: `Bearer ${token}` },\n+  });\n+  assert.equal(me.status, 200);\n+  assert.deepEqual(me.body, user);\n+});\n+\n+test(\"signup converts UserError to 400\", async () => {\n+  const valid = {\n+    email: \"ada@example.com\",\n+    name: \"Ada\",\n+    password: \"correct horse\",\n+  };\n+  for (const [body, error] of [\n+    [{ ...valid, email: \"invalid\" }, \"invalid email\"],\n+    [{ ...valid, password: \"short\" }, \"password must be at least 8 characters\"],\n+  ] as const) {\n+    const res = await signup(body);\n+    assert.equal(res.status, 400);\n+    assert.deepEqual(res.body, { error });\n+  }\n+\n+  assert.equal((await signup(valid)).status, 201);\n+  const duplicate = await signup({ ...valid, email: \"ADA@example.com\" });\n+  assert.equal(duplicate.status, 400);\n+  assert.deepEqual(duplicate.body, { error: \"email already registered\" });\n+});\n+\n+test(\"signup rejects missing and non-string fields\", async () => {\n+  const valid = {\n+    email: \"ada@example.com\",\n+    name: \"Ada\",\n+    password: \"correct horse\",\n+  };\n+  const bodies: unknown[] = [undefined, null, \"invalid\"];\n+  for (const key of [\"email\", \"name\", \"password\"]) {\n+    const missing: Record<string, unknown> = { ...valid };\n+    delete missing[key];\n+    bodies.push(missing, { ...valid, [key]: 42 });\n+  }\n+\n+  for (const body of bodies) {\n+    const res = await signup(body);\n+    assert.equal(res.status, 400);\n+    assert.deepEqual(res.body, {\n+      error: \"email, name and password are required\",\n+    });\n+  }\n+});\n",
+      "intent": "T-2: Signup endpoint",
+      "summary": "Blocked: codex-b changed signature of accountRoutes, added accountRoutes.email, accountRoutes.err +12 more in 2 files — Signup endpoint",
+      "diagnostics": [
+        {
+          "severity": "error",
+          "code": "stale_assumption",
+          "file": "src/auth/session.ts",
+          "symbol": "src/auth/session.ts#createSession",
+          "message": "You use src/auth/session.ts#createSession, whose signature changed in #5 by claude-a after your base #3.",
+          "suggestion": "Read the new src/auth/session.ts#createSession (event #5) and update this call site, or negotiate with claude-a.",
+          "caused_by_seq": 5,
+          "caused_by_agent": "claude-a",
+          "caused_by_task": "T-1"
+        }
+      ],
+      "tool": {
+        "name": "apply_patch",
+        "call_id": "exec-0bc0151c-ad0e-480f-b6b8-885926098e1a",
+        "harness_event": "PreToolUse"
+      }
+    },
+    {
+      "seq": 13,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "negotiate.propose",
+      "ts": "2026-10-04T11:11:46.287Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I3de6443a0e891facdd5062f4b3d66d2692d16f8d",
+      "session": "s5",
+      "base_seq": 12,
+      "mode": "commit",
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "codex-b → claude-a: proposes other on createSession",
+      "diagnostics": [],
+      "payload": {
+        "to": {
+          "agent": "claude-a"
+        },
+        "keys": [
+          "src/auth/session.ts#createSession"
+        ],
+        "terms": {
+          "kind": "other",
+          "text": "I will adapt signup to createSession(user.id, { ttlMs: ... }). Please tell me the TTL value or shared constant used by your updated login so signup matches it."
+        }
+      },
+      "tool": {
+        "name": "weft-cli",
+        "harness_event": "Bash"
+      }
+    },
+    {
+      "seq": 14,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T11:12:32.471Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I3de6443a0e891facdd5062f4b3d66d2692d16f8d",
+      "session": "s5",
+      "base_seq": 12,
+      "mode": "commit",
+      "files": [
+        "test/signup.test.ts"
+      ],
+      "reads": [
+        "src/api/routes.ts#app",
+        "src/auth/session.ts#resetSessions",
+        "src/auth/users.ts#authenticate",
+        "src/auth/users.ts#publicUser",
+        "src/auth/users.ts#resetUsers"
+      ],
+      "writes": [
+        {
+          "key": "test/signup.test.ts#bodies",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#body",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#duplicate",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#key",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#me",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#missing",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#registered",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#res",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#signup",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#valid",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/test/signup.test.ts b/test/signup.test.ts\n--- /dev/null\n+++ b/test/signup.test.ts\n@@ -0,0 +1,87 @@\n+import { test, beforeEach } from \"node:test\";\n+import assert from \"node:assert/strict\";\n+import { app } from \"../src/api/routes.ts\";\n+import { authenticate, publicUser, resetUsers } from \"../src/auth/users.ts\";\n+import { resetSessions } from \"../src/auth/session.ts\";\n+\n+const signup = (body: unknown) =>\n+  app({ method: \"POST\", path: \"/api/signup\", body, headers: {} });\n+\n+beforeEach(() => {\n+  resetUsers();\n+  resetSessions();\n+});\n+\n+test(\"signup registers a user and returns a working session\", async () => {\n+  const res = await signup({\n+    email: \" ADA@example.com \",\n+    name: \" Ada \",\n+    password: \"correct horse\",\n+  });\n+  assert.equal(res.status, 201);\n+\n+  const registered = authenticate(\"ada@example.com\", \"correct horse\");\n+  assert.ok(registered);\n+  const { token, user } = res.body as {\n+    token: string;\n+    user: ReturnType<typeof publicUser>;\n+  };\n+  assert.equal(typeof token, \"string\");\n+  assert.ok(token.length > 0);\n+  assert.deepEqual(user, {\n+    id: registered.id,\n+    email: \"ada@example.com\",\n+    name: \"Ada\",\n+  });\n+\n+  const me = await app({\n+    method: \"GET\",\n+    path: \"/api/me\",\n+    headers: { authorization: `Bearer ${token}` },\n+  });\n+  assert.equal(me.status, 200);\n+  assert.deepEqual(me.body, user);\n+});\n+\n+test(\"signup converts UserError to 400\", async () => {\n+  const valid = {\n+    email: \"ada@example.com\",\n+    name: \"Ada\",\n+    password: \"correct horse\",\n+  };\n+  for (const [body, error] of [\n+    [{ ...valid, email: \"invalid\" }, \"invalid email\"],\n+    [{ ...valid, password: \"short\" }, \"password must be at least 8 characters\"],\n+  ] as const) {\n+    const res = await signup(body);\n+    assert.equal(res.status, 400);\n+    assert.deepEqual(res.body, { error });\n+  }\n+\n+  assert.equal((await signup(valid)).status, 201);\n+  const duplicate = await signup({ ...valid, email: \"ADA@example.com\" });\n+  assert.equal(duplicate.status, 400);\n+  assert.deepEqual(duplicate.body, { error: \"email already registered\" });\n+});\n+\n+test(\"signup rejects missing and non-string fields\", async () => {\n+  const valid = {\n+    email: \"ada@example.com\",\n+    name: \"Ada\",\n+    password: \"correct horse\",\n+  };\n+  const bodies: unknown[] = [undefined, null, \"invalid\"];\n+  for (const key of [\"email\", \"name\", \"password\"]) {\n+    const missing: Record<string, unknown> = { ...valid };\n+    delete missing[key];\n+    bodies.push(missing, { ...valid, [key]: 42 });\n+  }\n+\n+  for (const body of bodies) {\n+    const res = await signup(body);\n+    assert.equal(res.status, 400);\n+    assert.deepEqual(res.body, {\n+      error: \"email, name and password are required\",\n+    });\n+  }\n+});\n",
+      "intent": "T-2: Signup endpoint",
+      "summary": "codex-b added bodies, body +8 more in test/signup.test.ts — Signup endpoint",
+      "diagnostics": [],
+      "tool": {
+        "name": "apply_patch",
+        "call_id": "exec-d34e8bfd-7d5c-42a2-9915-5b49bc778203",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 15,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "negotiate.propose",
+      "ts": "2026-10-04T11:12:54.341Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I3de6443a0e891facdd5062f4b3d66d2692d16f8d",
+      "session": "s5",
+      "base_seq": 14,
+      "mode": "commit",
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "codex-b → claude-a: proposes other on createSession",
+      "diagnostics": [],
+      "payload": {
+        "to": {
+          "agent": "claude-a"
+        },
+        "keys": [
+          "src/auth/session.ts#createSession"
+        ],
+        "terms": {
+          "kind": "other",
+          "text": "Your login call is not updated yet. I will use createSession(user.id, { ttlMs: 24 * 60 * 60 * 1000 }) for signup (24 hours); please use the same TTL for login, or counter with your intended value."
+        }
+      },
+      "tool": {
+        "name": "weft-cli",
+        "harness_event": "Bash"
+      }
+    },
+    {
+      "seq": 16,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T11:13:10.145Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I3de6443a0e891facdd5062f4b3d66d2692d16f8d",
+      "session": "s5",
+      "base_seq": 14,
+      "mode": "commit",
+      "files": [
+        "src/api/account.ts"
+      ],
+      "reads": [
+        "src/api/router.ts#Route",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/api/router.ts#sessionOf",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#revokeSession",
+        "src/auth/users.ts#UserError",
+        "src/auth/users.ts#createUser",
+        "src/auth/users.ts#getUser",
+        "src/auth/users.ts#publicUser",
+        "src/ui/pages.ts#accountPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/account.ts#accountRoutes",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.email",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.err",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.name",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.password",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/api/account.ts b/src/api/account.ts\n--- a/src/api/account.ts\n+++ b/src/api/account.ts\n@@ -1,9 +1,29 @@\n-import { getUser, publicUser } from \"../auth/users.ts\";\n-import { revokeSession } from \"../auth/session.ts\";\n+import { createUser, getUser, publicUser, UserError } from \"../auth/users.ts\";\n+import { createSession, revokeSession } from \"../auth/session.ts\";\n import { field, html, json, sessionOf, type Route } from \"./router.ts\";\n import { accountPage } from \"../ui/pages.ts\";\n \n export const accountRoutes: Route[] = [\n+  {\n+    method: \"POST\",\n+    path: \"/api/signup\",\n+    handler: (req) => {\n+      const email = field(req.body, \"email\");\n+      const name = field(req.body, \"name\");\n+      const password = field(req.body, \"password\");\n+      if (email === undefined || name === undefined || password === undefined) {\n+        return json(400, { error: \"email, name and password are required\" });\n+      }\n+      try {\n+        const user = createUser(email, name, password);\n+        const session = createSession(user.id, { ttlMs: 24 * 60 * 60 * 1000 });\n+        return json(201, { token: session.token, user: publicUser(user) });\n+      } catch (err) {\n+        if (err instanceof UserError) return json(400, { error: err.message });\n+        throw err;\n+      }\n+    },\n+  },\n   {\n     method: \"GET\",\n     path: \"/api/me\",\n",
+      "intent": "T-2: Signup endpoint",
+      "summary": "codex-b changed signature of accountRoutes, added accountRoutes.email, accountRoutes.err +2 more in src/api/account.ts — Signup endpoint",
+      "diagnostics": [],
+      "tool": {
+        "name": "apply_patch",
+        "call_id": "exec-836633ec-f589-446e-8b2e-46f0aa5e39dd",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 17,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T11:13:23.776Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I3de6443a0e891facdd5062f4b3d66d2692d16f8d",
+      "session": "s5",
+      "base_seq": 16,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "codex-code session end: other",
+      "summary": "codex-b left — codex-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 18,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T11:14:53.666Z",
+      "actor": {
+        "type": "system",
+        "id": "coordinator"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "claude-a/T-1",
+      "session": "s4",
+      "base_seq": 17,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "session expired",
+      "summary": "claude-a left — session expired",
+      "diagnostics": [],
+      "payload": {
+        "harness": "scripted",
+        "level": 0
+      }
+    },
+    {
+      "seq": 19,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T11:19:11.429Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I104f44923d3efe1dc70dd591bd2ebb6ecfefaadc",
+      "session": "s2",
+      "base_seq": 18,
+      "mode": "commit",
+      "files": [
+        "src/auth/refresh.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#Session",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#revokeSession"
+      ],
+      "writes": [
+        {
+          "key": "src/auth/refresh.ts#REFRESHED_SESSION_TTL_MS",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/refresh.ts#refreshSession",
+          "kind": "new"
+        },
+        {
+          "key": "src/auth/refresh.ts#refreshSession.current",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/auth/refresh.ts b/src/auth/refresh.ts\n--- /dev/null\n+++ b/src/auth/refresh.ts\n@@ -0,0 +1,12 @@\n+import { createSession, getSession, revokeSession, type Session } from \"./session.ts\";\n+\n+/** Lifetime of the replacement session; keep in step with the TTL login() starts sessions with. */\n+const REFRESHED_SESSION_TTL_MS = 12 * 60 * 60 * 1000;\n+\n+/** Revoke the token's session and start a fresh one for the same user, or undefined if there is none. */\n+export function refreshSession(token: string): Session | undefined {\n+  const current = getSession(token);\n+  if (!current) return undefined;\n+  revokeSession(token);\n+  return createSession(current.userId, { ttlMs: REFRESHED_SESSION_TTL_MS });\n+}\n",
+      "intent": "T-3: Session refresh",
+      "summary": "opencode-c added REFRESHED_SESSION_TTL_MS, refreshSession +1 more in src/auth/refresh.ts — Session refresh",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "call_01a106a3a4a37168bb8b6709",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 20,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T11:19:20.489Z",
+      "actor": {
+        "type": "agent",
+        "id": "opencode-c",
+        "harness": "opencode"
+      },
+      "agent": "opencode-c",
+      "task": "T-3",
+      "change": "I104f44923d3efe1dc70dd591bd2ebb6ecfefaadc",
+      "session": "s2",
+      "base_seq": 18,
+      "mode": "commit",
+      "files": [
+        "test/refresh.test.ts"
+      ],
+      "reads": [
+        "src/auth/refresh.ts#refreshSession",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#getSession",
+        "src/auth/session.ts#resetSessions"
+      ],
+      "writes": [
+        {
+          "key": "test/refresh.test.ts#old",
+          "kind": "signature"
+        },
+        {
+          "key": "test/refresh.test.ts#ttlMs",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/test/refresh.test.ts b/test/refresh.test.ts\n--- a/test/refresh.test.ts\n+++ b/test/refresh.test.ts\n@@ -3,10 +3,12 @@\n import { createSession, getSession, resetSessions } from \"../src/auth/session.ts\";\n import { refreshSession } from \"../src/auth/refresh.ts\";\n \n+const ttlMs = 12 * 60 * 60 * 1000;\n+\n beforeEach(() => resetSessions());\n \n test(\"refreshSession replaces the session with a fresh one for the same user\", () => {\n-  const old = createSession(\"u_1\");\n+  const old = createSession(\"u_1\", { ttlMs });\n   const fresh = refreshSession(old.token);\n   assert.ok(fresh);\n   assert.equal(fresh.userId, \"u_1\");\n",
+      "intent": "T-3: Session refresh",
+      "summary": "opencode-c changed signature of old, added ttlMs in test/refresh.test.ts — Session refresh",
+      "diagnostics": [],
+      "tool": {
+        "name": "Edit",
+        "call_id": "call_01a106a3c6f77553b29720d4",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 21,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T11:20:03.886Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I28bb8845fce5ce7f52c8125c19923b650c8a038a",
+      "session": "s1",
+      "base_seq": 6,
+      "mode": "commit",
+      "files": [
+        "src/ops/health.ts"
+      ],
+      "reads": [
+        "src/auth/session.ts#createSession"
+      ],
+      "writes": [
+        {
+          "key": "src/ops/health.ts#sessionSmoke",
+          "kind": "body"
+        }
+      ],
+      "diff": "diff --git a/src/ops/health.ts b/src/ops/health.ts\n--- a/src/ops/health.ts\n+++ b/src/ops/health.ts\n@@ -2,5 +2,5 @@\n \n /** Smoke check used by ops: can we mint a session? */\n export function sessionSmoke(): boolean {\n-  return createSession(\"u_health\").token.length > 0;\n+  return createSession(\"u_health\", { ttlMs: 1000 }).token.length > 0;\n }\n",
+      "intent": "T-4: Health check",
+      "summary": "human-w edited sessionSmoke in src/ops/health.ts — Health check",
+      "diagnostics": [],
+      "tool": {
+        "name": "Write",
+        "call_id": "watch-1791112803819-2",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 22,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "checkpoint",
+      "ts": "2026-10-04T11:20:07.492Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I28bb8845fce5ce7f52c8125c19923b650c8a038a",
+      "session": "s1",
+      "base_seq": 6,
+      "mode": "commit",
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "T-4: Health check",
+      "summary": "human-w pushed checkpoint 8cc5a73 — Health check",
+      "diagnostics": [],
+      "payload": {
+        "sha": "8cc5a739d42a37df35c30cbdc41c32b0b517cfdd"
+      },
+      "tool": {
+        "name": "Bash",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 23,
+      "repo": "demo-b12-20261004-110944",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T11:20:13.621Z",
+      "actor": {
+        "type": "agent",
+        "id": "human-w",
+        "harness": "file-watcher"
+      },
+      "agent": "human-w",
+      "task": "T-4",
+      "change": "I28bb8845fce5ce7f52c8125c19923b650c8a038a",
+      "session": "s1",
+      "base_seq": 22,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "file-watcher session end: watcher stopped",
+      "summary": "human-w left — file-watcher session end: watcher stopped",
+      "diagnostics": [],
+      "payload": {
+        "harness": "file-watcher",
+        "level": 0
+      }
+    }
+  ]
+}

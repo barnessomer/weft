@@ -1,0 +1,80 @@
+{
+  "repo": "demo-b12-20261004-110944",
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "pass": true,
+  "criteria": {
+    "b_denied_at_edit_time_by_a": true,
+    "b_changed_approach": true,
+    "b_finished": true,
+    "c_denied_at_edit_time_by_a": true,
+    "c_changed_approach": true,
+    "c_finished": true,
+    "w_l0_reported_and_commit_gated": true
+  },
+  "a_signature_seq": 5,
+  "per_agent": {
+    "b": {
+      "rejected_seq": 12,
+      "deny_hook": true,
+      "accepted_after": [
+        14,
+        16
+      ]
+    },
+    "c": {
+      "rejected_seq": 9,
+      "deny_hook": true,
+      "accepted_after": [
+        10,
+        19,
+        20
+      ]
+    },
+    "w": {
+      "reported_stale": true,
+      "reported_fix_accepted": true,
+      "refused_first": true,
+      "refusal": "weft: commit refused — 1 open error(s):\n[weft error] stale_assumption src/auth/session.ts:8:17: You use src/auth/session.ts#createSession, whose signature changed in #5 by claude-a after your base #1. (caused by claude-a · task T-1 · event #5). Suggestion: Read the new src/auth/session.ts#createSession (event #5) and update this call site, or negotiate with claude-a.\n  ↳ event #5 by claude-a changed src/auth/session.ts (their change is not in your checkout yet):\n    @@ -1,12 +1,14 @@\n     import { randomBytes } from \"node:crypto\";\n     \n    -export type Session = { token: string; userId: strin",
+      "committed_after_fix": true
+    }
+  },
+  "harnesses": {
+    "a": "scripted",
+    "b": "codex exec (+ resume)",
+    "c": "opencode run (opencode/big-pickle, + --session)",
+    "w": "weft-watch run (L0 file watcher)"
+  },
+  "declared_capabilities": {
+    "human-w": {
+      "harness": "file-watcher",
+      "level": 0
+    },
+    "opencode-c": {
+      "harness": "opencode",
+      "level": 3
+    },
+    "codex-b": {
+      "harness": "codex-code",
+      "level": 2
+    },
+    "claude-a": {
+      "harness": "scripted",
+      "level": 0
+    }
+  },
+  "timeline_ms": {
+    "planners_joined": 6988,
+    "a_signature_accepted": 7743,
+    "plans_done": 58469,
+    "impl_started": 58469,
+    "impl_done": 616550
+  },
+  "durations_ms": {
+    "a": 0,
+    "b1": 58468,
+    "b2": 184422,
+    "c1": 29298,
+    "c2": 536037
+  },
+  "work": "/private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-110944"
+}

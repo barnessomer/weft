@@ -1,6 +1,74 @@
+# weft-sandbox: one Durable Object + one container per agent run (Cloudflare Containers,
+# durable_object scheduling). The image is built from ./Dockerfile by `wrangler deploy`
+# (Docker must be running; `pnpm deploy:preview` stages the adapter bundles first).
 name = "weft-sandbox"
 main = "src/index.ts"
-compatibility_date = "2025-09-06"
+compatibility_date = "2026-10-03"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+AI_GATEWAY_ACCOUNT_ID = "2d659dee148763a8d64c80135da7165d"
+AI_GATEWAY_ID = "weft"
+
+[ai]
+binding = "AI"
+
+[[r2_buckets]]
+binding = "WEFT_LOGS"
+bucket_name = "weft-sandbox-logs"
+
+[[containers]]
+class_name = "WeftSandbox"
+scheduling_policy = "durable_object"
+
+[containers.images.agent]
+dockerfile = "./Dockerfile"
+
+[[durable_objects.bindings]]
+name = "WEFT_SANDBOX"
+class_name = "WeftSandbox"
+
+[exports.WeftSandbox]
+type = "durable-object"
+storage = "sqlite"
+
+# Secrets (wrangler secret put <NAME> [--env preview]); none of them ever enter the container:
+#   WEFT_RUNNER_TOKEN          bearer token for the HTTP API (required)
+#   ANTHROPIC_API_KEY          provider key added by Outbound to AI Gateway /anthropic calls
+#   OPENAI_API_KEY             provider key added by Outbound to AI Gateway /openai calls
+#   AI_GATEWAY_TOKEN           for an authenticated gateway (BYOK keys stored in AI Gateway / Secrets Store)
+#   WEFT_RUNNER_REPORT_TOKEN   bearer sent with run-finished reports (report.url)
 
 [env.preview]
 name = "weft-sandbox-preview"
+workers_dev = true
+
+[env.preview.vars]
+AI_GATEWAY_ACCOUNT_ID = "2d659dee148763a8d64c80135da7165d"
+AI_GATEWAY_ID = "weft"
+
+[env.preview.ai]
+binding = "AI"
+
+[[env.preview.r2_buckets]]
+binding = "WEFT_LOGS"
+bucket_name = "weft-sandbox-logs-preview"
+
+[[env.preview.containers]]
+class_name = "WeftSandbox"
+scheduling_policy = "durable_object"
+
+[env.preview.containers.images.agent]
+dockerfile = "./Dockerfile"
+
+[[env.preview.durable_objects.bindings]]
+name = "WEFT_SANDBOX"
+class_name = "WeftSandbox"
+
+[env.preview.exports.WeftSandbox]
+type = "durable-object"
+storage = "sqlite"

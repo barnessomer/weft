@@ -101,6 +101,26 @@
         }
       ]
     },
+    "RepoPolicy": {
+      "type": "object",
+      "properties": {
+        "arbitration": {
+          "enum": [
+            "wound-wait",
+            "wait-die"
+          ]
+        },
+        "escalation": {
+          "enum": [
+            "auto",
+            "human"
+          ]
+        }
+      },
+      "required": [
+        "arbitration"
+      ]
+    },
     "Arbitration": {
       "type": "object",
       "properties": {
@@ -512,6 +532,28 @@
         "reply_to"
       ]
     },
+    "EscalatePayload": {
+      "type": "object",
+      "properties": {
+        "with": {
+          "$ref": "#/$defs/AgentRef"
+        },
+        "keys": {
+          "type": "array",
+          "items": {
+            "$ref": "#/$defs/SymbolKey"
+          }
+        },
+        "reason": {
+          "type": "string",
+          "minLength": 1
+        }
+      },
+      "required": [
+        "with",
+        "reason"
+      ]
+    },
     "MessagePayload": {
       "type": "object",
       "properties": {
@@ -543,7 +585,8 @@
             "pause",
             "resume",
             "approve",
-            "undo"
+            "undo",
+            "merge"
           ]
         },
         "target": {
@@ -564,12 +607,25 @@
             "op_id": {
               "type": "string",
               "minLength": 1
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 2,
+              "maxItems": 2
             }
           },
           "required": []
         },
         "reason": {
           "type": "string"
+        },
+        "cause": {
+          "type": "integer",
+          "minimum": 1
         }
       },
       "required": [
@@ -612,6 +668,7 @@
             "negotiate.accept",
             "negotiate.reject",
             "negotiate.counter",
+            "negotiate.escalate",
             "land",
             "revert",
             "message",
@@ -857,6 +914,28 @@
           "if": {
             "properties": {
               "kind": {
+                "const": "negotiate.escalate"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/EscalatePayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
                 "const": "land"
               }
             },
@@ -1001,6 +1080,7 @@
             "negotiate.accept",
             "negotiate.reject",
             "negotiate.counter",
+            "negotiate.escalate",
             "land",
             "revert",
             "message",
@@ -1264,6 +1344,28 @@
             "properties": {
               "payload": {
                 "$ref": "#/$defs/CounterPayload"
+              }
+            },
+            "required": [
+              "payload"
+            ]
+          }
+        },
+        {
+          "if": {
+            "properties": {
+              "kind": {
+                "const": "negotiate.escalate"
+              }
+            },
+            "required": [
+              "kind"
+            ]
+          },
+          "then": {
+            "properties": {
+              "payload": {
+                "$ref": "#/$defs/EscalatePayload"
               }
             },
             "required": [
@@ -1671,18 +1773,7 @@
           "minimum": 1
         },
         "policy": {
-          "type": "object",
-          "properties": {
-            "arbitration": {
-              "enum": [
-                "wound-wait",
-                "wait-die"
-              ]
-            }
-          },
-          "required": [
-            "arbitration"
-          ]
+          "$ref": "#/$defs/RepoPolicy"
         },
         "limits": {
           "type": "object",
@@ -1948,6 +2039,39 @@
           "items": {
             "$ref": "#/$defs/Diagnostic"
           }
+        },
+        "negotiations": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "properties": {
+              "seq": {
+                "type": "integer",
+                "minimum": 1
+              },
+              "due": {
+                "enum": [
+                  "reply",
+                  "fulfil"
+                ]
+              },
+              "record": {
+                "$ref": "#/$defs/EventRecord"
+              },
+              "keys": {
+                "type": "array",
+                "items": {
+                  "$ref": "#/$defs/SymbolKey"
+                }
+              }
+            },
+            "required": [
+              "seq",
+              "due",
+              "record",
+              "keys"
+            ]
+          }
         }
       },
       "required": [
@@ -1997,18 +2121,7 @@
           "$ref": "#/$defs/Timestamp"
         },
         "policy": {
-          "type": "object",
-          "properties": {
-            "arbitration": {
-              "enum": [
-                "wound-wait",
-                "wait-die"
-              ]
-            }
-          },
-          "required": [
-            "arbitration"
-          ]
+          "$ref": "#/$defs/RepoPolicy"
         }
       },
       "required": [
@@ -2244,6 +2357,34 @@
             "type",
             "action",
             "agent"
+          ]
+        },
+        {
+          "type": "object",
+          "properties": {
+            "type": {
+              "const": "action"
+            },
+            "action": {
+              "const": "merge"
+            },
+            "changes": {
+              "type": "array",
+              "items": {
+                "type": "string",
+                "minLength": 1
+              },
+              "minItems": 2,
+              "maxItems": 2
+            },
+            "reason": {
+              "type": "string"
+            }
+          },
+          "required": [
+            "type",
+            "action",
+            "changes"
           ]
         },
         {

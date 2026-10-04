@@ -1,0 +1,218 @@
+{
+  "name": "merge-by-agreement",
+  "description": "§7.4/§7.6: accepting merge_tasks terms makes the coordinator merge the two tasks (control record citing the accept).",
+  "covers": [
+    "7.4",
+    "7.6"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#refreshToken"
+          ]
+        }
+      },
+      "expect": {
+        "seq": 3
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "signature"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "seq": 4
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.propose",
+          "base_seq": 3,
+          "payload": {
+            "to": {
+              "agent": "claude-a"
+            },
+            "keys": [
+              "src/auth/session.ts#refreshToken"
+            ],
+            "terms": {
+              "kind": "merge_tasks",
+              "text": "Let's do T-1 and T-2 as one task."
+            }
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 5
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A",
+      "ack": "last",
+      "expect": {
+        "items": [
+          {
+            "seq": 5,
+            "kind": "negotiation"
+          }
+        ],
+        "delivered_through": 5
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.accept",
+          "base_seq": 5,
+          "payload": {
+            "reply_to": 5
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 6,
+        "head_seq": 7,
+        "inbox": [
+          {
+            "seq": 5,
+            "kind": "negotiation"
+          },
+          {
+            "seq": 7,
+            "kind": "control",
+            "record": {
+              "payload": {
+                "action": "merge",
+                "target": {
+                  "changes": [
+                    "I-b",
+                    "I-a"
+                  ]
+                },
+                "cause": 6
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "drain",
+      "as": "B",
+      "ack": "last",
+      "expect": {
+        "items": [
+          {
+            "seq": 6,
+            "kind": "negotiation"
+          },
+          {
+            "seq": 7,
+            "kind": "control"
+          }
+        ]
+      }
+    }
+  ]
+}

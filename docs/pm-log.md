@@ -23,3 +23,31 @@ Append-only. One dated entry per heartbeat that changed something.
 - Landed wt/b2 (contains P1 WCP v0.1 spec + protocol pkg, RepoCoordinator DO + gateway). Gate green on main (protocol 108, sequencer 41, gateway 44, analyzer 13). Preview gateway responds 200. Worktrees b2/p1 removed, pushed.
 - B4/B5/B6 bouncing on Codex quota wall (resets 03:03). Decision: B4 (Claude Code adapter) + B6 (Artifacts) reassigned to default/Claude to keep the M1 critical path moving; B5 stays on Codex (needs it to probe). I1 hermes-ios landing deferred until I1b (editing the same worktree) finishes.
 - Day 1: ahead of plan (sequencer done; M1 due 10-07).
+
+## 2026-10-04 01:30 — B4, B6, B16 (+land script) landed
+- Landed wt/b16-land (incl. B16 Hermes adapter), wt/b4 (Claude Code L3 adapter), wt/b6 (Artifacts forks/candidates/Change-Ids). design.md/runbook.md conflicts resolved by keeping all sections. Gate green on main (protocol 108, sequencer 42, gateway 53, artifacts 16, claude-code 10, hermes 6, analyzer 13). weft_land.py --recent 20 posted lands #97–#99; preview gateway 200. Worktrees removed, pushed.
+- Codex quota wall (resets 03:03) bouncing B5/B7/B9/B14 every dispatch. Decision: B7 (gates B8, critical path) and B9 (M2 UI) → default/Claude; B5 stays (needs Codex to probe), B14 stays (first cut candidate).
+- I1 not landed into hermes-ios main: it is stacked on pushed branch review/attribution (builds 25–31, 11 commits not on main, another session's work). Decision: pushed wt/weft-feed to origin; land after review/attribution reaches main rather than landing someone else's branch.
+- Day 1: M1 waits only on B5 (Codex adapter) after quota reset. On track.
+
+## 2026-10-04 02:35 — B7 + B9 landed
+- Landed wt/b9 (web UI, preview 302→Access/key gate) and wt/b7 (sandbox runner; /v1/health 200). design.md/runbook.md conflicts resolved keeping both sections. Gate green on main (web 20, sandbox 23, gateway 53, protocol 108, sequencer 42, …). weft_land posted #207/#208. Worktrees removed, pushed.
+- B5/B15 "stranded in ready" = Codex quota wall (rate_limited requeues, no failure count); resets 03:03 — no action. B8 (critical path) + B14 running.
+- Open for later: AI Gateway `weft` not created (wrangler OAuth can't); preview uses `default` — acceptable for demo, not a blocker.
+- Day 1: on track; M1 waits on B5 only.
+
+## 2026-10-04 03:35 — B8 + B5 landed; B10/B13/B14 unblocked
+- Landed wt/b8 (workflows: ProcessRevision/LandChange/RevertOperation/BestOfN, live evidence run.json) and wt/b5 (Codex apply_patch L3 adapter). Gate green on main (workflows 19, sandbox 37, gateway 58, sequencer 43, codex 3, …). One claude-code adapter test failed once under full-gate load, then passed 3/3 in isolation and on a gate rerun. It's flaky, so watch it. weft_land posted #330/#331, pushed, preview /v1/health 200.
+- Decisions: B14 was waiting on B8's claim on artifacts.ts. The claim is released, so B14 is re-promoted (dispatcher guarded it once as blocker_auth; it will retry). B13 now owns deploying the `weft-demo` target Worker itself, because auto-revert is never cut. For B10: previews come from `wrangler versions upload` instead of Workers Builds, it creates the R2 `weft-evidence` bucket and Browser binding itself, and it uses AI Gateway `default`.
+- M1 is running on wt/m1 (the base is B5). Day 1, well ahead of plan (M1 is due 10-07).
+
+## 2026-10-04 04:40 — M1 landed (accepted at 2/2)
+- M1 accepted with 2 valid runs, not 3. Both PASS (demo/evidence/m1/run-1, run-2): Codex apply_patch was denied at edit time with stale_assumption quoting Claude's diff, it switched approach, the merge was clean and tests were green. Runs 3–4 were aborted by the Codex model quota (until 08:04) and the OpenRouter daily budget, not by Weft. Rationale: the criterion is shown twice and waiting costs 4h on the critical path. The optional 3rd run is card M1b (t_e8e618da).
+- Landed wt/m1 (also has Codex adapter fixes: .codex/hooks.json, SessionStart, shell apply_patch, per-worktree hooksPath). Gate green in the worktree (codex 9, claude-code 10, gateway 58, …). weft_land seq #364, pushed, preview health 200.
+- B10 and B13 moved backend→default (Claude) because of the Codex quota wall. B13 is never cut. B14 and B15 stay on Codex since they are the first cuts. B15 has real uncommitted work in its worktree, so leave it.
+- Day 1: M1 landed 3 days early.
+
+## 2026-10-04 05:45 — B10 + B13 + B11 landed
+- Landed wt/b10 (evidence: Artifacts-served previews, Browser Rendering screenshots + pixel diff, risk tier, review agent), wt/b13 (auto-revert from Tail signal, live proof 43 s land→revert redeploy) and wt/b11 (WCP negotiation end to end, 5/5 demo runs). Resolved design.md conflicts by keeping all three update sections; resolved pnpm-lock with a re-install. Gate green on main (protocol 118, sequencer 59, gateway 68, workflows 28, sandbox 37, claude-code 13, …). The claude-code adapter install test flaked once again under full-gate load and passed on rerun, so it's still flaky (follow-up if it recurs). weft_land seq #435–#439, pushed, gateway health 200.
+- B12 moved arq→default (Claude). Reason: M2 is gated on it, Cursor/OpenCode are live harnesses in the demo, and Codex is quota-walled until ~08:04. B14, B15 and M1b stay on Codex as the first cuts/optional; they requeue automatically after the reset.
+- Day 1: every critical-path build card except M2 has landed, about 6 days ahead of plan (M2 due 10-11).

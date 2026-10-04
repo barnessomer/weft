@@ -46,7 +46,7 @@ Roles and token scopes:
 | Agent adapter | `agent` | open a session, submit events, drain its inbox, heartbeat, ask gates |
 | Observer | `observe` | list repos, read/stream events, read the combined feed |
 | Human | `human` (implies `observe`) | approve, undo, pause/resume, message an agent |
-| System | `system` | append `land`, `revert`, `release`, `checkpoint` (landing queue, workflows, claim expiry, Artifacts push events) |
+| System | `system` | append `land`, `revert`, `release`, `checkpoint`, `message` (landing queue, workflows, claim expiry, Artifacts push events, rebase bounces) |
 
 ## 2. Transport
 
@@ -155,8 +155,9 @@ present (possibly empty).
 | `negotiate.counter` | agent | `{reply_to, terms}` | refs |
 | `negotiate.accept` | agent | `{reply_to}` | refs |
 | `negotiate.reject` | agent | `{reply_to, reason?}` | refs |
-| `message` | agent, human | `{to, text, intent?: steer\|negotiate\|info}` | refs |
-| `control` | human | `{action: pause\|resume\|approve\|undo, target, reason?}` | refs |
+| `negotiate.escalate` | agent | `{with: {agent?\|change?}, keys?[], reason}` — ask the coordinator to merge the two tasks (§7.6) | refs + conflict (§7.6) |
+| `message` | agent, human, system | `{to, text, intent?: steer\|negotiate\|info}` (system: a workflow bouncing a rebase conflict / failed presubmit / revert to the change's agent) | refs |
+| `control` | human, coordinator (`merge` only) | `{action: pause\|resume\|approve\|undo\|merge, target, reason?, cause?}`; `merge`: `target.changes = [lead, joining]`, `cause` = the escalate/accept that triggered a coordinator merge | refs |
 | `land` | system | `{sha, op_id, trunk_ref?}` | R1 (trunk CAS) |
 | `revert` | system | `{op_id, reverts_seq\|reverts_op_id, sha?, reason, requested_by?}` | no |
 | `join`, `leave` | coordinator | `{harness, level}` | no |
@@ -312,8 +313,8 @@ Applied atomically with the append, in this order:
    claims (`firm` from payload, TTL from `ttl_ms` or the default); `release` removes the
    listed (or all) claims of `c` and clears matching open errors; `land` removes all
    claims of the change and clears its sessions' open errors.
-5. Routing: `negotiate.*` and `message` go to the addressee's sessions (§7.4); `control`
-   to the target agent's sessions.
+5. Routing: `negotiate.*` and `message` go to the addressee's sessions (§7.4, §7.6);
+   `control` to the target agent's sessions (`merge`: every session of the merged group).
 6. Broadcast, for `edit`, `land`, `revert`, to every other live, unlanded change whose
    reads, writes or active claims include a written key:
    - `land`/`revert`: one `trunk` item (`requires_rebase: true`) carrying a
@@ -373,8 +374,8 @@ wounded holder gets `claim_wounded` (error).
 `arbitration` on the diagnostic records `{policy, outcome, winner, loser, options}`;
 `options` lists what the loser may do: `retreat` (rework without the area), `wait`
 (until the winner lands or releases; not offered on `die`), `negotiate` (§7.4),
-`escalate` (ask the coordinator/human to merge tasks — v0 surfaces this to humans via
-the feed).
+`escalate` (`negotiate.escalate`: the coordinator, or a human per repo policy, merges the
+two tasks — §7.6).
 
 ### 7.3 Effects
 
@@ -418,6 +419,33 @@ the feed).
   predicted claim, or a predicted claim overlapping real work, yields
   `claim_predicted_overlap` (info) only.
 
+### 7.6 Escalation and merged tasks
+
+The fourth loser option (`escalate`, §7.2) is a protocol action, not only a feed entry.
+
+- `negotiate.escalate {with, keys?, reason}` names the other change (`with.change`, or
+  `with.agent` = that agent's newest unlanded change outside the submitter's group). It is
+  `422 invalid_reference` when the target is unknown, already in the submitter's group, either
+  side has landed, or the two **do not conflict**: no open error of the submitting session is
+  caused by a record of the target's group, and no key read or written by the submitter's
+  group is written or claimed (non-predicted, unexpired) by the target's group.
+- The record is delivered to the target change's sessions (`kind:"negotiation"`).
+- Repo policy `escalation` (`welcome.policy.escalation`, default `auto`):
+  - `auto`: the coordinator merges the two tasks at once by appending a `control merge`
+    record (actor `{type:"system", id:"coordinator"}`, `cause` = the escalate's seq,
+    `reason` = its reason).
+  - `human`: nothing else happens; a human resolves it with the `merge` action (§9.6).
+- Accepting `merge_tasks` terms (§7.4) has the same effect as an `auto` escalation (`cause` =
+  the accept).
+- **Merge effects** (`control merge`, `target.changes = [lead, joining]`, lead = the senior
+  of the two groups' leads, §7.1): every change whose group lead is `joining` joins `lead`'s
+  group. Within a group: W (§6.1) excludes all members' records (no R1/R2 between members),
+  active claims of members never arbitrate against each other (R3), and a member's seniority
+  is its lead's (§7.1). Open errors of members' sessions caused by records of other members
+  are cleared. Every session of the group receives a `kind:"control"` inbox item with the
+  record. Contract/trunk broadcasts (§6.3) still reach members, and each member still lands
+  on its own (a landing workflow SHOULD land a group together).
+
 ## 8. Agent sessions and capability levels
 
 ### 8.1 Capability levels
@@ -456,6 +484,9 @@ required output field is rejected.
   coordinator appends `leave` (system actor) and later calls get `410 session_expired`.
   Adapters SHOULD heartbeat every `heartbeat_interval_ms` (default 30 s) while the
   harness is alive, and re-`hello` with `resume_session` after a restart.
+- A **new** session (not `resume_session`) starts with one `kind:"negotiation"` inbox item per
+  negotiation its change still owes (§8.4), so an agent restarted after a proposal was sent
+  to it still sees the proposal (or the agreement it has to fulfil).
 
 ### 8.3 What adapters do at each hook point
 
@@ -479,8 +510,19 @@ Adapters SHOULD inject it verbatim so squiggles look the same in every harness.
 
 ### 8.4 Gates
 
-`gate.result.allow` is false iff the session has open errors (§6.5); `reason` renders
-them. Exception: a paused session (§9.6) is always allowed to stop. Harness runaway
+`gate.result.allow` is false iff the session has open errors (§6.5), or — for
+`gate:"stop"` only — negotiations are **due**. `reason` renders both, and
+`gate.result.negotiations` lists the dues `{seq, due, record, keys}`:
+
+- `due:"reply"`: an accepted `negotiate.propose`/`negotiate.counter` addressed to the session
+  (§7.4) has no accepted `accept`/`reject`/`counter` replying to it;
+- `due:"fulfil"`: an accepted `negotiate.accept` of `overload` terms whose giver is the
+  session's change, with no accepted `edit` by that change writing one of the root's `keys`
+  after the accepted propose/counter (the owner promised to keep the old signature working;
+  making the overload first and accepting afterwards also fulfils it).
+
+The commit gate ignores dues (an owner may commit before it answers). Exception: a paused
+session (§9.6) is always allowed to stop. Harness runaway
 guards (e.g. Copilot ends the turn after 8 consecutive stop blocks; Cursor `loop_limit`)
 may override a refusal; the open errors then remain visible to humans in the feed.
 
@@ -495,10 +537,14 @@ From `docs/research/hooks.md` (official docs) plus local probes (2026-10-03).
 | Gemini CLI | `AfterTool` | `AfterTool` context / `BeforeAgent` | `BeforeTool` deny + reason | `AfterAgent` reject completion | tool_interception | documented only (fixture-only) |
 | Cursor | `postToolUse`, `afterFileEdit` | `postToolUse` `additional_context` | `preToolUse` `permission:"deny"` | `stop` `followup_message` (bounded by `loop_limit`) | tool_interception | documented only |
 | GitHub Copilot CLI | `postToolUse` | `postToolUse` `additionalContext` | `preToolUse` `permissionDecision:"deny"` + required reason | `agentStop` `decision:"block"` (8-block guard) | tool_interception | documented only |
-| File watcher (`@weft/adapter-watcher`) | fs events + `git diff` | — | — | — | false | n/a (L0 by construction) |
+| Cursor CLI (`@weft/adapter-cursor`) | `postToolUse`, `afterFileEdit` (dedup + before-text from edit records) | `postToolUse` `additional_context` | `preToolUse` `permission:"deny"` + `agent_message` | `stop` `followup_message` (`loop_limit` 5) | tool_interception | documented only (CLI login expired; fixture tests) |
+| OpenCode (`@weft/adapter-opencode`, plugin) | `tool.execute.after` | text appended to the tool output; welcome via `experimental.chat.system.transform` | `throw` in `tool.execute.before` | `session.idle` → `client.session.prompt(reason)` (long-lived process only) | tool_interception | **L0–L3 verified** (1.18.31) |
+| File watcher (`@weft/adapter-watcher`) | `fs.watch` + snapshot diff | — | — | — | `native` (git's own pre-commit hook) | **verified** (L0 by construction) |
 
-No reviewed harness documents a native atomic commit hook; `commit_gate:"native"` is
-reserved. Asynchronous hook modes (Claude/Codex/Gemini `async: true`, Copilot
+No reviewed harness documents a native atomic commit hook. `commit_gate:"native"` means the
+gate is git's own `pre-commit` hook rather than interception of the agent's shell tool; only
+the L0 file watcher declares it, because that hook is the one gate it has (hook-based adapters
+install the same git hook but declare their tool interception). `--no-verify` bypasses it. Asynchronous hook modes (Claude/Codex/Gemini `async: true`, Copilot
 notifications) give L0 or delayed L1 only. Every L2 adapter must map the denial reason
 into the harness's model-visible field; a deny without reason is non-conforming.
 
@@ -590,6 +636,7 @@ received. Repos absent from the cursor start at 0.
 | `undo` | `{seq \| op_id, reason}` — target MUST be a `land` | `control {action:"undo", target:{seq, op_id}}` | revert workflow performs it and appends `revert` with `requested_by` |
 | `pause` / `resume` | `{agent, reason?}` | `control {action, target:{agent}}` | paused sessions get R0 errors on edits/claims/checkpoints; may stop freely |
 | `message` | `{to, text, intent?: steer\|negotiate\|info}` | `message` | delivered to the target agent's inbox (steer = editor-free nudge) |
+| `merge` | `{changes: [a, b], reason?}` | `control {action:"merge", target:{changes:[lead, joining]}}` (group leads, senior first) | merges the two tasks (§7.6); `422` if unknown, already merged or landed |
 
 Unknown targets are `422 invalid_reference`. Every action is a log record with
 `actor:{type:"human", id}` and a summary, so the feed shows who touched what.
@@ -648,7 +695,9 @@ Scenario coverage today: accept + observe/paging (`accept-and-observe`), R1
 (`stale-overwrite`), R2 error + L2 check + gates (`signature-read-error`), R2 warning
 (`body-read-warning`), wound-wait asymmetry + firm claims + multi-holder wound
 (`arbitration-wound-wait`), wait-die (`arbitration-wait-die`), negotiation incl.
-addressee checks, counter and transfer (`negotiation`), inbox redelivery/ack + base
+addressee checks, counter and transfer (`negotiation`), overload dues in the stop gate +
+redelivery (`negotiation-overload-dues`), escalation and merged groups (`escalation-merge`,
+`escalation-human`, `merge-by-agreement`), inbox redelivery/ack + base
 rule + check logging (`inbox-and-base`), human actions (`human-actions`), claim TTL and
 session expiry (`claim-ttl-and-session-expiry`), trunk notification + predicted claims
 (`trunk-advanced-and-predicted`). The reference coordinator passes all of them and its
@@ -719,3 +768,8 @@ Proposed for `docs/design.md` (rule 7 of agent-rules):
 ## Changelog
 
 - 0.1 (2026-10-03): first draft.
+- 0.1 additions (2026-10-04, B11; additive, no version bump): `negotiate.escalate` and merged
+  task groups (§7.6), `welcome.policy.escalation`, `control merge` (human action and
+  coordinator-appended), `control.cause`, negotiation dues in the stop gate
+  (`gate.result.negotiations`, §8.4) and their redelivery to new sessions (§8.2). Scenarios
+  `negotiation-overload-dues`, `escalation-merge`, `escalation-human`, `merge-by-agreement`.

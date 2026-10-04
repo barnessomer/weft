@@ -44,6 +44,7 @@ export class Registry extends DurableObject<RegistryEnv> {
   async createRepo(init: CoordinatorInit): Promise<{ created: boolean; repo: RepoEntry } | { error: string }> {
     if (!REPO_NAME.test(init.repo)) return { error: "repo must match ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$" };
     if (init.policy && init.policy !== "wound-wait" && init.policy !== "wait-die") return { error: "policy must be wound-wait or wait-die" };
+    if (init.escalation && init.escalation !== "auto" && init.escalation !== "human") return { error: "escalation must be auto or human" };
     const stub = this.env.WEFT_REPO.get(this.env.WEFT_REPO.idFromName(init.repo));
     const r = (await stub.init(init)) as unknown as Result<{ created: boolean; config: CoordinatorConfig }>;
     if (!r.ok) return { error: r.error.error.message };

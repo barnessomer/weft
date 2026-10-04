@@ -100,6 +100,15 @@ describe("candidates: fork per change, tokens, Change-Ids", () => {
     const list = await s.j<{ candidates: Candidate[] }>("GET", `/v1/repos/${s.repo}/tasks/${s.task}/candidates`, s.obs, undefined, 200);
     expect(list.candidates.map((c) => c.n)).toEqual([1, 2, 3]);
     expect(JSON.stringify(list)).not.toContain("art_v1_");
+    // board view: tasks with candidates + evidence tally, observer scope, no tokens
+    await s.e.WEFT_DB!.prepare(`INSERT INTO evidence (change_id, sha, kind, status, uri, data, created_at) VALUES (?, 'abc', 'test', 'pass', NULL, NULL, ?)`).bind(s.cands[0]!.change, Date.now()).run();
+    const board = await s.j<{ tasks: Array<{ task: string; title?: string; candidate_count: number; candidates: Array<{ change: string; n: number; evidence: Record<string, number> }> }> }>("GET", `/v1/repos/${s.repo}/tasks`, s.obs, undefined, 200);
+    expect(board.tasks).toHaveLength(1);
+    expect(board.tasks[0]).toMatchObject({ task: s.task, title: "Fix auth refresh", candidate_count: 3 });
+    expect(board.tasks[0]!.candidates.map((c) => c.n)).toEqual([1, 2, 3]);
+    expect(board.tasks[0]!.candidates[0]!.evidence).toEqual({ pass: 1 });
+    expect(JSON.stringify(board)).not.toContain("art_v1_");
+    expect((await s.fetch("GET", `/v1/repos/${s.repo}/tasks`)).status).toBe(401);
   });
 
   it("enforces scopes, validates input, and requires a bound trunk", async () => {

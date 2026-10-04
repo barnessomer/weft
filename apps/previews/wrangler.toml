@@ -1,0 +1,33 @@
+# weft-previews (B10): per-revision previews of candidates read straight from Artifacts, and
+# signed evidence blobs (screenshots, visual diffs) from R2. No deploy credentials involved.
+# URLs are minted by weft-workflows with the shared WEFT_PREVIEW_KEY (src/sign.ts).
+name = "weft-previews"
+main = "src/index.ts"
+compatibility_date = "2026-10-03"
+workers_dev = true
+
+[observability]
+enabled = true
+
+[[artifacts]]
+binding = "ARTIFACTS"
+namespace = "weft"
+
+[[r2_buckets]]
+binding = "EVIDENCE"
+bucket_name = "weft-evidence"
+
+# Secrets (wrangler secret put <NAME> [--env preview]):
+#   WEFT_PREVIEW_KEY   HMAC key for preview/evidence capability URLs (same value on weft-workflows)
+
+[env.preview]
+name = "weft-previews-preview"
+workers_dev = true
+
+[[env.preview.artifacts]]
+binding = "ARTIFACTS"
+namespace = "weft-preview"
+
+[[env.preview.r2_buckets]]
+binding = "EVIDENCE"
+bucket_name = "weft-evidence-preview"

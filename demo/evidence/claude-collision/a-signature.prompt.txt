@@ -1,0 +1,4 @@
+cwd: /var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-claude-demo-20261004-034515/agent-a
+claude  -p …
+
+Task T-1: prices must include tax. In src/pricing.ts add `export type PriceOptions = { taxRate: number }` and change calcTotal to `calcTotal(items: Item[], opts: PriceOptions): number` returning the net sum multiplied by (1 + opts.taxRate). Update the existing caller in src/orders.ts (use taxRate 0.22). Keep it minimal, then reply with a one-line summary.

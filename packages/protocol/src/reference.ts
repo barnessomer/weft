@@ -4,7 +4,8 @@
 // scenarios in fixtures/scenarios are executable; packages/sequencer (the Durable Object)
 // MUST produce the same verdicts, diagnostics and inbox items for those scenarios.
 
-import { renderContext } from "./context";
+import { renderContext, renderDue } from "./context";
+import { addresseeOf, agreementOf, negotiationDues } from "./negotiation";
 import { WcpProtocolError } from "./errors";
 import { fileOf } from "./summary";
 import { summarize } from "./summary";
@@ -15,6 +16,7 @@ import type {
   ArbitrationPolicy,
   Capabilities,
   Diagnostic,
+  EscalationPolicy,
   EventDraft,
   EventKind,
   EventPage,
@@ -26,6 +28,7 @@ import type {
   HumanAction,
   InboxBatch,
   InboxItem,
+  NegotiationDue,
   Seq,
   Submit,
   SymbolKey,
@@ -40,6 +43,8 @@ import { validate } from "./validate";
 export type CoordinatorOptions = {
   repo: string;
   policy?: ArbitrationPolicy;
+  /** Who resolves `negotiate.escalate` (spec §7.6). Default `auto`: the coordinator merges. */
+  escalation?: EscalationPolicy;
   claim_ttl_ms?: number;
   session_ttl_ms?: number;
   heartbeat_interval_ms?: number;
@@ -60,6 +65,8 @@ type ChangeState = {
   writes: Map<SymbolKey, WriteKind>;
   landed: boolean;
   approved: boolean;
+  /** Lead change of the merged group this change joined (spec §7.6). */
+  merged_into?: string;
 };
 
 type Claim = {
@@ -99,10 +106,11 @@ const AGENT_KINDS = new Set<EventKind>([
   "negotiate.accept",
   "negotiate.reject",
   "negotiate.counter",
+  "negotiate.escalate",
   "message",
 ]);
 // `checkpoint` from the system = an observed push to the change's fork (Artifacts event).
-const SYSTEM_KINDS = new Set<EventKind>(["land", "revert", "release", "checkpoint"]);
+const SYSTEM_KINDS = new Set<EventKind>(["land", "revert", "release", "checkpoint", "message"]);
 const PAUSABLE = new Set<EventKind>(["edit", "claim", "checkpoint"]);
 const NEGOTIATION_REPLIES = new Set<EventKind>(["negotiate.accept", "negotiate.reject", "negotiate.counter"]);
 const STRONG: WriteKind[] = ["deleted", "signature"];
@@ -112,6 +120,7 @@ const uniq = <T>(xs: Iterable<T>) => [...new Set(xs)];
 export class ReferenceCoordinator {
   readonly repo: string;
   readonly policy: ArbitrationPolicy;
+  readonly escalation: EscalationPolicy;
   readonly claimTtl: number;
   readonly sessionTtl: number;
   readonly heartbeatInterval: number;
@@ -127,6 +136,7 @@ export class ReferenceCoordinator {
   constructor(o: CoordinatorOptions) {
     this.repo = o.repo;
     this.policy = o.policy ?? "wound-wait";
+    this.escalation = o.escalation ?? "auto";
     this.claimTtl = o.claim_ttl_ms ?? 30 * 60_000;
     this.sessionTtl = o.session_ttl_ms ?? 5 * 60_000;
     this.heartbeatInterval = o.heartbeat_interval_ms ?? 30_000;
@@ -193,6 +203,9 @@ export class ReferenceCoordinator {
       diagnostics: [],
       status: "accepted",
     });
+    // A new session of a change inherits what the change still owes (spec §8.4): pending
+    // proposals addressed to it and unfulfilled agreements, so a restarted agent sees them.
+    for (const d of this.dues(s)) this.push(s, { seq: d.seq, kind: "negotiation", record: d.record });
     s.delivered_through = this.head;
     return this.welcome(s);
   }
@@ -208,7 +221,7 @@ export class ReferenceCoordinator {
       heartbeat_interval_ms: this.heartbeatInterval,
       session_ttl_ms: this.sessionTtl,
       claim_ttl_ms: this.claimTtl,
-      policy: { arbitration: this.policy },
+      policy: { arbitration: this.policy, escalation: this.escalation },
       limits: this.limits,
     };
   }
@@ -312,9 +325,66 @@ export class ReferenceCoordinator {
 
   /** Who a negotiation record is addressed to. */
   private addressee(r: EventRecord): { agent?: string; change?: string } {
-    if (r.kind === "negotiate.propose" || r.kind === "message") return (r.payload?.to as { agent?: string; change?: string }) ?? {};
-    const parent = this.record(Number(r.payload?.reply_to));
-    return parent ? { ...(parent.agent ? { agent: parent.agent } : {}), ...(parent.change ? { change: parent.change } : {}) } : {};
+    if (r.kind === "negotiate.escalate") {
+      const t = this.escalationTarget(r.change!, (r.payload?.with as { agent?: string; change?: string }) ?? {});
+      return t ? { change: t } : {};
+    }
+    return addresseeOf(r, (n) => this.record(n));
+  }
+
+  // ---------------------------------------------------------------- merged groups (§7.6)
+
+  /** Lead change of `id`'s merged group (itself when not merged). */
+  group(id: string): string {
+    return this.changes.get(id)?.merged_into ?? id;
+  }
+
+  private sameGroup(a: string | undefined, b: string | undefined): boolean {
+    return a !== undefined && b !== undefined && this.group(a) === this.group(b);
+  }
+
+  private members(lead: string): ChangeState[] {
+    return [...this.changes.values()].filter((c) => this.group(c.id) === lead);
+  }
+
+  /**
+   * The change an escalation from `from` targets: `with.change`, else the newest unlanded
+   * change of `with.agent` outside `from`'s group. Undefined when there is none.
+   */
+  private escalationTarget(from: string, w: { agent?: string; change?: string }): string | undefined {
+    if (w.change) return this.changes.has(w.change) ? w.change : undefined;
+    const cands = [...this.changes.values()].filter((c) => c.agent === w.agent && !c.landed && !this.sameGroup(c.id, from));
+    return cands.length ? cands[cands.length - 1]!.id : undefined;
+  }
+
+  /** Two groups conflict: an open error of `s` cites the target group, or keys overlap. */
+  private groupsConflict(s: Session, target: string): boolean {
+    const lead = this.group(target);
+    for (const d of s.open.values()) {
+      const c = this.record(d.caused_by_seq)?.change;
+      if (c !== undefined && this.group(c) === lead) return true;
+    }
+    const now = this.now();
+    const theirs = new Set<SymbolKey>();
+    for (const m of this.members(lead)) for (const k of m.writes.keys()) theirs.add(k);
+    for (const c of this.claims) if (this.group(c.change) === lead && c.source !== "predicted" && c.expires_at > now) theirs.add(c.key);
+    for (const m of this.members(this.group(s.change))) {
+      for (const k of m.reads) if (theirs.has(k)) return true;
+      for (const k of m.writes.keys()) if (theirs.has(k)) return true;
+    }
+    return false;
+  }
+
+  private checkEscalation(s: Session, w: { agent?: string; change?: string }): string {
+    const own = this.changes.get(s.change)!;
+    const target = this.escalationTarget(s.change, w);
+    if (!target) throw new WcpProtocolError("invalid_reference", "unknown escalation target (no unlanded change of that agent)", { with: w });
+    const t = this.changes.get(target)!;
+    if (this.sameGroup(target, s.change)) throw new WcpProtocolError("invalid_reference", `${target} is already merged with ${s.change}`);
+    if (t.landed || own.landed) throw new WcpProtocolError("invalid_reference", "a landed change cannot be merged");
+    if (!this.groupsConflict(s, target))
+      throw new WcpProtocolError("invalid_reference", `nothing to escalate: ${s.change} and ${target} do not conflict`, { change: target });
+    return target;
   }
 
   private knownTarget(to: { agent?: string; change?: string }): boolean {
@@ -328,6 +398,7 @@ export class ReferenceCoordinator {
       const to = p.to as { agent?: string; change?: string };
       if (!this.knownTarget(to)) throw new WcpProtocolError("invalid_reference", "unknown negotiation/message target", { to });
     }
+    if (e.kind === "negotiate.escalate") this.checkEscalation(s, (p.with as { agent?: string; change?: string }) ?? {});
     if (NEGOTIATION_REPLIES.has(e.kind)) {
       const parent = this.record(Number(p.reply_to));
       if (!parent || parent.status !== "accepted" || (parent.kind !== "negotiate.propose" && parent.kind !== "negotiate.counter"))
@@ -340,9 +411,11 @@ export class ReferenceCoordinator {
 
   // ---------------------------------------------------------------- §6 validation
 
+  /** Seniority of a change = seniority of its merged group's lead (spec §7.1, §7.6). */
   private rank(changeId: string): [number, number, string] {
-    const c = this.changes.get(changeId);
-    return [-(c?.priority ?? 0), c?.birth ?? Number.MAX_SAFE_INTEGER, changeId];
+    const lead = this.group(changeId);
+    const c = this.changes.get(lead);
+    return [-(c?.priority ?? 0), c?.birth ?? Number.MAX_SAFE_INTEGER, lead];
   }
 
   /** true when change a is senior to change b (higher priority, then older birth seq). */
@@ -355,7 +428,7 @@ export class ReferenceCoordinator {
 
   private activeClaims(key: SymbolKey, exceptChange: string): Claim[] {
     const now = this.now();
-    return this.claims.filter((c) => c.key === key && c.change !== exceptChange && !c.shared.has(exceptChange) && c.expires_at > now);
+    return this.claims.filter((c) => c.key === key && !this.sameGroup(c.change, exceptChange) && !c.shared.has(exceptChange) && c.expires_at > now);
   }
 
   private evaluate(s: Session, e: EventDraft): Diagnostic[] {
@@ -376,7 +449,7 @@ export class ReferenceCoordinator {
     if (e.kind !== "edit" && e.kind !== "claim") return out;
     const writes = e.writes ?? [];
     const W = this.log.filter(
-      (r) => r.status === "accepted" && r.seq > e.base_seq && r.change !== s.change && (r.kind === "edit" || r.kind === "land" || r.kind === "revert"),
+      (r) => r.status === "accepted" && r.seq > e.base_seq && !this.sameGroup(r.change, s.change) && (r.kind === "edit" || r.kind === "land" || r.kind === "revert"),
     );
     const latest = (key: SymbolKey, pred: (r: EventRecord, w: Write) => boolean) => {
       for (let i = W.length - 1; i >= 0; i--) {
@@ -702,7 +775,14 @@ export class ReferenceCoordinator {
       case "negotiate.accept": {
         const to = this.addressee(rec);
         for (const ts of this.sessionsOf(to)) this.push(ts, { seq: rec.seq, kind: "negotiation", record: rec });
-        this.applyAgreement(rec);
+        const a = this.applyAgreement(rec);
+        if (a?.terms.kind === "merge_tasks") this.merge(a.asker, a.giver, rec.seq, a.terms.text);
+        break;
+      }
+      case "negotiate.escalate": {
+        const to = this.addressee(rec);
+        for (const ts of this.sessionsOf(to)) this.push(ts, { seq: rec.seq, kind: "negotiation", record: rec });
+        if (this.escalation === "auto" && to.change) this.merge(rec.change!, to.change, rec.seq, typeof p.reason === "string" ? p.reason : undefined);
         break;
       }
       case "control": {
@@ -718,6 +798,8 @@ export class ReferenceCoordinator {
           const c = this.changes.get(target.change);
           if (c) c.approved = true;
           for (const ts of this.sessionsOf(target)) this.push(ts, { seq: rec.seq, kind: "control", record: rec });
+        } else if (action === "merge") {
+          this.applyMerge(rec);
         }
         break;
       }
@@ -774,17 +856,12 @@ export class ReferenceCoordinator {
     }
   }
 
-  /** negotiate.accept: apply transfer/share terms (spec §7.4). */
-  private applyAgreement(rec: EventRecord): void {
-    const replied = this.record(Number(rec.payload?.reply_to))!;
-    let root = replied;
-    while (root.kind === "negotiate.counter") root = this.record(Number(root.payload?.reply_to))!;
-    const terms = (replied.payload?.terms as { kind: string }) ?? { kind: "other" };
-    const keys = (root.payload?.keys as SymbolKey[]) ?? [];
+  /** negotiate.accept: apply transfer/share terms (spec §7.4). Returns the agreement. */
+  private applyAgreement(rec: EventRecord) {
+    const a = agreementOf(rec, (n) => this.record(n));
+    if (!a) return undefined;
     // Direction is anchored at the root proposal: its author asks, the other party gives.
-    const asker = root.change!;
-    const giver = rec.change === asker ? replied.change! : rec.change!;
-    const askerAgent = root.agent!;
+    const { root, terms, keys, asker, giver, askerAgent } = a;
     if (terms.kind === "transfer") {
       for (const c of this.claims) if (c.change === giver && keys.includes(c.key)) {
         c.change = asker;
@@ -798,9 +875,49 @@ export class ReferenceCoordinator {
         if (c.change === giver) c.shared.add(asker);
         if (c.change === asker) c.shared.add(giver);
       }
-    } else return;
+    } else return a;
     for (const ss of [...this.sessionsOf({ change: giver }), ...this.sessionsOf({ change: asker })])
       for (const k of keys) ss.open.delete(k);
+    return a;
+  }
+
+  /**
+   * Merge the tasks of changes `a` and `b` (spec §7.6): the coordinator appends a system
+   * `control merge` record naming the senior group's lead first. No-op when already merged
+   * or either change landed.
+   */
+  private merge(a: string, b: string, cause: Seq, reason?: string): void {
+    const ca = this.changes.get(a);
+    const cb = this.changes.get(b);
+    if (!ca || !cb || ca.landed || cb.landed || this.sameGroup(a, b)) return;
+    const ga = this.group(a);
+    const gb = this.group(b);
+    const [lead, other] = this.senior(ga, gb) ? [ga, gb] : [gb, ga];
+    const rec = this.append({
+      kind: "control",
+      actor: { type: "system", id: "coordinator" },
+      draft: { kind: "control", base_seq: this.head, payload: { action: "merge", target: { changes: [lead, other] }, cause, ...(reason ? { reason } : {}) } },
+      diagnostics: [],
+      status: "accepted",
+    });
+    this.applyAccepted(rec);
+  }
+
+  /** Effects of an accepted `control merge`: one group, cross-group errors forgiven, everyone told. */
+  private applyMerge(rec: EventRecord): void {
+    const [lead, other] = ((rec.payload?.target as { changes?: string[] })?.changes ?? []) as [string, string];
+    for (const c of this.changes.values()) if (this.group(c.id) === other) c.merged_into = lead;
+    const leadChange = this.changes.get(lead);
+    if (leadChange) delete leadChange.merged_into;
+    const members = this.members(lead);
+    for (const m of members)
+      for (const ss of this.sessionsOf({ change: m.id })) {
+        for (const [k, d] of [...ss.open]) {
+          const c = this.record(d.caused_by_seq)?.change;
+          if (c !== undefined && this.group(c) === lead) ss.open.delete(k);
+        }
+        this.push(ss, { seq: rec.seq, kind: "control", record: rec });
+      }
   }
 
   // ---------------------------------------------------------------- inbox + gates
@@ -826,19 +943,30 @@ export class ReferenceCoordinator {
     };
   }
 
+  /** Negotiations the session still owes (spec §8.4). */
+  private dues(s: Session): NegotiationDue[] {
+    return negotiationDues({
+      records: this.log.filter((r) => r.status === "accepted" && r.kind.startsWith("negotiate.")),
+      me: { agent: s.agent, change: s.change },
+      record: (n) => this.record(n),
+      fulfilled: (giver, after, keys) =>
+        this.log.some((r) => r.seq > after && r.status === "accepted" && r.kind === "edit" && r.change === giver && r.writes.some((w) => keys.includes(w.key))),
+    });
+  }
+
   gate(sid: string, g: Gate): GateResult {
     const s = this.session(sid);
     const open = [...s.open.values()];
+    const dues = g.gate === "stop" ? this.dues(s) : [];
+    const extra = dues.length ? { negotiations: dues } : {};
     if (g.gate === "stop" && s.paused_by !== undefined)
-      return { type: "gate.result", gate: g.gate, allow: true, reason: "paused by a human; stopping is allowed", open_errors: open };
-    if (!open.length) return { type: "gate.result", gate: g.gate, allow: true, open_errors: [] };
-    return {
-      type: "gate.result",
-      gate: g.gate,
-      allow: false,
-      reason: `${open.length} open Weft error(s) must be resolved first:\n${renderContext(open)}`,
-      open_errors: open,
-    };
+      return { type: "gate.result", gate: g.gate, allow: true, reason: "paused by a human; stopping is allowed", open_errors: open, ...extra };
+    if (!open.length && !dues.length) return { type: "gate.result", gate: g.gate, allow: true, open_errors: [] };
+    const parts = [
+      ...(open.length ? [`${open.length} open Weft error(s) must be resolved first:\n${renderContext(open)}`] : []),
+      ...(dues.length ? [`${dues.length} negotiation(s) still due:\n${dues.map(renderDue).join("\n")}`] : []),
+    ];
+    return { type: "gate.result", gate: g.gate, allow: false, reason: parts.join("\n"), open_errors: open, ...extra };
   }
 
   // ---------------------------------------------------------------- human + system
@@ -868,6 +996,19 @@ export class ReferenceCoordinator {
         if (!this.knownTarget(a.to)) throw new WcpProtocolError("invalid_reference", "unknown message target");
         draft = { kind: "message", base_seq: this.head, payload: { to: a.to, text: a.text, ...(a.intent ? { intent: a.intent } : {}) } };
         break;
+      case "merge": {
+        const [x, y] = a.changes;
+        const cx = this.changes.get(x);
+        const cy = this.changes.get(y);
+        if (!cx || !cy) throw new WcpProtocolError("invalid_reference", `unknown change ${!cx ? x : y}`);
+        if (this.sameGroup(x, y)) throw new WcpProtocolError("invalid_reference", `${x} and ${y} are already merged`);
+        if (cx.landed || cy.landed) throw new WcpProtocolError("invalid_reference", "a landed change cannot be merged");
+        const gx = this.group(x);
+        const gy = this.group(y);
+        const changes = this.senior(gx, gy) ? [gx, gy] : [gy, gx];
+        draft = { kind: "control", base_seq: this.head, payload: { action: "merge", target: { changes }, ...(a.reason ? { reason: a.reason } : {}) } };
+        break;
+      }
     }
     const rec = this.append({ kind: draft.kind, actor, draft, diagnostics: [], status: "accepted" });
     this.applyAccepted(rec);
@@ -987,7 +1128,7 @@ export class ReferenceCoordinator {
       active_changes: new Set([...this.sessions.values()].map((s) => s.change)).size,
       open_conflicts: [...this.sessions.values()].reduce((n, s) => n + s.open.size, 0),
       ...(this.log.length ? { last_event_at: this.log[this.log.length - 1]!.ts } : {}),
-      policy: { arbitration: this.policy },
+      policy: { arbitration: this.policy, escalation: this.escalation },
     };
   }
 

@@ -1,0 +1,4 @@
+cwd: /var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064201-r1/agent-b
+codex exec …
+
+Task T-2 (signup): add `POST /api/signup` taking a JSON body {email, name, password}. It registers the user with createUser from src/auth/users.ts and signs them in right away by starting a session the same way login in src/api/routes.ts does, responding 201 with {token, user: publicUser(user)}; a UserError becomes 400 {error}. Add the route to the accountRoutes array in src/api/account.ts and add test/signup.test.ts. For now ONLY read the relevant files and reply with a short plan that includes the exact code you will write. Do not edit any file yet.

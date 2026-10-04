@@ -1,0 +1,408 @@
+{
+  "name": "negotiation-overload-dues",
+  "description": "§7.4/§8.4: the loser of an R2 conflict proposes an overload; the owner's stop gate is refused until it replies, then until it makes the agreed edit; a new session of the owner's change gets the open agreement redelivered; after the overload the proposer's old-API edit is accepted.",
+  "covers": [
+    "7.4",
+    "8.4",
+    "8.2"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#refreshToken"
+          ]
+        }
+      },
+      "expect": {
+        "seq": 3
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "signature"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 4
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "check",
+        "event": {
+          "kind": "edit",
+          "base_seq": 3,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#refreshToken"
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "reject",
+        "seq": 5,
+        "diagnostics": [
+          {
+            "severity": "error",
+            "code": "stale_assumption",
+            "symbol": "src/auth/session.ts#refreshToken",
+            "caused_by_seq": 4,
+            "caused_by_agent": "claude-a"
+          }
+        ]
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": false,
+        "open_errors": [
+          {
+            "code": "stale_assumption"
+          }
+        ],
+        "negotiations": "$absent"
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.propose",
+          "base_seq": 5,
+          "payload": {
+            "to": {
+              "change": "I-a"
+            },
+            "keys": [
+              "src/auth/session.ts#refreshToken"
+            ],
+            "terms": {
+              "kind": "overload",
+              "text": "Keep refreshToken(token) working as an overload."
+            }
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 6,
+        "summary": "codex-b → I-a: proposes overload on refreshToken"
+      }
+    },
+    {
+      "op": "gate",
+      "as": "A",
+      "gate": "stop",
+      "expect": {
+        "allow": false,
+        "open_errors": [],
+        "reason": "$any",
+        "negotiations": [
+          {
+            "seq": 6,
+            "due": "reply",
+            "keys": [
+              "src/auth/session.ts#refreshToken"
+            ],
+            "record": {
+              "kind": "negotiate.propose",
+              "agent": "codex-b"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "gate",
+      "as": "A",
+      "gate": "commit",
+      "expect": {
+        "allow": true,
+        "negotiations": "$absent"
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.accept",
+          "base_seq": 4,
+          "payload": {
+            "reply_to": 6
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 7,
+        "summary": "claude-a accepted #6"
+      }
+    },
+    {
+      "op": "gate",
+      "as": "A",
+      "gate": "stop",
+      "expect": {
+        "allow": false,
+        "open_errors": [],
+        "negotiations": [
+          {
+            "seq": 7,
+            "due": "fulfil",
+            "keys": [
+              "src/auth/session.ts#refreshToken"
+            ],
+            "record": {
+              "kind": "negotiate.accept"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "hello",
+      "as": "A2",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s3",
+        "head_seq": 8,
+        "delivered_through": 8
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A2",
+      "expect": {
+        "items": [
+          {
+            "id": 1,
+            "seq": 7,
+            "kind": "negotiation",
+            "record": {
+              "kind": "negotiate.accept",
+              "payload": {
+                "reply_to": 6
+              }
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 4,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "signature"
+            }
+          ],
+          "intent": "restore refreshToken(token) as an overload"
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 9,
+        "diagnostics": []
+      }
+    },
+    {
+      "op": "gate",
+      "as": "A",
+      "gate": "stop",
+      "expect": {
+        "allow": true,
+        "negotiations": "$absent"
+      }
+    },
+    {
+      "op": "drain",
+      "as": "B",
+      "ack": "last",
+      "expect": {
+        "items": [
+          {
+            "seq": 7,
+            "kind": "negotiation",
+            "record": {
+              "kind": "negotiate.accept"
+            }
+          },
+          {
+            "seq": 9,
+            "diagnostic": {
+              "code": "contract_changed"
+            }
+          }
+        ],
+        "delivered_through": 9
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 9,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#refreshToken"
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 10,
+        "diagnostics": []
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": true
+      }
+    }
+  ]
+}

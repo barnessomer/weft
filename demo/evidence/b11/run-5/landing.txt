@@ -1,0 +1,158 @@
+agent-a commit: auth: sessions expire (T-1)
+
+Change-Id: Icc3548c3a7303565ccf32ad6834122bfdc41839d
+Task-Id: T-1
+Agent-Id: claude-a
+agent-b commit: api: POST /api/signup (T-2)
+
+Change-Id: If8a406d6d034a96420dc69ef53b2d34b0caf1dc4
+Task-Id: T-2
+Agent-Id: claude-b
+--- agent-a alone: tsc exit 0, tests exit 0
+--- agent-b alone (A's change not merged yet): tsc exit 0, tests exit 0
+
+--- land agent-a: {"ok":true,"sha":"678314f3454cde22cb37f7cb8e44326418999407","seq":19,"status":"accepted"}; land agent-b: {"ok":true,"sha":"1c9202bb55bfeba0614eb0cb5c5398808db536df","seq":20,"status":"accepted"}
+*   1c9202b Merge branch 'agent-b'
+|\  
+| * 5b1a671 api: POST /api/signup (T-2)
+* |   678314f Merge branch 'agent-a'
+|\ \  
+| |/  
+|/|   
+| * 65ae068 auth: sessions expire (T-1)
+|/  
+* d1af0c5 target-app: initial
+--- main after both landings: tsc exit 0
+
+--- main: node --test exit 0
+✔ login with valid credentials returns a token that works for /api/me (48.89025ms)
+✔ login rejects a wrong password and missing fields (46.866458ms)
+✔ logout revokes the token (46.363833ms)
+✔ pages render and unknown routes 404 (23.198084ms)
+✔ createSession issues a unique token bound to the user (0.558041ms)
+✔ createSession without options uses the default lifetime (0.085375ms)
+✔ revokeSession ends the session (0.071375ms)
+✔ getSession returns undefined once the session has expired (0.252375ms)
+✔ refreshSession extends a live session by its original ttl (0.128083ms)
+✔ signup creates the user and returns a working session token (72.451666ms)
+✔ signup rejects invalid input with 400 {error} (23.27375ms)
+ℹ tests 11
+ℹ suites 0
+ℹ pass 11
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 225.376459
+--- main:src/auth/session.ts
+import { randomBytes } from "node:crypto";
+
+export type SessionOptions = { ttlMs: number };
+
+export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };
+
+const sessions = new Map<string, Session>();
+const ttls = new Map<string, number>();
+
+/** Session lifetime used when no options are given. */
+export const DEFAULT_SESSION_OPTIONS: SessionOptions = { ttlMs: 60 * 60 * 1000 };
+
+/** Start a session for a user and return it (the token is the bearer credential). */
+export function createSession(userId: string): Session;
+export function createSession(userId: string, opts: SessionOptions): Session;
+export function createSession(userId: string, opts: SessionOptions = DEFAULT_SESSION_OPTIONS): Session {
+  const createdAt = Date.now();
+  const session: Session = {
+    token: randomBytes(24).toString("base64url"),
+    userId,
+    createdAt,
+    expiresAt: createdAt + opts.ttlMs,
+  };
+  sessions.set(session.token, session);
+  ttls.set(session.token, opts.ttlMs);
+  return session;
+}
+
+/** The live session for a token, or undefined. Expired sessions are forgotten. */
+export function getSession(token: string): Session | undefined {
+  const session = sessions.get(token);
+  if (session && Date.now() >= session.expiresAt) {
+    revokeSession(token);
+    return undefined;
+  }
+  return session;
+}
+
+/** Extend a live session by the ttl it was created with; undefined if it is gone or expired. */
+export function refreshSession(token: string): Session | undefined {
+  const session = getSession(token);
+  if (!session) return undefined;
+  session.expiresAt = Date.now() + ttls.get(token)!;
+  return session;
+}
+
+export function revokeSession(token: string): boolean {
+  ttls.delete(token);
+  return sessions.delete(token);
+}
+
+/** Test helper: forget every session. */
+export function resetSessions(): void {
+  sessions.clear();
+  ttls.clear();
+}
+
+--- main:src/api/account.ts
+import { createUser, getUser, publicUser, UserError } from "../auth/users.ts";
+import { createSession, revokeSession } from "../auth/session.ts";
+import { field, html, json, sessionOf, type Route } from "./router.ts";
+import { accountPage } from "../ui/pages.ts";
+
+export const accountRoutes: Route[] = [
+  {
+    method: "GET",
+    path: "/api/me",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? json(200, publicUser(user)) : json(401, { error: "not signed in" });
+    },
+  },
+  {
+    method: "GET",
+    path: "/account",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? html(200, accountPage(publicUser(user))) : html(401, "<p>Please sign in.</p>");
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/logout",
+    handler: (req) => {
+      const session = sessionOf(req);
+      if (!session) return json(401, { error: "not signed in" });
+      revokeSession(session.token);
+      return json(200, { ok: field(req.body, "reason") ?? true });
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/signup",
+    handler: (req) => {
+      const email = field(req.body, "email");
+      const password = field(req.body, "password");
+      if (!email || !password) return json(400, { error: "email and password are required" });
+      try {
+        const user = createUser(email, field(req.body, "name") ?? "", password);
+        const session = createSession(user.id);
+        return json(201, { token: session.token, user: publicUser(user) });
+      } catch (err) {
+        if (err instanceof UserError) return json(400, { error: err.message });
+        throw err;
+      }
+    },
+  },
+];
+

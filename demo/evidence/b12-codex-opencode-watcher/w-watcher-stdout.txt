@@ -1,0 +1,26 @@
+[weft-watch] watching $WORK/agent-w (12 files) as human-w, task T-4 — L0: edits are reported after the fact; nothing is blocked.
+[weft-watch] changed src/ops/health.ts
+[weft] Your edit to src/ops/health.ts was applied in your checkout but REJECTED by the coordinator (log #6); it stays an open error until you rework it:
+[weft error] stale_assumption src/ops/health.ts:5:10: You use src/auth/session.ts#createSession, whose signature changed in #5 by claude-a after your base #1. (caused by claude-a · task T-1 · event #5). Suggestion: Read the new src/auth/session.ts#createSession (event #5) and update this call site, or negotiate with claude-a.
+  ↳ event #5 by claude-a changed src/auth/session.ts (their change is not in your checkout yet):
+    @@ -1,12 +1,14 @@
+     import { randomBytes } from "node:crypto";
+     
+    -export type Session = { token: string; userId: string; createdAt: number };
+    +export type SessionOptions = { ttlMs: number };
+    +export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };
+     
+     const sessions = new Map<string, Session>();
+     
+     /** Start a session for a user and return it (the token is the bearer credential). */
+    -export function createSession(userId: string): Session {
+    -  const session: Session = { token: randomBytes(24).toString("base64url"), userId, createdAt: Date.now() };
+    +export function createSession(userId: string, opts: SessionOptions): Session {
+    +  const now = Date.now();
+    +  const session: Session = { token: randomBytes(24).toString("base64url"), userId, createdAt: now, expiresAt: now + opts.ttlMs };
+       sessions.set(session.token, session);
+       return session;
+     }
+    
+  ↳ Your options: retreat (rework without that code) | wait (until claude-a lands or releases it) | negotiate: `$WORK/agent-w/.weft/bin/weft negotiate propose overload "<what claude-a should keep working for you>" --wait 240` (terms: overload | transfer | share | sequence | merge_tasks | other; it is delivered to claude-a and you get the reply) | escalate: `$WORK/agent-w/.weft/bin/weft negotiate escalate "<why>"` (the coordinator merges your two tasks).
+[weft-watch] changed src/ops/health.ts — reported

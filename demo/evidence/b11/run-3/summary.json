@@ -1,0 +1,74 @@
+{
+  "run": 3,
+  "repo": "demo-b11-20261004-081018-r3",
+  "url": "http://127.0.0.1:8799",
+  "pass": true,
+  "criteria": {
+    "b_denied_at_edit_time_by_a": true,
+    "b_proposed_overload": true,
+    "proposal_injected_into_a": true,
+    "a_accepted": true,
+    "a_made_agreed_edit": true,
+    "b_kept_old_call": true,
+    "both_landed": true,
+    "tests_green": true
+  },
+  "seqs": {
+    "a_signature": 3,
+    "b_rejected": 9,
+    "propose": 10,
+    "accept": 12,
+    "a_fulfil": 13,
+    "lands": [
+      19,
+      20
+    ]
+  },
+  "a_running_when_b2_started": false,
+  "a_resumed_for_proposal": true,
+  "proposal_reached_a_via": "SessionStart",
+  "signup_createSession_args": "user.id",
+  "timeline_ms": {
+    "b_joined": 511,
+    "a_started": 511,
+    "a_signature_accepted": 9563,
+    "a_done": 20678,
+    "b2_started": 22414,
+    "b_proposed": 37482,
+    "a_resumed": 37482,
+    "a_resume_done": 55976,
+    "b2_done": 72959
+  },
+  "harness_exit": {
+    "a": {
+      "code": 0,
+      "result": "success",
+      "ms": 20167,
+      "tokens": 96387,
+      "cost_usd": 0.16804899999999998
+    },
+    "a_resume": {
+      "code": 0,
+      "result": "success",
+      "ms": 18494,
+      "tokens": 86456,
+      "cost_usd": 0.22937719999999998
+    },
+    "b1": {
+      "code": 0,
+      "result": "success",
+      "ms": 22414,
+      "tokens": 77865,
+      "cost_usd": 0.1642026
+    },
+    "b2": {
+      "code": 0,
+      "result": "success",
+      "ms": 50545,
+      "tokens": 231500,
+      "cost_usd": 0.3536078
+    }
+  },
+  "work": "/Users/john/.hermes/cache/scratch/weft-b11-20261004-081018-r3",
+  "rescored": "a_made_agreed_edit re-scored from coordinator-log.json with the fixed rule (accepted A edit of createSession after the proposal #10); value at run time: True"
+}

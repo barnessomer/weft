@@ -1,0 +1,19 @@
+{
+  "name": "@weft/adapter-hermes",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "description": "WCP adapter for Hermes Agent: a Python plugin (pre_tool_call / transform_tool_result / pre_verify) plus a bundled analyzer bridge.",
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json && python3 -m py_compile plugin/weft/__init__.py plugin/weft/adapter.py plugin/weft/wcp.py scripts/install.py scripts/weft_land.py",
+    "test": "node scripts/build.mjs && vitest run && python3 -m unittest discover -s tests -v"
+  },
+  "dependencies": {
+    "@weft/analyzer": "workspace:*",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.4"
+  }
+}

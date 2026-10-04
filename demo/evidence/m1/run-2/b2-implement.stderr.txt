@@ -1,0 +1,116 @@
+2026-10-04T06:45:59.612056Z ERROR codex_core::tools::router: error=Command blocked by PreToolUse hook: [weft] Edit to src/api/account.ts, test/signup.test.ts blocked: it conflicts with another agent's change (Weft edit-time coordination, log #9).
+[weft error] stale_assumption src/api/account.ts:17:25: You use src/auth/session.ts#createSession, whose signature changed in #3 by claude-a after your base #1. (caused by claude-a · task T-1 · event #3). Suggestion: Read the new src/auth/session.ts#createSession (event #3) and update this call site, or negotiate with claude-a.
+  ↳ event #3 by claude-a changed src/auth/session.ts (their change is not in your checkout yet):
+    @@ -1,19 +1,32 @@
+     import { randomBytes } from "node:crypto";
+     
+    -export type Session = { token: string; userId: string; createdAt: number };
+    +export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };
+     
+    +export type SessionOptions = { ttlMs: number };
+    +
+     const sessions = new Map<string, Session>();
+     
+     /** Start a session for a user and return it (the token is the bearer credential). */
+    -export function createSession(userId: string): Session {
+    -  const session: Session = { token: randomBytes(24).toString("base64url"), userId, createdAt: Date.now() };
+    +export function createSession(userId: string, opts: SessionOptions): Session {
+    +  const createdAt = Date.now();
+    +  const session: Session = {
+    +    token: randomBytes(24).toString("base64url"),
+    +    userId,
+    +    createdAt,
+    +    expiresAt: createdAt + opts.ttlMs,
+    +  };
+       sessions.set(session.token, session);
+       return session;
+     }
+     
+    -/** The live session for a token, or undefined. */
+    +/** The live session for a token, or undefined (expired sessions are forgotten). */
+     export function getSession(token: string): Session | undefined {
+    -  return sessions.get(token);
+    +  const session = sessions.get(token);
+    … (9 more lines)
+Do not retry the same edit. Adapt your code to the change described above (or work around it), then edit again — your next attempt is checked against the current log.. Command: apply_patch <<'PATCH'
+*** Begin Patch
+*** Update File: src/api/account.ts
+@@
+-import { getUser, publicUser } from "../auth/users.ts";
+-import { revokeSession } from "../auth/session.ts";
++import { createUser, getUser, publicUser, UserError } from "../auth/users.ts";
++import { createSession, revokeSession } from "../auth/session.ts";
+@@
+ export const accountRoutes: Route[] = [
++  {
++    method: "POST",
++    path: "/api/signup",
++    handler: (req) => {
++      const email = field(req.body, "email");
++      const name = field(req.body, "name");
++      const password = field(req.body, "password");
++      if (!email || !name || !password) return json(400, { error: "email, name and password are required" });
++      try {
++        const user = createUser(email, name, password);
++        const session = createSession(user.id);
++        return json(201, { token: session.token, user: publicUser(user) });
++      } catch (error) {
++        if (error instanceof UserError) return json(400, { error: error.message });
++        throw error;
++      }
++    },
++  },
+   {
+*** Add File: test/signup.test.ts
++import { test, beforeEach } from "node:test";
++import assert from "node:assert/strict";
++import { app } from "../src/api/routes.ts";
++import { resetUsers } from "../src/auth/users.ts";
++import { resetSessions } from "../src/auth/session.ts";
++
++const signup = (body: unknown) => app({ method: "POST", path: "/api/signup", body, headers: {} });
++
++beforeEach(() => {
++  resetUsers();
++  resetSessions();
++});
++
++test("signup creates a public user and a token usable for /api/me", async () => {
++  const response = await signup({ email: "ADA@example.com", name: "Ada", password: "correct horse" });
++  assert.equal(response.status, 201);
++  const { token, user } = response.body as { token: string; user: { id: string; email: string; name: string } };
++  assert.ok(token);
++  assert.match(user.id, /^u_/);
++  assert.deepEqual(user, { id: user.id, email: "ada@example.com", name: "Ada" });
++
++  const me = await app({ method: "GET", path: "/api/me", headers: { authorization: `Bearer ${token}` } });
++  assert.equal(me.status, 200);
++  assert.deepEqual(me.body, user);
++});
++
++test("signup rejects missing fields", async () => {
++  for (const body of [null, {}, { email: "ada@example.com", name: "Ada" }, { email: "ada@example.com", password: "correct horse" }, { name: "Ada", password: "correct horse" }]) {
++    const response = await signup(body);
++    assert.equal(response.status, 400);
++    assert.deepEqual(response.body, { error: "email, name and password are required" });
++  }
++});
++
++test("signup returns UserError messages for invalid email and short password", async () => {
++  const invalidEmail = await signup({ email: "invalid", name: "Ada", password: "correct horse" });
++  assert.equal(invalidEmail.status, 400);
++  assert.deepEqual(invalidEmail.body, { error: "invalid email" });
++
++  const shortPassword = await signup({ email: "ada@example.com", name: "Ada", password: "short" });
++  assert.equal(shortPassword.status, 400);
++  assert.deepEqual(shortPassword.body, { error: "password must be at least 8 characters" });
++});
++
++test("signup rejects a duplicate email case-insensitively", async () => {
++  await signup({ email: "ada@example.com", name: "Ada", password: "correct horse" });
++  const response = await signup({ email: "ADA@example.com", name: "Another Ada", password: "correct horse" });
++  assert.equal(response.status, 400);
++  assert.deepEqual(response.body, { error: "email already registered" });
++});
+*** End Patch
+PATCH

@@ -1,0 +1,6 @@
+weft: installed opencode adapter in $WORK/agent-c
+  coordinator https://weft-gateway-preview.redacted-subdomain.workers.dev repo demo-b12-20261004-093805 agent opencode-c task T-3 change I2727c677a1daa257546b7086fc9a64c361df23cd
+  capabilities {"level":3,"observe":"sync","inject":"immediate","deny_edit":true,"refuse_stop":true,"commit_gate":"tool_interception"}
+  plugin: $WORK/agent-c/.opencode/plugin/weft.js
+  git hooks: $WORK/origin/.git/worktrees/agent-c/hooks/commit-msg, pre-commit
+  agent cli: $WORK/agent-c/.weft/bin/weft

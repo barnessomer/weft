@@ -1,6 +1,50 @@
+# Weft web UI: static app (./public) + allow-listed API in front of weft-gateway.
+# Auth (src/auth.ts): Cloudflare Access JWT when ACCESS_TEAM_DOMAIN + ACCESS_AUD are set,
+# else the operator-key login (WEFT_WEB_KEY); fails closed when neither is configured.
+# Setup: docs/web-ui.md.
 name = "weft-web"
 main = "src/index.ts"
 compatibility_date = "2025-09-06"
+workers_dev = true
+
+[assets]
+directory = "./public"
+binding = "ASSETS"
+# The Worker runs first for every request so the auth gate also covers static files.
+run_worker_first = true
+
+[[services]]
+binding = "GATEWAY"
+service = "weft-gateway"
+
+[vars]
+ACCESS_TEAM_DOMAIN = ""   # e.g. "<team>.cloudflareaccess.com"
+ACCESS_AUD = ""           # Access application AUD tag
+WEFT_ALLOWED_EMAILS = ""  # optional extra allow-list, comma-separated
+
+[observability]
+enabled = true
+
+# Secrets (wrangler secret put <NAME> [--env preview]):
+#   WEFT_WEB_TOKEN  gateway token, scopes ["observe","human"], repos ["*"], principal = the human
+#   WEFT_WEB_KEY    operator key for the fallback login (only while Access is not configured)
+#
+# Optional, once apps/workflows deploys BestOfN (approve then also calls instance.sendEvent):
+# [[workflows]]
+# name = "weft-bestofn"
+# binding = "BESTOFN"
+# class_name = "BestOfN"
+# script_name = "weft-workflows"
 
 [env.preview]
 name = "weft-web-preview"
+workers_dev = true
+
+[[env.preview.services]]
+binding = "GATEWAY"
+service = "weft-gateway-preview"
+
+[env.preview.vars]
+ACCESS_TEAM_DOMAIN = ""
+ACCESS_AUD = ""
+WEFT_ALLOWED_EMAILS = ""
