@@ -11,7 +11,7 @@ frozen 10-12, video recorded 10-13, submitted 10-13 (one day buffer).
 | 5–6 | 10-08/09 | Artifacts fork-per-task, sandbox runner, workflows, landing queue |
 | 7–8 | 10-10/11 | Web UI, evidence (previews, screenshots, AI Gateway transcripts), negotiation, auto-revert, Gemini/Cursor adapters. **M2: full demo scenario runs end to end** |
 | 9 | 10-12 | Hardening, demo repo, docs, code freeze |
-| 10 | 10-13 | John records video; submit |
+| 10 | 10-13 | Video produced autonomously (R3); PM submits (R4) |
 | 11 | 10-14 | Buffer / deadline |
 
 Critical path: S2 → protocol → sequencer → adapters → M1 → Artifacts integration →
@@ -19,3 +19,9 @@ workflows → M2 → demo → video.
 
 Slip rule: if M1 is not green by end of 10-07, cut Gemini/Cursor adapters and Vectorize
 code index first; never cut the edit-time squiggle, Artifacts forks, or auto-revert.
+
+## Decisions (2026-10-03, John delegated all decisions)
+- Name Weft / WCP; repo github.com/celador/weft, private until submission then public MIT; Atelier open-source project.
+- Budget ceiling $150 (models + Cloudflare), tracked in pm-log.
+- Live harnesses: Claude Code, Codex, Cursor CLI, OpenCode (+ Hermes plugin hooks if cheap). Gemini CLI fixture-only (free OAuth tier discontinued, no API key).
+- Video produced by agents (scripted recordings + TTS + ffmpeg). PM submits via John's browser.
