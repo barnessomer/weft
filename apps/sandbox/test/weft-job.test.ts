@@ -222,6 +222,10 @@ describe("weft-job land + revert", () => {
     expect(msg).toContain("Revert change Iabc");
     expect(msg).toContain("Weft-Reverts-Op: op-1");
     expect(() => execFileSync("git", ["cat-file", "-e", `${rv.after}:src/extra.ts`], { cwd: rv.workdir, stdio: "ignore" })).toThrow();
+    // re-running the same revert op (e.g. after a failure to log it) finds the existing revert commit
+    const again = await runJob({ job: "revert", trunk: { remote: w.trunk }, revert: { before: r.before, after: r.after, op_id: "op-1", reason: "retry" } }, { log: () => {} });
+    expect(again).toMatchObject({ status: "reverted", already: true, sha: rv.after });
+    expect(w.tip(w.trunk)).toBe(rv.after);
   });
 
   it("land: failing presubmit never touches trunk", async () => {

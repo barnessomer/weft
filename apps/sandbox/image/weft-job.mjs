@@ -438,6 +438,11 @@ async function revertJob(job) {
   const { before, after } = s.revert;
   if ((await job.rev(after)) === null) return { job: "revert", status: "error", error: `landed sha ${after} not on trunk` };
   if (!(await job.isAncestor(after, onto))) return { job: "revert", status: "error", error: `${after} is not on trunk any more` };
+  // Idempotent: an earlier attempt may have pushed the revert and failed before it was logged.
+  if (s.revert.op_id) {
+    const done = (await job.git(["log", "--format=%H", "-1", "--fixed-strings", `--grep=Weft-Reverts-Op: ${s.revert.op_id}`, `${after}..${onto}`])).stdout.trim();
+    if (done) return { job: "revert", status: "reverted", onto, layer: "none", commits: [], sha: done, before: (await job.rev(`${done}^`)) ?? ZERO_SHA, after: done, already: true };
+  }
   // Newest first (revert order). Without a known `before`, only the landed commit itself.
   const list = before && before !== ZERO_SHA ? (await job.gitOk(["rev-list", "--topo-order", "--no-merges", `${before}..${after}`])).split("\n").filter(Boolean) : [after];
   await job.gitOk(["checkout", "-q", "--detach", onto]);
