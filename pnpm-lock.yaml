@@ -39,7 +39,11 @@ importers:
         specifier: workspace:*
         version: link:../../packages/sequencer
 
-  apps/sandbox: {}
+  apps/sandbox:
+    dependencies:
+      '@weft/artifacts':
+        specifier: workspace:*
+        version: link:../../packages/artifacts
 
   apps/web: {}
 
