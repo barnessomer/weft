@@ -38,6 +38,9 @@ importers:
       '@weft/sequencer':
         specifier: workspace:*
         version: link:../../packages/sequencer
+      '@weft/workflows':
+        specifier: workspace:*
+        version: link:../workflows
 
   apps/sandbox:
     dependencies:
