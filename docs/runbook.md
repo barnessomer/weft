@@ -156,3 +156,33 @@ Agent push: `git -c http.extraHeader="Authorization: Bearer $TOKEN" push $REMOTE
 (~5 s) and a `revisions` row with `status=queued` (B8 picks it up).
 
 Live proof (creates and deletes a throwaway trunk/fork/subscription): `pnpm --filter @weft/artifacts test:live`.
+
+## Sandbox runner (B7)
+
+Preview: `https://weft-sandbox-preview.redacted-subdomain.workers.dev` (`/v1/health` public).
+Code + API: `apps/sandbox/README.md`. Numbers: `docs/research/sandbox.md`.
+
+- Resources: Worker `weft-sandbox-preview` (DO `WeftSandbox` + container application
+  `weft-sandbox-preview-weftsandbox`, image built from `apps/sandbox/Dockerfile`), R2
+  `weft-sandbox-logs-preview` (`runs/<run>/<stream>/<seq>`, `runs/<run>/status.json`). Prod
+  (`weft-sandbox`, R2 `weft-sandbox-logs`) is configured but NOT deployed/created.
+- Deploy needs Docker running (wrangler builds + pushes the linux/amd64 image):
+  `cd apps/sandbox && unset CLOUDFLARE_API_TOKEN && pnpm deploy:preview`. An unchanged image is
+  not re-pushed (deploy ≈ 6 s); a changed image ≈ 2 min.
+- **AI Gateway:** wrangler.toml says `AI_GATEWAY_ID = "weft"`, but gateway `weft` does not exist yet
+  (needs the dashboard or an API token with AI Gateway Edit; wrangler OAuth cannot). The preview
+  is therefore deployed with `--var AI_GATEWAY_ID:default` (auto-created). After John creates
+  `weft`: `pnpm exec wrangler deploy --env preview` (no override).
+- Secrets (`pnpm exec wrangler secret put <NAME> --env preview`): `WEFT_RUNNER_TOKEN` (set; value in
+  `~/.config/weft/preview-sandbox-token`, mode 600), optional `ANTHROPIC_API_KEY` / `OPENAI_API_KEY`
+  (added by Outbound to `/anthropic` / `/openai` gateway calls), `AI_GATEWAY_TOKEN` (authenticated
+  gateway + BYOK keys), `WEFT_RUNNER_REPORT_TOKEN`. None of them ever enters a container.
+
+```sh
+T=$(cat ~/.config/weft/preview-sandbox-token); S=https://weft-sandbox-preview.redacted-subdomain.workers.dev
+curl -sX POST $S/v1/runs -H "authorization: Bearer $T" -d @run.json     # RunRequest (fork.token from B6 candidates)
+curl -s $S/v1/runs/<run> -H "authorization: Bearer $T"                   # state, timings.cold_start_ms, result
+curl -s $S/v1/runs/<run>/logs/agent.stdout.log -H "authorization: Bearer $T"
+curl -sX POST $S/v1/runs/<run>/destroy -H "authorization: Bearer $T"     # free the instance
+cd apps/sandbox && node scripts/live.mjs e2e      # live proof (creates + deletes a throwaway trunk/fork)
+```
