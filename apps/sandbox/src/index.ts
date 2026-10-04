@@ -119,4 +119,8 @@ export class SandboxRunner extends WorkerEntrypoint<Env> {
   async logs(run: string, stream: string) {
     return readLogs(this.env.WEFT_LOGS, run, stream);
   }
+  /** Stop the run's container (B8 workflows free it as soon as a job's result is read). */
+  async destroy(run: string) {
+    await stub(this.env, run).destroy();
+  }
 }

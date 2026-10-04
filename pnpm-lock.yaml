@@ -47,7 +47,18 @@ importers:
 
   apps/web: {}
 
-  apps/workflows: {}
+  apps/workflows:
+    dependencies:
+      '@weft/artifacts':
+        specifier: workspace:*
+        version: link:../../packages/artifacts
+      '@weft/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+    devDependencies:
+      '@weft/sequencer':
+        specifier: workspace:*
+        version: link:../../packages/sequencer
 
   packages/adapters/claude-code:
     dependencies:

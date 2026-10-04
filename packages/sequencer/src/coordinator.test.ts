@@ -207,6 +207,21 @@ describe("SqlCoordinator persistence and extras", () => {
     expect(() => j.call("system", { kind: "edit", base_seq: 3, writes: [{ key: "x#y", kind: "body" }] }, sys)).toThrow(WcpProtocolError);
   });
 
+  it("system message (workflow bounce) reaches the change's agent inbox, same as the reference", () => {
+    const { j } = fresh();
+    const ref = new ReferenceCoordinator({ repo: "r", now: () => Date.parse("2026-10-05T12:00:00.000Z") });
+    const a = j.call<{ session: string }>("hello", hello("a", "A"));
+    ref.hello(hello("a", "A"));
+    const sys = { type: "system" as const, id: "workflows" };
+    const draft = { kind: "message" as const, base_seq: 1, change: "A", payload: { to: { change: "A" }, text: "rebase conflict in src/x.ts", intent: "steer" } };
+    const rec = j.call<{ seq: number; status: string; change?: string }>("system", draft, sys);
+    expect(rec).toMatchObject({ status: "accepted", change: "A" });
+    const rrec = ref.system(draft, sys);
+    expect({ ...rrec, ts: undefined, repo: undefined }).toEqual({ ...rec, ts: undefined, repo: undefined });
+    const inbox = j.call<{ items: Array<{ kind: string; seq: number }> }>("drain", a.session);
+    expect(inbox.items.some((i) => i.kind === "message" && i.seq === rec.seq)).toBe(true);
+  });
+
   it("nextExpiry reports the earliest claim or session expiry", () => {
     const { clock, j } = fresh({ claim_ttl_ms: 1000, session_ttl_ms: 5000 });
     expect(j.coord.nextExpiry()).toBeNull();
