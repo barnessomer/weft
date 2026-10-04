@@ -8,6 +8,7 @@ import {
   agentHue, ago, approvals, changeStats, deriveAgents, deriveBoard, deriveMetrics, deriveOps, diffLines, diffStats,
   isSquiggly, KIND_LABEL, shortChange, shortSha, symbolFile, symbolName, upsert, worstSeverity, WRITE_TAG,
 } from "./lib/model.js";
+import { fixLegacyUrls } from "./lib/urls.js";
 
 /** @typedef {import("./lib/model.js").WcpEvent} WcpEvent */
 /** @typedef {import("./lib/model.js").D1Task} D1Task */
@@ -135,7 +136,7 @@ function connect(/** @type {number} */ epoch) {
     if (epoch !== S.epoch) return;
     let f;
     try {
-      f = JSON.parse(m.data);
+      f = JSON.parse(fixLegacyUrls(String(m.data)));
     } catch {
       return;
     }
@@ -748,7 +749,7 @@ function candidateCard(/** @type {string} */ task, /** @type {string} */ change,
               h(
                 "figure.shot",
                 null,
-                h("a", { href: s.uri, target: "_blank", rel: "noopener" }, h("img", { src: s.uri, alt: `screenshot ${s.data?.route ?? ""} ${shortSha(s.sha)}`, loading: "lazy" })),
+                h("a", { href: fixLegacyUrls(s.uri), target: "_blank", rel: "noopener" }, h("img", { src: fixLegacyUrls(s.uri), alt: `screenshot ${s.data?.route ?? ""} ${shortSha(s.sha)}`, loading: "lazy" })),
                 h(
                   "figcaption",
                   null,
@@ -815,7 +816,7 @@ function candidateCard(/** @type {string} */ task, /** @type {string} */ change,
   );
 }
 const metric = (/** @type {any} */ v, /** @type {string} */ label) => h("div.metric", null, h("b", null, v), h("span", null, label));
-const extLink = (/** @type {string} */ uri, /** @type {string} */ label) => h("a.ext", { href: uri, target: "_blank", rel: "noopener noreferrer" }, label, icon("ext"));
+const extLink = (/** @type {string} */ uri, /** @type {string} */ label) => h("a.ext", { href: fixLegacyUrls(uri), target: "_blank", rel: "noopener noreferrer" }, label, icon("ext"));
 function safeJson(/** @type {string} */ s) {
   try {
     return JSON.parse(s);
