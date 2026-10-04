@@ -205,7 +205,10 @@ async function oneRun(n) {
   // 2. wait for A's accepted signature change, and for B's plan turn to end
   let sigSeq;
   let aDone = false;
-  ap.then(() => (aDone = true));
+  ap.then(() => {
+    aDone = true;
+    mark("a_done");
+  });
   while (!sigSeq) {
     const ev = await events();
     sigSeq = ev.find((e) => e.agent === "claude-a" && e.status === "accepted" && e.kind === "edit" && (e.writes ?? []).some((w) => w.key === "src/auth/session.ts#createSession" && w.kind === "signature"))?.seq;
@@ -225,7 +228,6 @@ async function oneRun(n) {
   const b2 = thread ? await codex(dirB, join(evidence, "b2-implement.jsonl"), PROMPT_B2, env, thread) : { code: -1, lines: [], ms: 0 };
   mark("b2_done");
   const a = await ap;
-  mark("a_done");
 
   // ------------------------------------------------------------- evidence
   const full = [];
@@ -245,7 +247,20 @@ async function oneRun(n) {
       if (!existsSync(d)) continue;
       const f = readdirSync(d).find((x) => x.includes(thread));
       if (f) {
-        writeFileSync(join(evidence, "b-codex-rollout.jsonl"), readFileSync(join(d, f), "utf8"));
+        // Keep the conversation (messages, tool calls/outputs incl. hook feedback); drop
+        // session/turn metadata that carries the operator's global Codex instructions/config.
+        const keep = readFileSync(join(d, f), "utf8")
+          .split("\n")
+          .filter(Boolean)
+          .map((l) => JSON.parse(l))
+          .filter((e) => {
+            const p = e.payload ?? {};
+            if (e.type !== "response_item") return false;
+            if (p.type === "function_call" || p.type === "function_call_output") return true;
+            const txt = JSON.stringify(p.content ?? "");
+            return p.type === "message" && (p.role === "assistant" || txt.includes("[weft") || txt.includes("Task T-2") || txt.includes("Implement your plan"));
+          });
+        writeFileSync(join(evidence, "b-codex-rollout.jsonl"), keep.map((e) => JSON.stringify(e)).join("\n") + "\n");
         break;
       }
     }
@@ -314,6 +329,8 @@ async function oneRun(n) {
   const tokensB = usageB.reduce((s, u) => s + (u?.input_tokens ?? 0) + (u?.output_tokens ?? 0), 0);
   const tokensA = resultA?.usage ? (resultA.usage.input_tokens ?? 0) + (resultA.usage.cache_read_input_tokens ?? 0) + (resultA.usage.cache_creation_input_tokens ?? 0) + (resultA.usage.output_tokens ?? 0) : 0;
   const weft = (hooks) => hooks.reduce((s, h) => s + (h.weft_chars ?? 0), 0);
+  // A turn that failed in the model backend (quota, budget, outage) is not a Weft result.
+  const backendFailure = [...b1.lines, ...b2.lines].find((l) => l.type === "turn.failed")?.error?.message?.slice(0, 200);
   const criteria = {
     b_got_edit_time_diagnostic_from_a: !!caused && !!denied,
     b_changed_approach: acceptedAfter.length > 0 && usesNewSignature,
@@ -326,6 +343,7 @@ async function oneRun(n) {
     repo,
     url: URL_,
     pass: Object.values(criteria).every(Boolean),
+    ...(backendFailure ? { aborted: `Codex model backend failed: ${backendFailure}` } : {}),
     criteria,
     a_signature_seq: sigSeq ?? null,
     b_rejected_seq: caused?.seq ?? null,

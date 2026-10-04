@@ -255,3 +255,13 @@ WCP v0.1 is specified in `docs/protocol/wcp-v0.md` (normative; implemented by `p
 - Booting happens in the DO alarm, not the request: a cold start inside `blockConcurrencyWhile` (30 s cap) reset the DO in the first live probe.
 - The full model transcript is the harness's own JSON event stream (Claude `stream-json`, Codex `--json`) shipped to R2 per run; AI Gateway's `getLog` returns metadata/tokens/cost but not bodies.
 - Gap: AI Gateway `weft` must be created by John (dashboard / API token); the preview runs with `AI_GATEWAY_ID=default` until then. Real Claude/Codex sessions need a model credential (Worker secret or BYOK in the gateway); Workers AI models work without one.
+
+## Update 2026-10-04 (M1, Claude Code + Codex on one coordinator)
+- M1 scenario (`demo/scenarios/m1.md`, driver `demo/m1-collision.mjs`, target `demo/target-app`): Claude Code changes `createSession`'s signature while Codex, which planned against the old one, implements a caller. Codex's apply_patch is denied at PreToolUse with `stale_assumption` citing Claude's event and quoting its diff. Codex passes the new options, both branches merge with no conflict, and `tsc` + tests are green. 2/2 valid runs passed; 2 runs were aborted by the Codex model backend's quota. Report: `demo/evidence/m1-report.md`.
+- Codex adapter fixes (verified live, codex-cli 0.154):
+  - Hooks go in `.codex/hooks.json`, not settings.local.json. For a linked git worktree, Codex reads the project layer from the **main** worktree, so the installer writes there too; the hook command resolves the checkout from the hook's cwd.
+  - SessionStart/UserPromptSubmit/Stop/SessionEnd are registered, because without SessionStart, base = head at the first edit and R2 can never fire. `exec resume` keeps the hook session_id.
+  - `Update File` patches are checked pre-edit (full apply_patch grammar).
+  - **Models without Codex catalog metadata (any OpenRouter model) get no native apply_patch tool.** They run `apply_patch <<'PATCH'` through the shell, Codex applies it, the hooks see `Bash`, and no PostToolUse fires. The adapter routes shell apply_patch through the same check, and commits a pending pre-edit from disk at the next hook.
+- Git worktrees share `<common>/hooks`: two adapters in two worktrees overwrote each other's commit-msg/pre-commit. Both installers now set a worktree-scoped `core.hooksPath`.
+- Hook latency against the preview gateway: about 400 ms per coordinator call, about 0.55 s for a pre-edit check hook. Diagnostics overhead is under 0.1% of the receiving agent's tokens; the quoted causing hunk is about 60% of the deny text and is what makes the reroute one-shot.
