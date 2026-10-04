@@ -68,7 +68,7 @@ export interface ContainerSpec {
 }
 
 export const RUN_ID = /^[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?$/;
-export const INSTANCE_TYPES = ["lite", "basic", "standard-1", "standard-2", "standard-3", "standard-4"];
+export const INSTANCE_TYPES = ["lite", "standard-1", "standard-2", "standard-3", "standard-4"];
 // Linux rejects a single argv entry >= 128 KiB; the prompt becomes one argument.
 export const MAX_PROMPT_BYTES = 120 * 1024;
 

@@ -46,7 +46,7 @@ export function aiGatewayBase(env: Pick<Env, "AI_GATEWAY_ACCOUNT_ID" | "AI_GATEW
 export class WeftSandbox extends DurableObject<Env> {
   private readonly container: ContainerRuntime;
   private readonly controller: RunController;
-  private allowHosts: string[] = [];
+  private allowHosts: string[] | undefined;
 
   constructor(ctx: DurableObjectState, env: Env) {
     super(ctx, env);
@@ -66,6 +66,7 @@ export class WeftSandbox extends DurableObject<Env> {
       ...(base ? { aiGatewayBase: base } : {}),
       prepare: async ({ spec, secrets }) => {
         const exportsNs = (ctx as unknown as { exports: Record<string, (o: { props: OutboundProps }) => Fetcher> }).exports;
+        this.allowHosts ??= (await ctx.storage.get<string[]>("allow_hosts")) ?? [];
         const outbound = exportsNs.Outbound!({ props: outboundProps(spec, secrets, this.allowHosts) });
         await container.interceptAllOutboundHttp(outbound);
         await container.interceptOutboundHttps("*", outbound);
@@ -82,11 +83,13 @@ export class WeftSandbox extends DurableObject<Env> {
   }
 
   async start(req: RunRequest, run: string): Promise<{ ok: true; status: RunStatus } | { ok: false; code: number; errors: string[] }> {
+    // Fast path only: validate + persist; the alarm boots the container (cold start can exceed
+    // the 30 s blockConcurrencyWhile limit and the caller should not wait for it).
     return this.ctx.blockConcurrencyWhile(async () => {
       this.allowHosts = req.allow_hosts ?? [];
       await this.ctx.storage.put("allow_hosts", this.allowHosts);
       const r = await this.controller.start(req, run);
-      if (r.ok && r.status.state === "running") await this.ctx.storage.setAlarm(Date.now() + 2000);
+      if (r.ok) await this.ctx.storage.setAlarm(Date.now());
       return r;
     });
   }

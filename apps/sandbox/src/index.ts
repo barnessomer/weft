@@ -60,6 +60,18 @@ export default {
     const auth = request.headers.get("authorization") ?? "";
     if (!env.WEFT_RUNNER_TOKEN || !timingSafeEqual(auth, `Bearer ${env.WEFT_RUNNER_TOKEN}`)) return Response.json({ error: "unauthorized" }, { status: 401 });
 
+    // AI Gateway log lookup (metadata, tokens, cost) for a call made by a run: evidence for B8.
+    const lm = /^\/v1\/aig\/logs\/([A-Za-z0-9_-]+)$/.exec(url.pathname);
+    if (lm && request.method === "GET") {
+      if (!env.AI || !env.AI_GATEWAY_ID) return Response.json({ error: "no AI binding" }, { status: 501 });
+      try {
+        const gw = (env.AI as unknown as { gateway(id: string): { getLog(id: string): Promise<unknown> } }).gateway(env.AI_GATEWAY_ID);
+        return Response.json(await gw.getLog(lm[1]!));
+      } catch (e) {
+        return Response.json({ error: String((e as Error).message ?? e) }, { status: 502 });
+      }
+    }
+
     if (url.pathname === "/v1/runs" && request.method === "POST") {
       const body = (await request.json().catch(() => null)) as RunRequest | null;
       if (!body) return Response.json({ error: "JSON body required" }, { status: 400 });

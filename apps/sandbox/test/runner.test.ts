@@ -71,9 +71,11 @@ describe("RunController", () => {
       report: { url: "https://dispatcher.example/report" },
     };
     const s = await c.start(req);
-    expect(s).toMatchObject({ ok: true, status: { run: "run-e2e", state: "running", warm: false, instance: "standard-1" } });
+    expect(s).toMatchObject({ ok: true, status: { run: "run-e2e", state: "starting", instance: "standard-1" } });
+    expect(container.starts).toBe(0); // start() only validates + persists; boot() (DO alarm) starts the container
+    const st0 = (await c.boot())!;
+    expect(st0).toMatchObject({ state: "running", warm: false });
     expect(container.starts).toBe(1);
-    const st0 = (s as { status: RunStatus }).status;
     expect(st0.timings.cold_start_ms).toBeGreaterThanOrEqual(0);
     expect(st0.timings.ready_at).toBeGreaterThanOrEqual(st0.timings.container_start_at!);
     // secrets reach the Outbound props (prepare), not the container spec
@@ -112,14 +114,16 @@ describe("RunController", () => {
     const container = new LocalContainer();
     const a = await controller(container);
     await a.c.start({ run: "run-1", repo: "r", task: "t", change: CHANGE, agent: "a", harness: "script", command: ["sleep", "1"] });
+    await a.c.boot();
     const overlap = await a.c.start({ run: "run-1b", repo: "r", task: "t", change: CHANGE, agent: "a", harness: "script", command: ["true"] });
     expect(overlap).toMatchObject({ ok: false, code: 409 });
     expect((await untilDone(a.c)).state).toBe("succeeded");
     const b = await controller(container); // a new DO name would get a new container; same container = warm reuse
-    const s = await b.c.start({ run: "run-2", repo: "r", task: "t", change: CHANGE, agent: "a", harness: "script", command: ["true"] });
-    expect(s).toMatchObject({ ok: true, status: { warm: true } });
-    expect((s as { status: RunStatus }).status.timings.container_start_at).toBeUndefined();
-    expect((s as { status: RunStatus }).status.timings.cold_start_ms).toBe(0);
+    await b.c.start({ run: "run-2", repo: "r", task: "t", change: CHANGE, agent: "a", harness: "script", command: ["true"] });
+    const s = (await b.c.boot())!;
+    expect(s).toMatchObject({ state: "running", warm: true });
+    expect(s.timings.container_start_at).toBeUndefined();
+    expect(s.timings.cold_start_ms).toBe(0);
     expect(container.starts).toBe(1);
     expect((await untilDone(b.c)).state).toBe("succeeded");
   });
@@ -127,6 +131,7 @@ describe("RunController", () => {
   it("kill() stops a running agent and records it", async () => {
     const { c } = await controller();
     await c.start({ run: "run-k", repo: "r", task: "t", change: CHANGE, agent: "a", harness: "script", command: ["sh", "-c", "echo started; sleep 60"] });
+    await c.boot();
     await new Promise((r) => setTimeout(r, 300));
     const k = await c.kill();
     expect(k?.state).toBe("killed");
@@ -137,6 +142,7 @@ describe("RunController", () => {
     const container = new LocalContainer();
     const { c } = await controller(container);
     await c.start({ run: "run-l", repo: "r", task: "t", change: CHANGE, agent: "a", harness: "script", command: ["sleep", "5"] });
+    await c.boot();
     await container.destroy();
     expect(await c.tick()).toBeNull();
     expect((await c.status())?.state).toBe("lost");

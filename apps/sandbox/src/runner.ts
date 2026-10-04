@@ -37,6 +37,8 @@ export interface ContainerLike {
   exec(cmd: string[], options?: ExecOptionsLike): Promise<ExecProcessLike>;
   destroy(): Promise<void>;
   setInactivityTimeout(ms: number): Promise<void>;
+  /** Resolves when the container exits, rejects if it errors (e.g. fails to start). */
+  monitor?(): Promise<void>;
 }
 export interface KV {
   get<T>(key: string): Promise<T | undefined>;
@@ -166,20 +168,33 @@ export class RunController {
     };
     const p: Persisted = { status, spec, secrets, offsets: {}, ...(req.report ? { report: req.report.url } : {}) };
     await this.save(p);
+    return { ok: true, status: publicStatus(status) };
+  }
+
+  /**
+   * Boot the container and launch agent-run. Separate from start() because a cold start can
+   * take longer than a request (or a blockConcurrencyWhile section) should wait: the DO calls
+   * it from its alarm.
+   */
+  async boot(): Promise<RunStatus | undefined> {
+    const p = await this.load();
+    if (!p || p.status.state !== "starting") return p ? publicStatus(p.status) : undefined;
+    const { status, spec, secrets } = p;
     try {
+      status.warm = this.d.container.running;
       if (!this.d.container.running) {
         status.timings.container_start_at = this.d.now();
         this.d.container.start({
           ...(this.d.image ? { image: this.d.image } : {}),
-          instance,
+          instance: status.instance,
           enableInternet: false,
-          labels: { run: run.slice(0, 64), change: req.change.slice(0, 64) },
+          labels: { run: status.run.slice(0, 64), change: status.change.slice(0, 64) },
         });
       }
       await this.d.prepare?.({ status, spec, secrets });
       await this.waitReady(status);
       await this.d.container.setInactivityTimeout(30 * 60 * 1000);
-      const dir = this.runDir(run);
+      const dir = this.runDir(status.run);
       const w = await this.exec(["sh", "-c", 'mkdir -p "$1" && cat >"$1/spec.json"', "_", dir], { stdin: streamOf(JSON.stringify(spec)) });
       if (w.exitCode !== 0) throw new Error(`writing spec failed: ${dec.decode(w.stderr)}`);
       await this.d.container.exec(["/bin/sh", "-c", LAUNCH, "launch", dir, this.d.node, this.d.agentRun, dir], {
@@ -193,15 +208,25 @@ export class RunController {
       status.state = "failed";
       status.error = redact(String((e as Error)?.message ?? e), [secrets.git_token, secrets.weft_token]);
       status.timings.finished_at = this.d.now();
+      await this.save(p);
+      await this.finalize(p);
+      return publicStatus(status);
     }
     await this.save(p);
-    return { ok: true, status: publicStatus(status) };
+    return publicStatus(status);
   }
 
   private async waitReady(status: RunStatus) {
     const t0 = this.d.now();
     let last = "";
+    let died: string | undefined;
+    // A container that fails to start (bad image, instance too small) rejects monitor().
+    this.d.container.monitor?.().then(
+      () => void (died ??= "container exited during startup"),
+      (e: unknown) => void (died = `container failed to start: ${String((e as Error)?.message ?? e)}`),
+    );
     for (let i = 0; this.d.now() - t0 < this.d.readyTimeoutMs; i++) {
+      if (died) throw new Error(died);
       try {
         const o = await this.exec(["true"]);
         if (o.exitCode === 0) {
@@ -227,6 +252,10 @@ export class RunController {
     const p = await this.load();
     if (!p) return null;
     const s = p.status;
+    if (s.state === "starting") {
+      await this.boot();
+      return 2000;
+    }
     if (s.state !== "running") return null;
     if (!this.d.container.running) {
       s.state = "lost";

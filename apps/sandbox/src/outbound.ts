@@ -52,8 +52,11 @@ async function aiBinding(request: Request, d: Extract<Decision, { action: "ai-bi
   delete inputs.model;
   try {
     const result = await env.AI!.run(model, inputs, { gateway: { id: d.gateway, metadata: d.metadata, collectLog: true } });
-    if (result instanceof ReadableStream) return new Response(result, { headers: { "content-type": "text/event-stream" } });
-    return Response.json(d.compat ? result : { result, success: true, errors: [], messages: [] });
+    // The gateway log id lets the agent (and the runner's evidence) cite the exact logged call.
+    const logId = (env.AI as { aiGatewayLogId?: string | null }).aiGatewayLogId ?? "";
+    const headers: Record<string, string> = logId ? { "cf-aig-log-id": logId } : {};
+    if (result instanceof ReadableStream) return new Response(result, { headers: { ...headers, "content-type": "text/event-stream" } });
+    return Response.json(d.compat ? result : { result, success: true, errors: [], messages: [] }, { headers });
   } catch (e) {
     return Response.json({ errors: [{ message: String((e as Error).message ?? e) }], success: false }, { status: 502 });
   }
