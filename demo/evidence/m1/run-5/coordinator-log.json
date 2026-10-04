@@ -1,0 +1,267 @@
+{
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "repo": "demo-m1-20261004-110555-r5",
+  "events": [
+    {
+      "seq": 1,
+      "repo": "demo-m1-20261004-110555-r5",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T11:06:07.428Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I63c6db20524333cea0cba4ea9c31e377f948fc79",
+      "session": "s1",
+      "base_seq": 0,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "codex-b joined (codex-code, L2)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 2,
+      "repo": "demo-m1-20261004-110555-r5",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T11:06:08.589Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I714e52c33cc3208371baaa81dd9f883426470461",
+      "session": "s2",
+      "base_seq": 1,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "claude-a joined (claude-code, L3)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 3,
+      "repo": "demo-m1-20261004-110555-r5",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T11:06:10.319Z",
+      "actor": {
+        "type": "agent",
+        "id": "claude-a",
+        "harness": "claude-code"
+      },
+      "agent": "claude-a",
+      "task": "T-1",
+      "change": "I714e52c33cc3208371baaa81dd9f883426470461",
+      "session": "s2",
+      "base_seq": 2,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "claude-code session end: other",
+      "summary": "claude-a left — claude-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "claude-code",
+        "level": 3
+      }
+    },
+    {
+      "seq": 4,
+      "repo": "demo-m1-20261004-110555-r5",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T11:06:55.929Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I63c6db20524333cea0cba4ea9c31e377f948fc79",
+      "session": "s1",
+      "base_seq": 3,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "codex-code session end: other",
+      "summary": "codex-b left — codex-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 5,
+      "repo": "demo-m1-20261004-110555-r5",
+      "status": "accepted",
+      "kind": "join",
+      "ts": "2026-10-04T11:07:23.703Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I63c6db20524333cea0cba4ea9c31e377f948fc79",
+      "session": "s3",
+      "base_seq": 4,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "summary": "codex-b joined (codex-code, L2)",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    },
+    {
+      "seq": 6,
+      "repo": "demo-m1-20261004-110555-r5",
+      "status": "accepted",
+      "kind": "edit",
+      "ts": "2026-10-04T11:08:11.531Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I63c6db20524333cea0cba4ea9c31e377f948fc79",
+      "session": "s3",
+      "base_seq": 1,
+      "mode": "commit",
+      "files": [
+        "src/api/account.ts",
+        "test/signup.test.ts"
+      ],
+      "reads": [
+        "src/api/router.ts#Route",
+        "src/api/router.ts#field",
+        "src/api/router.ts#html",
+        "src/api/router.ts#json",
+        "src/api/router.ts#sessionOf",
+        "src/api/routes.ts#app",
+        "src/auth/session.ts#createSession",
+        "src/auth/session.ts#resetSessions",
+        "src/auth/session.ts#revokeSession",
+        "src/auth/users.ts#UserError",
+        "src/auth/users.ts#createUser",
+        "src/auth/users.ts#getUser",
+        "src/auth/users.ts#publicUser",
+        "src/auth/users.ts#resetUsers",
+        "src/ui/pages.ts#accountPage"
+      ],
+      "writes": [
+        {
+          "key": "src/api/account.ts#accountRoutes",
+          "kind": "signature"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.email",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.err",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.name",
+          "kind": "new"
+        },
+        {
+          "key": "src/api/account.ts#accountRoutes.password",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#body",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#cases",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#field",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#me",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#res",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#signup",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#valid",
+          "kind": "new"
+        },
+        {
+          "key": "test/signup.test.ts#value",
+          "kind": "new"
+        }
+      ],
+      "diff": "diff --git a/src/api/account.ts b/src/api/account.ts\n--- a/src/api/account.ts\n+++ b/src/api/account.ts\n@@ -1,9 +1,29 @@\n-import { getUser, publicUser } from \"../auth/users.ts\";\n-import { revokeSession } from \"../auth/session.ts\";\n+import { createUser, getUser, publicUser, UserError } from \"../auth/users.ts\";\n+import { createSession, revokeSession } from \"../auth/session.ts\";\n import { field, html, json, sessionOf, type Route } from \"./router.ts\";\n import { accountPage } from \"../ui/pages.ts\";\n \n export const accountRoutes: Route[] = [\n+  {\n+    method: \"POST\",\n+    path: \"/api/signup\",\n+    handler: (req) => {\n+      const email = field(req.body, \"email\");\n+      const name = field(req.body, \"name\");\n+      const password = field(req.body, \"password\");\n+      if (email === undefined || name === undefined || password === undefined) {\n+        return json(400, { error: \"email, name and password are required\" });\n+      }\n+      try {\n+        const user = createUser(email, name, password);\n+        const session = createSession(user.id);\n+        return json(201, { token: session.token, user: publicUser(user) });\n+      } catch (err) {\n+        if (err instanceof UserError) return json(400, { error: err.message });\n+        throw err;\n+      }\n+    },\n+  },\n   {\n     method: \"GET\",\n     path: \"/api/me\",\ndiff --git a/test/signup.test.ts b/test/signup.test.ts\n--- /dev/null\n+++ b/test/signup.test.ts\n@@ -0,0 +1,87 @@\n+import { test, beforeEach } from \"node:test\";\n+import assert from \"node:assert/strict\";\n+import { app } from \"../src/api/routes.ts\";\n+import { resetUsers } from \"../src/auth/users.ts\";\n+import { resetSessions } from \"../src/auth/session.ts\";\n+\n+const signup = (body: unknown) =>\n+  app({ method: \"POST\", path: \"/api/signup\", body, headers: {} });\n+\n+beforeEach(() => {\n+  resetUsers();\n+  resetSessions();\n+});\n+\n+test(\"signup returns a public user and a working session\", async () => {\n+  const res = await signup({\n+    email: \" ADA@example.com \",\n+    name: \" Ada \",\n+    password: \"correct horse\",\n+  });\n+  assert.equal(res.status, 201);\n+  const { token, user } = res.body as {\n+    token: string;\n+    user: { id: string; email: string; name: string };\n+  };\n+  assert.equal(typeof token, \"string\");\n+  assert.ok(token.length > 0);\n+  assert.equal(typeof user.id, \"string\");\n+  assert.deepEqual(user, {\n+    id: user.id,\n+    email: \"ada@example.com\",\n+    name: \"Ada\",\n+  });\n+\n+  const me = await app({\n+    method: \"GET\",\n+    path: \"/api/me\",\n+    headers: { authorization: `Bearer ${token}` },\n+  });\n+  assert.equal(me.status, 200);\n+  assert.deepEqual(me.body, user);\n+});\n+\n+test(\"signup rejects missing or non-string fields\", async () => {\n+  const valid = {\n+    email: \"ada@example.com\",\n+    name: \"Ada\",\n+    password: \"correct horse\",\n+  };\n+  for (const field of [\"email\", \"name\", \"password\"]) {\n+    for (const value of [undefined, 123]) {\n+      const res = await signup({ ...valid, [field]: value });\n+      assert.equal(res.status, 400);\n+      assert.deepEqual(res.body, {\n+        error: \"email, name and password are required\",\n+      });\n+    }\n+  }\n+});\n+\n+test(\"signup returns UserError messages as 400 responses\", async () => {\n+  const cases = [\n+    { email: \"invalid\", password: \"correct horse\", error: \"invalid email\" },\n+    {\n+      email: \"ada@example.com\",\n+      password: \"short\",\n+      error: \"password must be at least 8 characters\",\n+    },\n+  ];\n+  for (const { email, password, error } of cases) {\n+    const res = await signup({ email, name: \"Ada\", password });\n+    assert.equal(res.status, 400);\n+    assert.deepEqual(res.body, { error });\n+  }\n+});\n+\n+test(\"signup rejects duplicate emails case-insensitively\", async () => {\n+  const body = {\n+    email: \"ada@example.com\",\n+    name: \"Ada\",\n+    password: \"correct horse\",\n+  };\n+  assert.equal((await signup(body)).status, 201);\n+  const res = await signup({ ...body, email: \"ADA@example.com\" });\n+  assert.equal(res.status, 400);\n+  assert.deepEqual(res.body, { error: \"email already registered\" });\n+});\n",
+      "intent": "T-2: Signup endpoint",
+      "summary": "codex-b changed signature of accountRoutes, added accountRoutes.email, accountRoutes.err +10 more in 2 files — Signup endpoint",
+      "diagnostics": [],
+      "tool": {
+        "name": "apply_patch",
+        "call_id": "exec-b650f175-8eb9-4faa-91bd-23da4aa069ae",
+        "harness_event": "PostToolUse"
+      }
+    },
+    {
+      "seq": 7,
+      "repo": "demo-m1-20261004-110555-r5",
+      "status": "accepted",
+      "kind": "leave",
+      "ts": "2026-10-04T11:08:24.069Z",
+      "actor": {
+        "type": "agent",
+        "id": "codex-b",
+        "harness": "codex-code"
+      },
+      "agent": "codex-b",
+      "task": "T-2",
+      "change": "I63c6db20524333cea0cba4ea9c31e377f948fc79",
+      "session": "s3",
+      "base_seq": 6,
+      "files": [],
+      "reads": [],
+      "writes": [],
+      "intent": "codex-code session end: other",
+      "summary": "codex-b left — codex-code session end: other",
+      "diagnostics": [],
+      "payload": {
+        "harness": "codex-code",
+        "level": 2
+      }
+    }
+  ]
+}
