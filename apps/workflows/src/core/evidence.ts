@@ -189,7 +189,7 @@ export function reviewPrompt(input: ReviewInput): Array<{ role: "system" | "user
         `Task: ${input.title ?? "(untitled)"}`,
         `Acceptance criteria:\n${criteria.map((c, i) => `${i + 1}. ${c}`).join("\n")}`,
         `Tests on the rebased tree: ${tests}`,
-        `Visual diff vs trunk: ${visual}`,
+        `Visual diff vs trunk (Browser Rendering screenshots of the candidate's preview vs trunk's, per route; 0.00% = the rendered page is pixel-identical to trunk, i.e. unchanged): ${visual}`,
         `Risk tier: ${input.risk ?? "unknown"}`,
         `Changed files:\n${input.files.map((f) => `${f.status} ${f.path}`).join("\n").slice(0, 2000)}`,
         `Diff:\n${input.patch.slice(0, 14_000)}`,

@@ -82,3 +82,15 @@ node apps/workflows/scripts/live.mjs       # live: all four workflows on weft-de
 Secrets (`wrangler secret put <NAME> --env preview`): `WEFT_SYSTEM_TOKEN` (gateway token, scopes
 `system`+`observe`; value in `~/.config/weft/preview-workflows-system-token`) and
 `WEFT_WORKFLOWS_TOKEN` (operator API; `~/.config/weft/preview-workflows-token`). Both mode 600.
+
+## Evidence (B10)
+
+After a clean rebase with passing (or no) tests, ProcessRevision runs four durable evidence
+stages (`src/core/evidence.ts`; Cloudflare capabilities in `src/evidence-cf.ts`): preview
+(weft-previews URLs for the rebased revision and trunk), screenshots + pixel diff per key route
+(Browser Rendering → R2), risk (heuristic floor + Workers AI), review agent (Workers AI via AI
+Gateway, scored against `tasks.acceptance`). Then it appends a `checkpoint` (`ref:
+refs/weft/evidence`) carrying `payload.x_task_title` + `payload.x_evidence`; the `land` record
+carries the same. Bindings: `BROWSER`, `AI`, `EVIDENCE` (R2), vars `WEFT_PREVIEWS_URL`,
+`AI_GATEWAY_ID`, secret `WEFT_PREVIEW_KEY`. Any capability left unbound is recorded as `info`
+evidence. Live: `node scripts/live-b10.mjs`. Details: `docs/design.md` (B10 update), runbook.

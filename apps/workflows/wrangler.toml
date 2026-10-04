@@ -12,6 +12,21 @@ enabled = true
 
 [vars]
 WEFT_GATEWAY_URL = "https://weft-gateway.redacted-subdomain.workers.dev"
+# B10 evidence: previews served by weft-previews, model calls through AI Gateway `default`
+# (the `weft` gateway cannot be created with wrangler OAuth; switch once John creates it).
+WEFT_PREVIEWS_URL = "https://weft-previews.redacted-subdomain.workers.dev"
+AI_GATEWAY_ID = "default"
+
+# B10: Browser Rendering (screenshots), Workers AI (risk + review), R2 (screenshots, diffs).
+[browser]
+binding = "BROWSER"
+
+[ai]
+binding = "AI"
+
+[[r2_buckets]]
+binding = "EVIDENCE"
+bucket_name = "weft-evidence"
 
 [[workflows]]
 name = "weft-process-revision"
@@ -54,6 +69,7 @@ service = "weft-gateway"
 # Secrets (wrangler secret put <NAME> [--env preview]):
 #   WEFT_SYSTEM_TOKEN     gateway token with scope `system` (land/revert/message/queue/ops)
 #   WEFT_WORKFLOWS_TOKEN  bearer for this Worker's operator API (/v1/workflows)
+#   WEFT_PREVIEW_KEY      HMAC key for preview/evidence URLs (same value on weft-previews)
 
 [env.preview]
 name = "weft-workflows-preview"
@@ -61,6 +77,18 @@ workers_dev = true
 
 [env.preview.vars]
 WEFT_GATEWAY_URL = "https://weft-gateway-preview.redacted-subdomain.workers.dev"
+WEFT_PREVIEWS_URL = "https://weft-previews-preview.redacted-subdomain.workers.dev"
+AI_GATEWAY_ID = "default"
+
+[env.preview.browser]
+binding = "BROWSER"
+
+[env.preview.ai]
+binding = "AI"
+
+[[env.preview.r2_buckets]]
+binding = "EVIDENCE"
+bucket_name = "weft-evidence-preview"
 
 [[env.preview.workflows]]
 name = "weft-process-revision-preview"

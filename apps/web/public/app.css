@@ -274,6 +274,13 @@ body.flash-warning .side #squiggles { animation: flashWarn 1.4s ease-out; }
 .metric span { font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
 .shots { display: grid; grid-template-columns: repeat(2, 1fr); gap: 6px; }
 .shots img { width: 100%; aspect-ratio: 16 / 10; object-fit: cover; object-position: top; border-radius: 8px; border: 1px solid var(--line); display: block; background: var(--bg2); }
+.metrics:has(> .metric:nth-child(6)) { grid-template-columns: repeat(6, 1fr); }
+.risk { text-transform: uppercase; } .risk-low { color: var(--ok); } .risk-medium { color: var(--warn); } .risk-high { color: var(--err); }
+.shot { margin: 0; display: flex; flex-direction: column; gap: 3px; }
+.shot figcaption { font-size: 11px; color: var(--muted); display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.shot .vd.changed { color: var(--warn); font-weight: 600; }
+.criteria { list-style: none; margin: 4px 0 0; padding: 0 0 0 12px; font-size: 12px; }
+.crit.met { color: var(--ok); } .crit.unmet { color: var(--err); } .crit.unknown { color: var(--warn); }
 .shots.empty { display: grid; place-items: center; height: 44px; border: 1px dashed var(--line2); border-radius: 8px; font-size: 12px; }
 .evidence { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 4px; font-size: 12.5px; }
 .ev { display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px; background: var(--bg2); }
