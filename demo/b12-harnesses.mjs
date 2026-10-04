@@ -126,17 +126,29 @@ const opencode = (cwd, out, prompt, env, sessionId) => {
   writeFileSync(out.replace(/\.jsonl$/, ".prompt.txt"), `cwd: ${cwd}\nopencode run --attach <opencode serve in cwd> --dir <cwd> -m ${OC_MODEL} --format json ${sessionId ? `--session ${sessionId} ` : ""}…\n\n${prompt}\n`);
   return harness("opencode", ["run", "--attach", ocServer.url, "--dir", cwd, "-m", OC_MODEL, "--format", "json", "--auto", ...(sessionId ? ["--session", sessionId] : []), prompt], cwd, out, env);
 };
-/** Wait until the OpenCode server's session is quiet (no hook activity for `quietMs`): stop-gate continuations run after `run` exits. */
-async function settleOpencode(dir, quietMs = 25_000, maxMs = 8 * 60_000) {
+/**
+ * Wait until the OpenCode server's session is idle for good: stop-gate continuations run
+ * after `run --attach` exits. Idle = the server reports no busy session (GET /session/status)
+ * and no hook activity for `quietMs` (a refusal prompt starts a new turn a moment after idle).
+ */
+async function settleOpencode(dir, sessionId, quietMs = 20_000, maxMs = 10 * 60_000) {
   const p = join(dir, ".weft/log/hooks.jsonl");
   const size = () => (existsSync(p) ? readFileSync(p, "utf8").length : 0);
+  const busy = async () => {
+    try {
+      const st = await (await fetch(`${ocServer.url}/session/status`)).json();
+      return st?.[sessionId]?.type === "busy" || st?.[sessionId]?.type === "retry";
+    } catch {
+      return false;
+    }
+  };
   const end = Date.now() + maxMs;
   let last = size();
   let since = Date.now();
   while (Date.now() < end) {
     await sleep(2000);
     const now = size();
-    if (now !== last) {
+    if (now !== last || (await busy())) {
       last = now;
       since = Date.now();
     } else if (Date.now() - since > quietMs) return;
@@ -290,7 +302,7 @@ async function run() {
   mark("impl_started");
   const [b2, c2] = await Promise.all([
     dirs.b ? (thread ? codex(dirs.b, join(evidence, "b2-implement.jsonl"), PROMPT_B2, env, thread) : { code: -1, lines: [], ms: 0 }) : undefined,
-    dirs.c ? (ocSession ? opencode(dirs.c, join(evidence, "c2-implement.jsonl"), PROMPT_C2, env, ocSession).then(async (r) => (await settleOpencode(dirs.c), r)) : { code: -1, lines: [], ms: 0 }) : undefined,
+    dirs.c ? (ocSession ? opencode(dirs.c, join(evidence, "c2-implement.jsonl"), PROMPT_C2, env, ocSession).then(async (r) => (await settleOpencode(dirs.c, ocSession), r)) : { code: -1, lines: [], ms: 0 }) : undefined,
   ]);
   if (ocServer) {
     // the whole conversation as the server holds it (incl. turns started by the stop gate)

@@ -21,10 +21,10 @@ agent-c commit: weft: commit refused — 2 open error(s):
      }
     
 [weft error] stale_assumption src/auth/session.ts:8:17: You use src/auth/session.ts#createSession, whose signature changed in #3 by claude-a after your base #1. (caused by claude-a · task T-1 · event #3). Suggestion: Read the new src/auth/session.ts#createSession (event #3) and update this call site, or negotiate with claude-a.
-  ↳ Your options: retreat (rework without that code) | wait (until claude-a lands or releases it) | negotiate: `/private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-091436/agent-c/.weft/bin/weft negotiate propose overload "<what claude-a should keep working for you>" --wait 240` (terms: overload | transfer | share | sequence | merge_tasks | other; it is delivered to claude-a and you get the reply) | escalate: `/private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-091436/agent-c/.weft/bin/weft negotiate escalate "<why>"` (the coordinator merges your two tasks).
+  ↳ Your options: retreat (rework without that code) | wait (until claude-a lands or releases it) | negotiate: `/private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-093805/agent-c/.weft/bin/weft negotiate propose overload "<what claude-a should keep working for you>" --wait 240` (terms: overload | transfer | share | sequence | merge_tasks | other; it is delivered to claude-a and you get the reply) | escalate: `/private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-093805/agent-c/.weft/bin/weft negotiate escalate "<why>"` (the coordinator merges your two tasks).
 
 --- merges: {"c":{"ok":true}}
-* a050d09 target-app: initial
+* 5f2ee49 target-app: initial
 (A simulated: no merged checks)
 --- main:src/auth/refresh.ts
 

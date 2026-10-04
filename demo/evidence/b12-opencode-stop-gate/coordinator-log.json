@@ -1,13 +1,13 @@
 {
   "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
-  "repo": "demo-b12-20261004-091436",
+  "repo": "demo-b12-20261004-093805",
   "events": [
     {
       "seq": 1,
-      "repo": "demo-b12-20261004-091436",
+      "repo": "demo-b12-20261004-093805",
       "status": "accepted",
       "kind": "join",
-      "ts": "2026-10-04T09:14:40.186Z",
+      "ts": "2026-10-04T09:38:09.260Z",
       "actor": {
         "type": "agent",
         "id": "opencode-c",
@@ -15,7 +15,7 @@
       },
       "agent": "opencode-c",
       "task": "T-3",
-      "change": "I0b86682555b665289fe1a84b91d7f3b4404125b7",
+      "change": "I2727c677a1daa257546b7086fc9a64c361df23cd",
       "session": "s1",
       "base_seq": 0,
       "files": [],
@@ -30,10 +30,10 @@
     },
     {
       "seq": 2,
-      "repo": "demo-b12-20261004-091436",
+      "repo": "demo-b12-20261004-093805",
       "status": "accepted",
       "kind": "join",
-      "ts": "2026-10-04T09:14:40.825Z",
+      "ts": "2026-10-04T09:38:09.865Z",
       "actor": {
         "type": "agent",
         "id": "claude-a",
@@ -56,10 +56,10 @@
     },
     {
       "seq": 3,
-      "repo": "demo-b12-20261004-091436",
+      "repo": "demo-b12-20261004-093805",
       "status": "accepted",
       "kind": "edit",
-      "ts": "2026-10-04T09:14:41.119Z",
+      "ts": "2026-10-04T09:38:10.190Z",
       "actor": {
         "type": "agent",
         "id": "claude-a",
@@ -95,10 +95,10 @@
     },
     {
       "seq": 4,
-      "repo": "demo-b12-20261004-091436",
+      "repo": "demo-b12-20261004-093805",
       "status": "rejected",
       "kind": "edit",
-      "ts": "2026-10-04T09:15:13.855Z",
+      "ts": "2026-10-04T09:38:31.740Z",
       "actor": {
         "type": "agent",
         "id": "opencode-c",
@@ -106,7 +106,7 @@
       },
       "agent": "opencode-c",
       "task": "T-3",
-      "change": "I0b86682555b665289fe1a84b91d7f3b4404125b7",
+      "change": "I2727c677a1daa257546b7086fc9a64c361df23cd",
       "session": "s1",
       "base_seq": 1,
       "mode": "check",
@@ -129,7 +129,7 @@
           "kind": "new"
         }
       ],
-      "diff": "diff --git a/src/auth/refresh.ts b/src/auth/refresh.ts\n--- /dev/null\n+++ b/src/auth/refresh.ts\n@@ -0,0 +1,9 @@\n+import { createSession, getSession, revokeSession, type Session } from \"./session.ts\";\n+\n+/** Exchange a live token for a fresh one; the old session is revoked. */\n+export function refreshSession(token: string): Session | undefined {\n+  const current = getSession(token);\n+  if (!current) return undefined;\n+  revokeSession(token);\n+  return createSession(current.userId);\n+}\n",
+      "diff": "diff --git a/src/auth/refresh.ts b/src/auth/refresh.ts\n--- /dev/null\n+++ b/src/auth/refresh.ts\n@@ -0,0 +1,9 @@\n+import { createSession, getSession, revokeSession, type Session } from \"./session.ts\";\n+\n+/** Rotate a session token: revoke the old one and start a fresh one for the same user. */\n+export function refreshSession(token: string): Session | undefined {\n+  const current = getSession(token);\n+  if (!current) return undefined;\n+  revokeSession(current.token);\n+  return createSession(current.userId);\n+}\n",
       "intent": "T-3: Session refresh",
       "summary": "Blocked: opencode-c added refreshSession, refreshSession.current in src/auth/refresh.ts — Session refresh",
       "diagnostics": [
@@ -158,7 +158,7 @@
       ],
       "tool": {
         "name": "Write",
-        "call_id": "call_01a10632293c766cbffb0a1a",
+        "call_id": "call_01a106477ef176359b09d068",
         "harness_event": "PreToolUse"
       }
     }

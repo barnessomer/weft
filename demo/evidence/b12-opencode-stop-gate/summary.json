@@ -1,11 +1,11 @@
 {
-  "repo": "demo-b12-20261004-091436",
+  "repo": "demo-b12-20261004-093805",
   "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
-  "pass": false,
+  "pass": true,
   "criteria": {
     "c_denied_at_edit_time_by_a": true,
     "c_stop_refused": true,
-    "c_kept_working_after_refusal": false,
+    "c_refusal_started_new_turns": true,
     "c_finished": true
   },
   "a_signature_seq": 3,
@@ -13,7 +13,9 @@
     "c": {
       "rejected_seq": 4,
       "deny_hook": true,
-      "accepted_after": []
+      "accepted_after": [],
+      "stop_refusals": 5,
+      "refusal_turns": 5
     }
   },
   "harnesses": {
@@ -31,16 +33,16 @@
     }
   },
   "timeline_ms": {
-    "planners_joined": 2696,
-    "a_signature_accepted": 3287,
-    "plans_done": 32587,
-    "impl_started": 32587,
-    "impl_done": 81302
+    "planners_joined": 2600,
+    "a_signature_accepted": 3223,
+    "plans_done": 20733,
+    "impl_started": 20733,
+    "impl_done": 72525
   },
   "durations_ms": {
     "a": 0,
-    "c1": 31209,
-    "c2": 6662
+    "c1": 19389,
+    "c2": 5701
   },
-  "work": "/private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-091436"
+  "work": "/private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-093805"
 }

@@ -1,4 +1,4 @@
-cwd: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-091436/agent-c
+cwd: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b12-20261004-093805/agent-c
 opencode run --attach <opencode serve in cwd> --dir <cwd> -m opencode/big-pickle --format json …
 
 Task T-3 (session refresh): add a new file src/auth/refresh.ts exporting `refreshSession(token: string): Session | undefined`. It looks up the live session with getSession, returns undefined if there is none, otherwise revokes it with revokeSession and starts a fresh session for the same user with createSession from src/auth/session.ts (start it exactly the way login in src/api/routes.ts does), returning the new session. Add test/refresh.test.ts (node:test, like test/session.test.ts). Only create those two files. For now ONLY read the relevant files and reply with a short plan that includes the exact code you will write. Do not create or edit any file yet.
