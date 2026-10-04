@@ -13,7 +13,7 @@ import { newChangeId, forkName } from "@weft/artifacts";
 import { SqlCoordinator } from "@weft/sequencer/coordinator";
 import { JournaledCoordinator } from "@weft/sequencer/journal";
 import { nodeSql } from "@weft/sequencer/node-sqlite";
-import type { EventDraft, EventRecord, Hello } from "@weft/protocol";
+import { validate, type EventDraft, type EventRecord, type Hello } from "@weft/protocol";
 import { runJob as runWeftJob } from "../../sandbox/image/weft-job.mjs";
 import { bestOfN, landChange, processRevision, revertOperation } from "../src/core/workflows";
 import type { CoordinatorClient, D1Like, D1Stmt, Deps, Duration, JobRequest, JobResult, JobRunner, LandChangeParams, OpRow, QueueEntry, RepoConfig, StepConfig, StepLike } from "../src/core/types";
@@ -102,6 +102,9 @@ export class LocalCoord implements CoordinatorClient {
     return this.j.coord.summary().head_seq;
   }
   async system(d: EventDraft) {
+    // The gateway validates every system draft against the WCP schema (spec §9.1); so do the tests.
+    const v = validate("EventDraft", d);
+    if (!v.ok) throw new Error(`invalid EventDraft: ${JSON.stringify(v.issues)}`);
     return this.j.call<EventRecord>("system", d, { type: "system", id: "workflows" });
   }
   async enqueue(change: string, by: string, note?: string) {

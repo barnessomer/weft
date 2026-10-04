@@ -124,7 +124,10 @@ export interface RevertOperationParams {
   op_id?: string;
   seq?: number;
   reason: string;
+  /** Principal that asked for the revert (token principal). */
   requested_by?: string;
+  /** human (`undo` action) | system (auto-revert, e.g. a Tail Worker error spike). Default human. */
+  requested_by_type?: "human" | "system";
   /** Evidence that motivated the revert (stack trace, error-rate sample, URL). */
   evidence?: { kind?: string; text?: string; uri?: string; data?: unknown };
 }

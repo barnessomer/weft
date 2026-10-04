@@ -222,7 +222,7 @@ describe("RevertOperation", () => {
     const landed = await w.wf.land(a);
     await w.trunkCommit({ "NOTES.md": "later\n" }, "later work");
     const stack = "TypeError: price is NaN\n    at calcTotal (src/pricing.ts:7:12)";
-    const r = await w.revertOperation({ repo: w.repo, op_id: landed.op_id!, reason: "error spike after landing", requested_by: "tail-worker", evidence: { kind: "error_spike", text: stack, uri: "https://example.invalid/trace/1" } }, new FakeStep(), w.deps, "revert-1");
+    const r = await w.revertOperation({ repo: w.repo, op_id: landed.op_id!, reason: "error spike after landing", requested_by: "tail-worker", requested_by_type: "system", evidence: { kind: "error_spike", text: stack, uri: "https://example.invalid/trace/1" } }, new FakeStep(), w.deps, "revert-1");
     expect(r).toMatchObject({ status: "reverted", reverts_op_id: landed.op_id });
     expect(w.tip()).toBe(r.sha);
     expect(await w.show(r.sha!, "src/pricing.ts")).toBe(P.trim());
@@ -233,7 +233,7 @@ describe("RevertOperation", () => {
       ["revert", landed.op_id],
     ]);
     const rec = w.j.coord.event(r.seq!);
-    expect(rec).toMatchObject({ kind: "revert", status: "accepted", payload: { reason: "error spike after landing", requested_by: "tail-worker", reverts_seq: landed.seq } });
+    expect(rec).toMatchObject({ kind: "revert", status: "accepted", payload: { reason: "error spike after landing", requested_by: { type: "system", id: "tail-worker" }, reverts_seq: landed.seq } });
     expect(w.q(`SELECT status FROM tasks WHERE id = 't1'`)).toEqual([{ status: "open" }]);
     expect(w.q(`SELECT status FROM changes WHERE id = ?`, a.change)).toEqual([{ status: "reverted" }]);
     const ev = w.q<{ kind: string; uri: string; data: string }>(`SELECT kind, uri, data FROM evidence WHERE change_id = ? AND kind = 'error_spike'`, a.change);

@@ -117,9 +117,9 @@ describe("B8: workflows wiring", () => {
     const land = await s.j<{ seq: number }>("POST", `/v1/repos/${s.repo}/system/events`, s.sys, { kind: "land", base_seq: 1, change: c.change, payload: { sha: "f".repeat(40), op_id: "op-1" } }, 200);
     const act = await s.j<{ workflow: string }>("POST", `/v1/repos/${s.repo}/actions`, s.human, { type: "action", action: "undo", op_id: "op-1", reason: "error spike" }, 200);
     expect(act.workflow).toMatch(/^revert-/);
-    expect(s.wf.revert.created[0]!.params).toEqual({ repo: s.repo, op_id: "op-1", reason: "error spike", requested_by: "john" });
+    expect(s.wf.revert.created[0]!.params).toEqual({ repo: s.repo, op_id: "op-1", reason: "error spike", requested_by: "john", requested_by_type: "human" });
     const r = await s.j<{ workflow: string }>("POST", `/v1/repos/${s.repo}/system/revert`, s.sys, { seq: land.seq, reason: "tail worker: 5xx spike", evidence: { text: "TypeError" } }, 202);
-    expect(s.wf.revert.created[1]!.params).toMatchObject({ seq: land.seq, reason: "tail worker: 5xx spike", requested_by: "weft-workflows", evidence: { text: "TypeError" } });
+    expect(s.wf.revert.created[1]!.params).toMatchObject({ seq: land.seq, reason: "tail worker: 5xx spike", requested_by: "weft-workflows", requested_by_type: "system", evidence: { text: "TypeError" } });
     expect(r.workflow).toBe(s.wf.revert.created[1]!.id);
   });
 });

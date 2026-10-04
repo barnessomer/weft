@@ -104,7 +104,7 @@ import { calcTotal } from "../src/pricing.ts";
 import { PRICES, priceOf } from "../src/catalog.ts";
 
 test("calcTotal sums price x qty", () => {
-  assert.equal(calcTotal([{ sku: "a", price: 2, qty: 3 }, { sku: "b", price: 1, qty: 1 }]), 7);
+  assert.equal(calcTotal([{ sku: "a", price: 3, qty: 4 }, { sku: "b", price: 5, qty: 2 }]), 22);
 });
 
 test("every catalog price is positive", () => {
@@ -204,7 +204,8 @@ async function main() {
   const shas = {};
   shas.b1 = await push(b1, () => ({ "src/catalog.ts": CATALOG.replace("pear: 2,", "pear: 3,") }), "catalog: pear costs 3");
   shas.b2 = await push(b2, (d) => ({ "src/pricing.ts": read(d, "src/pricing.ts").replace("item.price * item.qty", "item.price + item.qty") }), "pricing: simplify total (wrong)");
-  shas.b3 = await push(b3, () => ({ "src/catalog.ts": CATALOG.replace("  apple: 1,\n  pear: 2,", "  apple: 1, // per kg\n  pear: 2,\n  kiwi: 4,") }), "catalog: add kiwi, document units");
+  // b3 rewrites the same value A changed (apple: 1 -> 1 * KG): git and Mergiraf both conflict; the resolver agent merges intent.
+  shas.b3 = await push(b3, () => ({ "src/catalog.ts": CATALOG.replace("export const PRICES", "/** Unit: prices are per kilogram. */\nexport const KG = 1;\n\nexport const PRICES").replace("  apple: 1,", "  apple: 1 * KG,").replace("  pear: 2,", "  pear: 2 * KG,\n  kiwi: 4 * KG,") }), "catalog: explicit per-kg unit, add kiwi");
   const pushedB = Date.now();
   const res = {};
   for (const [k, c] of [["b1", b1], ["b2", b2], ["b3", b3]]) {

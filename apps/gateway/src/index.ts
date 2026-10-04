@@ -313,7 +313,7 @@ async function route(req: Request, env: Env): Promise<Response> {
     let workflow: string | null = null;
     if (rec.status === "accepted" && body.action === "undo" && env.WEFT_REVERT_OPERATION) {
       const t = rec.payload?.target ?? {};
-      workflow = await startRevert(env, kit(env), { repo, ...(t.op_id ? { op_id: t.op_id } : { seq: t.seq! }), reason: body.reason ?? "undo", requested_by: g.principal });
+      workflow = await startRevert(env, kit(env), { repo, ...(t.op_id ? { op_id: t.op_id } : { seq: t.seq! }), reason: body.reason ?? "undo", requested_by: g.principal, requested_by_type: "human" });
     }
     if (rec.status === "accepted" && body.action === "approve" && typeof body.change === "string") workflow = await forwardApproval(env, repo, body.change, g.principal);
     return json(workflow ? { ...res, workflow } : res);

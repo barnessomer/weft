@@ -299,7 +299,7 @@ export async function revertOperation(p: RevertOperationParams, step: StepLike, 
       base_seq: await coord.headSeq(),
       ...(target.op.change_id ? { change: target.op.change_id } : {}),
       ...(target.task ? { task: target.task } : {}),
-      payload: { op_id: opId, reverts_op_id: target.op.op_id, reverts_seq: target.op.seq, sha: r.after!, reason: p.reason, ...(p.requested_by ? { requested_by: p.requested_by } : {}) },
+      payload: { op_id: opId, reverts_op_id: target.op.op_id, reverts_seq: target.op.seq, sha: r.after!, reason: p.reason, ...(p.requested_by ? { requested_by: { type: p.requested_by_type ?? "human", id: p.requested_by } } : {}) },
       summary_hint: `reverted #${target.op.seq}: ${p.reason}`.slice(0, 140),
     });
     return { op_id: opId, seq: rec.seq };

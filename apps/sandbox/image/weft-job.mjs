@@ -270,6 +270,10 @@ class Job {
           content = stripFences(String(content));
           if (!content.trim()) return { ok: false, info: { ...info, error: `empty resolution for ${f}` } };
           if (!content.endsWith("\n") && text.endsWith("\n")) content += "\n";
+          // Guard against truncated/garbled answers: the result must be about as long as the smaller side.
+          const sides = await Promise.all([":2:", ":3:"].map(async (st) => (await this.git(["show", `${st}${f}`])).stdout.length));
+          const floor = Math.floor(Math.min(...sides.filter((n) => n > 0), text.length) * 0.5);
+          if (content.length < floor) return { ok: false, info: { ...info, error: `resolution for ${f} is suspiciously short (${content.length} < ${floor} bytes)` } };
           await writeFile(join(this.dir, f), content);
         }
       } else return { ok: false, info: { ...info, error: `unknown resolver ${r.kind}` } };

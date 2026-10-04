@@ -194,7 +194,7 @@ export async function artifactsRoute(req: Request, env: ArtifactsEnv, k: Kit, re
       if (!row) k.fail("not_found", `change ${id} not found`);
       const d = db(env, k);
       const [revs, ev] = await Promise.all([
-        d.prepare(`SELECT sha, ref, before_sha, commits, subject, trailer_change_id, seq, status, pushed_at, received_at FROM revisions WHERE change_id = ? ORDER BY received_at, rowid`).bind(id).all(),
+        d.prepare(`SELECT sha, ref, before_sha, commits, subject, trailer_change_id, seq, status, pushed_at, received_at, onto_sha, rebased_sha, layer, workflow_id, processed_at FROM revisions WHERE change_id = ? ORDER BY received_at, rowid`).bind(id).all(),
         d.prepare(`SELECT id, sha, kind, status, uri, data, created_at FROM evidence WHERE change_id = ? ORDER BY id`).bind(id).all(),
       ]);
       return k.json({ type: "change", ...publicChange(row!), revisions: revs.results, evidence: ev.results });
@@ -220,7 +220,7 @@ export async function artifactsRoute(req: Request, env: ArtifactsEnv, k: Kit, re
     const body = (await k.readJson(req)) as { op_id?: unknown; seq?: unknown; reason?: unknown; evidence?: unknown };
     const reason = str(body.reason, 500);
     if (!reason || (str(body.op_id, 100) === undefined && typeof body.seq !== "number")) k.fail("invalid_message", "op_id or seq, and reason, required", { issues: [{ path: "", message: "op_id|seq, reason" }] });
-    const inst = await startRevert(env, k, { repo, ...(str(body.op_id, 100) ? { op_id: str(body.op_id, 100) } : { seq: body.seq as number }), reason: reason!, requested_by: g.principal, ...(body.evidence && typeof body.evidence === "object" ? { evidence: body.evidence } : {}) });
+    const inst = await startRevert(env, k, { repo, ...(str(body.op_id, 100) ? { op_id: str(body.op_id, 100) } : { seq: body.seq as number }), reason: reason!, requested_by: g.principal, requested_by_type: "system", ...(body.evidence && typeof body.evidence === "object" ? { evidence: body.evidence } : {}) });
     return k.json({ type: "revert", workflow: inst }, 202);
   }
   if (rest === "/system/trunk-token" && m === "POST") {
@@ -250,7 +250,7 @@ function workflow(env: ArtifactsEnv, k: Kit, name: "WEFT_PROCESS_REVISION" | "WE
   return wf!;
 }
 
-export async function startRevert(env: ArtifactsEnv, k: Kit, params: { repo: string; op_id?: string; seq?: number; reason: string; requested_by: string; evidence?: unknown }): Promise<string> {
+export async function startRevert(env: ArtifactsEnv, k: Kit, params: { repo: string; op_id?: string; seq?: number; reason: string; requested_by: string; requested_by_type: "human" | "system"; evidence?: unknown }): Promise<string> {
   const inst = await workflow(env, k, "WEFT_REVERT_OPERATION").create({ id: ids.revert(params.repo, params.op_id ?? String(params.seq), Date.now()), params });
   return inst.id;
 }

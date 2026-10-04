@@ -147,6 +147,44 @@ describe("weft-job rebase (layered merge)", () => {
     expect(execFileSync("git", ["log", "-1", "--format=%s", r.rebased], { cwd: r.workdir, encoding: "utf8" }).trim()).toBe("pricing: apple 2");
   });
 
+  it("llm resolver: posts the conflicted file to an OpenAI-compatible endpoint and applies the answer", async () => {
+    const { createServer } = await import("node:http");
+    const seen: Array<{ model: string; user: string }> = [];
+    const srv = createServer((req, res) => {
+      let b = "";
+      req.on("data", (d) => (b += d));
+      req.on("end", () => {
+        const body = JSON.parse(b);
+        seen.push({ model: body.model, user: body.messages[1].content });
+        const u: string = body.messages[1].content;
+        const file = u.slice(u.indexOf("\n\n", u.indexOf("File: ")) + 2);
+        const resolved = (body.model === "@cf/test/truncating" ? file.slice(0, 20) : file).replace(/<<<<<<<[^]*?>>>>>>>[^\n]*\n/, "  apple: 3 * 2,\n");
+        res.setHeader("content-type", "application/json");
+        res.end(JSON.stringify({ response: "```ts\n" + resolved.trimEnd() + "\n```", usage: { total_tokens: 42 } }));
+      });
+    });
+    await new Promise<void>((r) => srv.listen(0, "127.0.0.1", () => r()));
+    const url = `http://127.0.0.1:${(srv.address() as { port: number }).port}/v1/chat/completions`;
+    try {
+      const w = await world();
+      const f = await w.fork();
+      const head = await w.commit(f, { "src/pricing.ts": sub(BASE["src/pricing.ts"], "apple: 1", "apple: 1 * 2") }, "apple doubled");
+      await w.commit(w.trunk, { "src/pricing.ts": sub(BASE["src/pricing.ts"], "apple: 1", "apple: 3") }, "apple 3");
+      const r = await runJob({ job: "rebase", trunk: { remote: w.trunk }, fork: { remote: f, sha: head }, resolver: { kind: "llm", url, model: "@cf/test/model" }, tests: TESTS }, { log: () => {} });
+      expect(r.status).toBe("resolved");
+      expect(r.commits[0].resolver).toMatchObject({ kind: "llm", model: "@cf/test/model", files: ["src/pricing.ts"] });
+      expect(seen[0]!.user).toContain("Change being replayed:\napple doubled");
+      expect(execFileSync("git", ["show", `${r.rebased}:src/pricing.ts`], { cwd: r.workdir, encoding: "utf8" })).toContain("apple: 3 * 2,\n  pear: 2");
+      expect(r.tests.status).toBe("pass");
+      // A truncated answer is rejected (fails closed -> bounce), never committed.
+      const bad = await runJob({ job: "rebase", trunk: { remote: w.trunk }, fork: { remote: f, sha: head }, resolver: { kind: "llm", url, model: "@cf/test/truncating" } }, { log: () => {} });
+      expect(bad.status).toBe("conflict");
+      expect(bad.resolver.error).toMatch(/suspiciously short/);
+    } finally {
+      srv.close();
+    }
+  });
+
   it("a resolver that leaves markers fails closed (bounce)", async () => {
     const w = await world();
     const f = await w.fork();
