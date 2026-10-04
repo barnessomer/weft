@@ -29,7 +29,7 @@ const REPO = resolve(HERE, "..");
 const CLAUDE_BUNDLE = join(REPO, "packages/adapters/claude-code/dist/weft-claude.mjs");
 const CODEX_BUNDLE = join(REPO, "packages/adapters/codex/dist/weft-codex.mjs");
 const TSC = join(REPO, "node_modules/.bin/tsc");
-const URL_ = (process.env.WEFT_URL ?? "https://weft-gateway-preview.redacted-subdomain.workers.dev").replace(/\/+$/, "");
+const URL_ = (process.env.WEFT_URL ?? "https://weft-gateway-preview.elier.ai").replace(/\/+$/, "");
 const ADMIN = readFileSync((process.env.WEFT_ADMIN_TOKEN_FILE ?? "~/.config/weft/preview-admin-token").replace(/^~/, homedir()), "utf8").trim();
 const argv = process.argv.slice(2);
 const opt = (name, dflt) => (argv.includes(`--${name}`) ? argv[argv.indexOf(`--${name}`) + 1] : dflt);

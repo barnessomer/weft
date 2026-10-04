@@ -5,16 +5,17 @@ name = "weft-workflows"
 main = "src/index.ts"
 compatibility_date = "2026-10-03"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft-workflows.elier.ai", custom_domain = true }]
 
 [observability]
 enabled = true
 
 [vars]
-WEFT_GATEWAY_URL = "https://weft-gateway.redacted-subdomain.workers.dev"
+WEFT_GATEWAY_URL = "https://weft-gateway.elier.ai"
 # B10 evidence: previews served by weft-previews, model calls through AI Gateway `default`
 # (the `weft` gateway cannot be created with wrangler OAuth; switch once John creates it).
-WEFT_PREVIEWS_URL = "https://weft-previews.redacted-subdomain.workers.dev"
+WEFT_PREVIEWS_URL = "https://weft-previews.elier.ai"
 AI_GATEWAY_ID = "default"
 
 # B10: Browser Rendering (screenshots), Workers AI (risk + review), R2 (screenshots, diffs).
@@ -73,11 +74,12 @@ service = "weft-gateway"
 
 [env.preview]
 name = "weft-workflows-preview"
-workers_dev = true
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft-workflows-preview.elier.ai", custom_domain = true }]
 
 [env.preview.vars]
-WEFT_GATEWAY_URL = "https://weft-gateway-preview.redacted-subdomain.workers.dev"
-WEFT_PREVIEWS_URL = "https://weft-previews-preview.redacted-subdomain.workers.dev"
+WEFT_GATEWAY_URL = "https://weft-gateway-preview.elier.ai"
+WEFT_PREVIEWS_URL = "https://weft-previews-preview.elier.ai"
 AI_GATEWAY_ID = "default"
 
 [env.preview.browser]

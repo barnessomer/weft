@@ -1,7 +1,8 @@
 name = "weft-production-signal"
 main = "src/index.ts"
 compatibility_date = "2025-09-06"
-workers_dev = true
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft-production-signal.elier.ai", custom_domain = true }]
 
 # Tail Worker for the repo's production Worker (the target names this service in its own
 # `tail_consumers`; the preview demo target is `weft-demo`, see docs/runbook.md B13).
@@ -44,6 +45,8 @@ enabled = true
 
 [env.preview]
 name = "weft-production-signal-preview"
+workers_dev = false
+routes = [{ pattern = "weft-production-signal-preview.elier.ai", custom_domain = true }]
 
 [[env.preview.queues.producers]]
 binding = "WEFT_PROD_EVENTS"

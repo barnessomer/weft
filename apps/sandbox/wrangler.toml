@@ -5,7 +5,8 @@ name = "weft-sandbox"
 main = "src/index.ts"
 compatibility_date = "2026-10-03"
 compatibility_flags = ["nodejs_compat"]
-workers_dev = true
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft-sandbox.elier.ai", custom_domain = true }]
 
 [observability]
 enabled = true
@@ -45,7 +46,8 @@ storage = "sqlite"
 
 [env.preview]
 name = "weft-sandbox-preview"
-workers_dev = true
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft-sandbox-preview.elier.ai", custom_domain = true }]
 
 [env.preview.vars]
 AI_GATEWAY_ACCOUNT_ID = "2d659dee148763a8d64c80135da7165d"

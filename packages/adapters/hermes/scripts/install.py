@@ -39,7 +39,7 @@ from pathlib import Path
 PKG = Path(__file__).resolve().parent.parent
 PLUGIN_SRC = PKG / "plugin" / "weft"
 PLUGIN_FILES = ["plugin.yaml", "__init__.py", "adapter.py", "wcp.py"]
-DEFAULT_URL = "https://weft-gateway-preview.redacted-subdomain.workers.dev"
+DEFAULT_URL = "https://weft-gateway-preview.elier.ai"
 DEFAULT_ADMIN = "~/.config/weft/preview-admin-token"
 CONFIG = Path(os.environ.get("WEFT_HERMES_CONFIG", "~/.config/weft/hermes-adapter.json")).expanduser()
 ROOTS = [

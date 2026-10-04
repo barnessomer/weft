@@ -28,9 +28,9 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const GW = process.env.WEFT_URL ?? "https://weft-gateway-preview.redacted-subdomain.workers.dev";
-const WF = process.env.WEFT_WORKFLOWS_URL ?? "https://weft-workflows-preview.redacted-subdomain.workers.dev";
-const DEMO = process.env.WEFT_DEMO_URL ?? "https://weft-demo.redacted-subdomain.workers.dev";
+const GW = process.env.WEFT_URL ?? "https://weft-gateway-preview.elier.ai";
+const WF = process.env.WEFT_WORKFLOWS_URL ?? "https://weft-workflows-preview.elier.ai";
+const DEMO = process.env.WEFT_DEMO_URL ?? "https://weft-demo.elier.ai";
 const ACCOUNT = "2d659dee148763a8d64c80135da7165d";
 const REPO = process.env.WEFT_DEMO_REPO ?? "weft-demo";
 const SPIKE_REQUESTS = Number(process.env.WEFT_SPIKE_REQUESTS ?? 8);

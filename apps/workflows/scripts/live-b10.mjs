@@ -23,8 +23,8 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const GW = process.env.WEFT_URL ?? "https://weft-gateway-preview.redacted-subdomain.workers.dev";
-const WF = process.env.WEFT_WORKFLOWS_URL ?? "https://weft-workflows-preview.redacted-subdomain.workers.dev";
+const GW = process.env.WEFT_URL ?? "https://weft-gateway-preview.elier.ai";
+const WF = process.env.WEFT_WORKFLOWS_URL ?? "https://weft-workflows-preview.elier.ai";
 const ACCOUNT = "2d659dee148763a8d64c80135da7165d";
 const REPO = process.env.WEFT_DEMO_REPO ?? "weft-demo";
 const cfg = (f) => readFileSync(join(homedir(), ".config/weft", f), "utf8").trim();

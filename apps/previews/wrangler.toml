@@ -4,7 +4,8 @@
 name = "weft-previews"
 main = "src/index.ts"
 compatibility_date = "2026-10-03"
-workers_dev = true
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft-previews.elier.ai", custom_domain = true }]
 
 [observability]
 enabled = true
@@ -22,7 +23,8 @@ bucket_name = "weft-evidence"
 
 [env.preview]
 name = "weft-previews-preview"
-workers_dev = true
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft-previews-preview.elier.ai", custom_domain = true }]
 
 [[env.preview.artifacts]]
 binding = "ARTIFACTS"

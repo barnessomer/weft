@@ -4,7 +4,7 @@ The human surface of Weft in a browser: what the agents are doing, live, and the
 editor-free controls (approve, undo). Built for the demo video as much as for daily use:
 dark-first, large type, every squiggle traceable to the record that caused it.
 
-Preview: https://weft-web-preview.redacted-subdomain.workers.dev (operator-key login, see
+Preview: https://weft-web-preview.elier.ai (operator-key login, see
 below). Production `weft-web` is not deployed yet (PM decision).
 
 ## Views
@@ -70,7 +70,7 @@ Zero Trust organization endpoint returns an auth error), so this is a dashboard 
    (email) or add GitHub/Google.
 2. Easiest: Workers & Pages → `weft-web` (or `weft-web-preview`) → Settings → Domains &
    Routes → workers.dev → **Enable Cloudflare Access**. Or: Access → Applications → Add →
-   Self-hosted → domain `weft-web.redacted-subdomain.workers.dev` (and/or a custom domain).
+   Self-hosted → domain `weft-web.elier.ai` (and/or a custom domain).
 3. Policy: Allow → Include → Emails → `john@elier.ai` (add Kathryn or a service token if
    wanted). Session duration 24 h.
 4. Copy the application's **AUD tag** (Application → Overview).

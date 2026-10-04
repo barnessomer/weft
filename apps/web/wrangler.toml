@@ -5,7 +5,8 @@
 name = "weft-web"
 main = "src/index.ts"
 compatibility_date = "2025-09-06"
-workers_dev = true
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft-web.elier.ai", custom_domain = true }]
 
 [assets]
 directory = "./public"
@@ -38,7 +39,8 @@ enabled = true
 
 [env.preview]
 name = "weft-web-preview"
-workers_dev = true
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft-web-preview.elier.ai", custom_domain = true }]
 
 [[env.preview.services]]
 binding = "GATEWAY"

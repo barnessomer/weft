@@ -21,7 +21,7 @@ import { describe, expect, it } from "vitest";
 import { formatTrailers } from "../naming";
 import { git, landByPush, lsRemote } from "../git";
 
-const URL_ = process.env.WEFT_URL ?? "https://weft-gateway-preview.redacted-subdomain.workers.dev";
+const URL_ = process.env.WEFT_URL ?? "https://weft-gateway-preview.elier.ai";
 const ACCOUNT = "2d659dee148763a8d64c80135da7165d";
 const log = (...a: unknown[]) => console.log("[e2e]", ...a);
 

@@ -18,7 +18,7 @@ const arg = (name, dflt) => {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : dflt;
 };
-const URL_ = process.env.WEFT_URL ?? "https://weft-gateway-preview.redacted-subdomain.workers.dev";
+const URL_ = process.env.WEFT_URL ?? "https://weft-gateway-preview.elier.ai";
 const ADMIN = process.env.WEFT_ADMIN_TOKEN ?? readFileSync((process.env.WEFT_ADMIN_TOKEN_FILE ?? "~/.config/weft/preview-admin-token").replace(/^~/, homedir()), "utf8").trim();
 const repo = arg("repo", `weft-ui-${Date.now().toString(36)}`);
 const pace = Number(arg("pace", "1500"));

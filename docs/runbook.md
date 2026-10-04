@@ -70,7 +70,7 @@ pnpm --filter @weft/production-signal deploy:preview
 ```
 
 Demo target (live since 2026-10-04): Worker `weft-demo`
-(https://weft-demo.redacted-subdomain.workers.dev) is connected to **Workers Builds** from the
+(https://weft-demo.elier.ai) is connected to **Workers Builds** from the
 Artifacts trunk `weft-preview/weft-demo` (branch `main`, deploy `npx wrangler deploy`, Preview
 builds on). Every trunk push deploys it in ~5–40 s. The connection was made in the dashboard
 (*Workers & Pages → Create application → Continue with Artifacts*): the Workers Builds API needs
@@ -111,7 +111,7 @@ configured but not deployed; a production target would name `weft-production-sig
 
 ## Gateway + sequencer (B2)
 
-Preview: `https://weft-gateway-preview.redacted-subdomain.workers.dev` (`/v1/health` is public).
+Preview: `https://weft-gateway-preview.elier.ai` (`/v1/health` is public).
 
 - `packages/sequencer`: `SqlCoordinator` (WCP v0.1 over SQLite, a port of the protocol's
   reference coordinator), `JournaledCoordinator` (input journal + `replay()`), and the
@@ -124,7 +124,7 @@ The preview's value lives in `~/.config/weft/preview-admin-token` (mode 600) on 
 MacBook; never print it.
 
 ```sh
-ADMIN=$(cat ~/.config/weft/preview-admin-token); U=https://weft-gateway-preview.redacted-subdomain.workers.dev
+ADMIN=$(cat ~/.config/weft/preview-admin-token); U=https://weft-gateway-preview.elier.ai
 # create a repo (policy wound-wait|wait-die; optional claim_ttl_ms, session_ttl_ms)
 curl -sX POST $U/v1/admin/repos -H "authorization: Bearer $ADMIN" -d '{"repo":"weft"}'
 # agent token: exactly one repo, bound agent id (optionally change)
@@ -198,7 +198,7 @@ pnpm exec wrangler secret put WEFT_CF_API_TOKEN --env preview
 ```
 
 ```sh
-ADMIN=$(cat ~/.config/weft/preview-admin-token); U=https://weft-gateway-preview.redacted-subdomain.workers.dev
+ADMIN=$(cat ~/.config/weft/preview-admin-token); U=https://weft-gateway-preview.elier.ai
 # bind a Weft repo to an Artifacts trunk (create:true creates it in the env's namespace)
 curl -sX POST $U/v1/admin/artifacts/repos -H "authorization: Bearer ***" -d '{"repo":"weft-demo","create":true}'
 # candidates (system token): fork + write token (returned ONCE) + Change-Id + trailers
@@ -217,14 +217,14 @@ Live proof (creates and deletes a throwaway trunk/fork/subscription): `pnpm --fi
 
 ## Web UI (apps/web)
 
-Preview: `https://weft-web-preview.redacted-subdomain.workers.dev` (operator key in
+Preview: `https://weft-web-preview.elier.ai` (operator key in
 `~/.config/weft/web-preview-key`; gateway token in `~/.config/weft/web-preview-token.json`,
 both mode 600). Deploy: `cd apps/web && pnpm exec wrangler deploy --env preview`. Access
 setup, secrets, local dev and the `scripts/demo-feed.mjs` traffic generator: `docs/web-ui.md`.
 
 ## Sandbox runner (B7)
 
-Preview: `https://weft-sandbox-preview.redacted-subdomain.workers.dev` (`/v1/health` public).
+Preview: `https://weft-sandbox-preview.elier.ai` (`/v1/health` public).
 Code + API: `apps/sandbox/README.md`. Numbers: `docs/research/sandbox.md`.
 
 - Resources: Worker `weft-sandbox-preview` (DO `WeftSandbox` + container application
@@ -244,7 +244,7 @@ Code + API: `apps/sandbox/README.md`. Numbers: `docs/research/sandbox.md`.
   gateway + BYOK keys), `WEFT_RUNNER_REPORT_TOKEN`. None of them ever enters a container.
 
 ```sh
-T=$(cat ~/.config/weft/preview-sandbox-token); S=https://weft-sandbox-preview.redacted-subdomain.workers.dev
+T=$(cat ~/.config/weft/preview-sandbox-token); S=https://weft-sandbox-preview.elier.ai
 curl -sX POST $S/v1/runs -H "authorization: Bearer $T" -d @run.json     # RunRequest (fork.token from B6 candidates)
 curl -s $S/v1/runs/<run> -H "authorization: Bearer $T"                   # state, timings.cold_start_ms, result
 curl -s $S/v1/runs/<run>/logs/agent.stdout.log -H "authorization: Bearer $T"
@@ -254,7 +254,7 @@ cd apps/sandbox && node scripts/live.mjs e2e      # live proof (creates + delete
 
 ## Workflows (B8)
 
-Preview: `https://weft-workflows-preview.redacted-subdomain.workers.dev` (`/v1/health` public).
+Preview: `https://weft-workflows-preview.elier.ai` (`/v1/health` public).
 Code + API: `apps/workflows/README.md`. Live evidence: `demo/evidence/b8-workflows-live/run.json`.
 
 - Resources: Worker `weft-workflows-preview` with Workflows `weft-process-revision-preview`,
@@ -275,7 +275,7 @@ cd ../workflows && pnpm exec wrangler deploy --env preview
 cd ../gateway && pnpm exec wrangler deploy --env preview
 node apps/workflows/scripts/live.mjs        # ~3 min: all four workflows on weft-demo
 
-ADMIN=$(cat ~/.config/weft/preview-admin-token); U=https://weft-gateway-preview.redacted-subdomain.workers.dev
+ADMIN=$(cat ~/.config/weft/preview-admin-token); U=https://weft-gateway-preview.elier.ai
 # per-repo workflow config (tests, resolver, layers, allow_hosts)
 curl -sX POST $U/v1/admin/artifacts/repos -H "authorization: Bearer $ADMIN" \
   -d '{"repo":"weft-demo","trunk":"weft-demo","config":{"tests":{"command":["node","--test"]},"resolver":{"kind":"llm"}}}'
@@ -284,7 +284,7 @@ curl -sX POST $U/v1/repos/weft-demo/changes/$CHANGE/land -H "authorization: Bear
 curl -sX POST $U/v1/repos/weft-demo/tasks/$TASK/select -H "authorization: Bearer $TOKEN" -d '{"n":3,"risk":"high"}'
 curl -sX POST $U/v1/repos/weft-demo/system/revert -H "authorization: Bearer $SYS" -d '{"op_id":"op-…","reason":"5xx spike","evidence":{"text":"…stack…"}}'
 # workflow status / step history
-W=https://weft-workflows-preview.redacted-subdomain.workers.dev; WT=$(cat ~/.config/weft/preview-workflows-token)
+W=https://weft-workflows-preview.elier.ai; WT=$(cat ~/.config/weft/preview-workflows-token)
 curl -s $W/v1/workflows/land/<instance> -H "authorization: Bearer $WT"
 cd apps/workflows && pnpm exec wrangler workflows instances describe weft-land-change-preview <instance>
 ```
@@ -296,7 +296,7 @@ cd apps/workflows && pnpm exec wrangler workflows instances describe weft-land-c
 
 ## Evidence: previews, screenshots, review (B10)
 
-Previews: `https://weft-previews-preview.redacted-subdomain.workers.dev` (`/v1/health` public;
+Previews: `https://weft-previews-preview.elier.ai` (`/v1/health` public;
 everything else needs a signed URL minted by weft-workflows). Code: `apps/previews`,
 `apps/workflows/src/{core/evidence.ts,evidence-cf.ts}`. Live evidence: `demo/evidence/b10-evidence-live/`.
 

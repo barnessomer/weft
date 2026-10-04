@@ -10,5 +10,7 @@ Short version:
 4. TypeScript strict, Workers runtime, vitest. Prefix Cloudflare resources `weft-`.
 5. Never print secrets. wrangler uses OAuth; `unset CLOUDFLARE_API_TOKEN`; Node >= 22.
 6. Complete with real verification output and notes for downstream cards.
+7. Public hostnames are `<worker>.elier.ai` (Workers custom domains, `workers_dev = false`). Never use or
+   publish `*.workers.dev` URLs: this account's workers.dev subdomain is a customer's company name.
 
 License: MIT.

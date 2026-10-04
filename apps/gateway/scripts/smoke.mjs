@@ -11,7 +11,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 
-const URL_ = process.env.WEFT_URL ?? "https://weft-gateway-preview.redacted-subdomain.workers.dev";
+const URL_ = process.env.WEFT_URL ?? "https://weft-gateway-preview.elier.ai";
 const file = (process.env.WEFT_ADMIN_TOKEN_FILE ?? "~/.config/weft/preview-admin-token").replace(/^~/, homedir());
 const ADMIN = process.env.WEFT_ADMIN_TOKEN ?? readFileSync(file, "utf8").trim();
 const repo = process.env.WEFT_REPO ?? `smoke-${Date.now().toString(36)}`;

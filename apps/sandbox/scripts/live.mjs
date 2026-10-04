@@ -16,8 +16,8 @@ import { mkdtempSync, readFileSync, writeFileSync } from "node:fs";
 import { homedir, tmpdir } from "node:os";
 import { join } from "node:path";
 
-const SBX = process.env.WEFT_SANDBOX_URL ?? "https://weft-sandbox-preview.redacted-subdomain.workers.dev";
-const GW = process.env.WEFT_URL ?? "https://weft-gateway-preview.redacted-subdomain.workers.dev";
+const SBX = process.env.WEFT_SANDBOX_URL ?? "https://weft-sandbox-preview.elier.ai";
+const GW = process.env.WEFT_URL ?? "https://weft-gateway-preview.elier.ai";
 const ACCOUNT = "2d659dee148763a8d64c80135da7165d";
 const cfg = (f) => readFileSync(join(homedir(), ".config/weft", f), "utf8").trim();
 const SBX_TOKEN = cfg("preview-sandbox-token");
