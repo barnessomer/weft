@@ -1,0 +1,6 @@
+name = "weft-workflows"
+main = "src/index.ts"
+compatibility_date = "2025-09-06"
+
+[env.preview]
+name = "weft-workflows-preview"
