@@ -35,6 +35,32 @@ max_batch_size = 10
 max_batch_timeout = 2
 max_retries = 8
 
+# B8 workflows (script weft-workflows): pushes start ProcessRevision, /land LandChange, /select
+# BestOfN, `undo` RevertOperation, `approve` signals BestOfN.
+[[workflows]]
+name = "weft-process-revision"
+binding = "WEFT_PROCESS_REVISION"
+class_name = "ProcessRevision"
+script_name = "weft-workflows"
+
+[[workflows]]
+name = "weft-land-change"
+binding = "WEFT_LAND_CHANGE"
+class_name = "LandChange"
+script_name = "weft-workflows"
+
+[[workflows]]
+name = "weft-revert-operation"
+binding = "WEFT_REVERT_OPERATION"
+class_name = "RevertOperation"
+script_name = "weft-workflows"
+
+[[workflows]]
+name = "weft-best-of-n"
+binding = "WEFT_BEST_OF_N"
+class_name = "BestOfN"
+script_name = "weft-workflows"
+
 [vars]
 WEFT_ARTIFACTS_NAMESPACE = "weft"
 WEFT_CF_ACCOUNT_ID = "2d659dee148763a8d64c80135da7165d"
@@ -79,6 +105,30 @@ queue = "weft-artifacts-events-preview"
 max_batch_size = 10
 max_batch_timeout = 2
 max_retries = 8
+
+[[env.preview.workflows]]
+name = "weft-process-revision-preview"
+binding = "WEFT_PROCESS_REVISION"
+class_name = "ProcessRevision"
+script_name = "weft-workflows-preview"
+
+[[env.preview.workflows]]
+name = "weft-land-change-preview"
+binding = "WEFT_LAND_CHANGE"
+class_name = "LandChange"
+script_name = "weft-workflows-preview"
+
+[[env.preview.workflows]]
+name = "weft-revert-operation-preview"
+binding = "WEFT_REVERT_OPERATION"
+class_name = "RevertOperation"
+script_name = "weft-workflows-preview"
+
+[[env.preview.workflows]]
+name = "weft-best-of-n-preview"
+binding = "WEFT_BEST_OF_N"
+class_name = "BestOfN"
+script_name = "weft-workflows-preview"
 
 [env.preview.vars]
 WEFT_ARTIFACTS_NAMESPACE = "weft-preview"

@@ -1,0 +1,501 @@
+{
+  "started_at": "2026-10-04T06:04:12.784Z",
+  "gateway": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "workflows": "https://weft-workflows-preview.redacted-subdomain.workers.dev",
+  "repo": "weft-demo",
+  "steps": [
+    {
+      "name": "bound trunk",
+      "at_s": 0.9,
+      "trunk": "weft-demo",
+      "namespace": "weft-preview",
+      "config": {
+        "tests": {
+          "command": [
+            "node",
+            "--test"
+          ],
+          "timeout_s": 300
+        },
+        "resolver": {
+          "kind": "llm",
+          "model": "@cf/qwen/qwen2.5-coder-32b-instruct"
+        },
+        "layers": [
+          "git",
+          "mergiraf",
+          "resolver"
+        ],
+        "job_timeout_s": 900
+      }
+    },
+    {
+      "name": "trunk seeded",
+      "at_s": 4.6,
+      "before": "03754d3e18b394528a22c21f3fb328efa09748df",
+      "base": "94155bf1c71375490824a7e7ba584d08c37ea47c",
+      "files": [
+        "README.md",
+        "package.json",
+        "src/cart.ts",
+        "src/catalog.ts",
+        "src/greet.ts",
+        "src/orders.ts",
+        "src/pricing.ts",
+        "test/shop.test.ts",
+        "tsconfig.json"
+      ]
+    },
+    {
+      "name": "candidates",
+      "at_s": 35.7,
+      "taskA": "b8a-mutf19pt",
+      "taskB": "b8b-mutf19pt",
+      "a1": [
+        "I077b92cb51d9934a3b99aca294473995c40397d3",
+        "weft-weft-demo-b8a-mutf19pt-1"
+      ],
+      "b": [
+        [
+          "codex-b",
+          "I56299d60c0f82cafcd32aa592bc0e18827efa94f",
+          "weft-weft-demo-b8b-mutf19pt-1"
+        ],
+        [
+          "cursor-b",
+          "I8f4e6c41e5f070eeb5adc8e46a33a7232942e232",
+          "weft-weft-demo-b8b-mutf19pt-2"
+        ],
+        [
+          "claude-b",
+          "Ie408587fa5be4701351fbd631dd6aa785d6f670b",
+          "weft-weft-demo-b8b-mutf19pt-3"
+        ]
+      ],
+      "subscriptions": 4
+    },
+    {
+      "name": "A processed (ProcessRevision)",
+      "at_s": 69.2,
+      "sha": "fa24872f7997d1e8d3aa5771472d2873cd0473c7",
+      "push_to_processed_s": 29.891,
+      "revision": "processed",
+      "workflow": "rev-I077b92cb51d9-fa24872f7997",
+      "rebase": {
+        "status": "up_to_date",
+        "layer": "none",
+        "run": {
+          "id": "wf-77bf729b5d0985f8d97ed29f",
+          "state": "succeeded",
+          "cold_start_ms": 7889
+        },
+        "timings": {
+          "fetch_trunk_ms": 1181,
+          "fetch_fork_ms": 797,
+          "rebase_ms": 8,
+          "tests_ms": 396,
+          "total_ms": 2467
+        }
+      },
+      "tests": {
+        "status": "pass",
+        "summary": {
+          "pass": 2,
+          "fail": 0
+        },
+        "command": "node --test"
+      }
+    },
+    {
+      "name": "A landed (LandChange)",
+      "at_s": 85,
+      "workflow": "land-I077b92cb51d9-1791093922305",
+      "status": "complete",
+      "output": {
+        "status": "landed",
+        "op_id": "op-9ea4ec84951dd27937daaea0",
+        "seq": 60,
+        "before": "94155bf1c71375490824a7e7ba584d08c37ea47c",
+        "after": "fa24872f7997d1e8d3aa5771472d2873cd0473c7",
+        "layer": "none",
+        "attempts": 1,
+        "queue_id": 7
+      },
+      "error": null
+    },
+    {
+      "name": "B selection started (BestOfN)",
+      "at_s": 86.5,
+      "type": "selection",
+      "task": "b8b-mutf19pt",
+      "n": 3,
+      "risk": "high",
+      "workflow": "bestofn-weft-demo-b8b-mutf19pt"
+    },
+    {
+      "name": "B processed (3 × ProcessRevision)",
+      "at_s": 124.1,
+      "wall_s": 27.426,
+      "b1": {
+        "agent": "codex-b",
+        "change": "I56299d60c0f82cafcd32aa592bc0e18827efa94f",
+        "sha": "9cc866bc84a1063e89b15b0b0bb18ab5138c1532",
+        "revision": "processed",
+        "layer": "mergiraf",
+        "rebase": "clean",
+        "resolver": null,
+        "conflicts": null,
+        "tests": {
+          "status": "pass",
+          "summary": {
+            "pass": 2,
+            "fail": 0
+          }
+        },
+        "run": {
+          "id": "wf-f891ca701d70e7d2bc0f30a3",
+          "state": "succeeded",
+          "cold_start_ms": 7575
+        },
+        "timings": {
+          "fetch_trunk_ms": 1054,
+          "fetch_fork_ms": 676,
+          "layer_git_ms": 7,
+          "layer_mergiraf_ms": 86,
+          "rebase_ms": 132,
+          "tests_ms": 366,
+          "push_rebased_ms": 449,
+          "total_ms": 2780
+        }
+      },
+      "b2": {
+        "agent": "cursor-b",
+        "change": "I8f4e6c41e5f070eeb5adc8e46a33a7232942e232",
+        "sha": "263fe2f37994b7d880fdf6596be0ef0f3c64cd5a",
+        "revision": "processed",
+        "layer": "git",
+        "rebase": "clean",
+        "resolver": null,
+        "conflicts": null,
+        "tests": {
+          "status": "fail",
+          "summary": {
+            "pass": 1,
+            "fail": 1
+          }
+        },
+        "run": {
+          "id": "wf-59d0d466d3e6650b28d64945",
+          "state": "succeeded",
+          "cold_start_ms": 5906
+        },
+        "timings": {
+          "fetch_trunk_ms": 1071,
+          "fetch_fork_ms": 779,
+          "layer_git_ms": 7,
+          "rebase_ms": 31,
+          "tests_ms": 365,
+          "push_rebased_ms": 407,
+          "total_ms": 2719
+        }
+      },
+      "b3": {
+        "agent": "claude-b",
+        "change": "Ie408587fa5be4701351fbd631dd6aa785d6f670b",
+        "sha": "9c11378dfb54d38bf5eb6fefd9de40d6d47e9944",
+        "revision": "processed",
+        "layer": "resolver",
+        "rebase": "resolved",
+        "resolver": {
+          "orig": "9c11378dfb54d38bf5eb6fefd9de40d6d47e9944",
+          "new": "769f2285cd12e2253d2bfa8d16d95f978897ed8e",
+          "layer": "resolver"
+        },
+        "conflicts": null,
+        "tests": {
+          "status": "pass",
+          "summary": {
+            "pass": 2,
+            "fail": 0
+          }
+        },
+        "run": {
+          "id": "wf-be59f5998d0bc053affc5764",
+          "state": "succeeded",
+          "cold_start_ms": 5615
+        },
+        "timings": {
+          "fetch_trunk_ms": 955,
+          "fetch_fork_ms": 893,
+          "layer_git_ms": 10,
+          "layer_mergiraf_ms": 94,
+          "layer_resolver_ms": 3860,
+          "rebase_ms": 4043,
+          "tests_ms": 504,
+          "push_rebased_ms": 698,
+          "total_ms": 7172
+        }
+      }
+    },
+    {
+      "name": "b3 resolver output (src/catalog.ts on weft/rebased)",
+      "at_s": 125.6,
+      "agent": "claude-b",
+      "catalog": [
+        "/** Catalog prices per kg (Weft demo). */",
+        "/** Unit: prices are per kilogram. */",
+        "export const KG = 1;",
+        "",
+        "export const PRICES: Record<string, number> = {",
+        "  apple: 5 * KG,",
+        "  pear: 2 * KG,",
+        "  kiwi: 4 * KG,",
+        "};"
+      ]
+    },
+    {
+      "name": "b2 bounced to its agent",
+      "at_s": 125.9,
+      "message_seq": 64,
+      "text": "Tests fail on your change rebased onto trunk fa24872f7997 (1 failed, 1 passed): `node --test` exited 1."
+    },
+    {
+      "name": "B ranked, waiting for approval",
+      "at_s": 127.6,
+      "workflow_status": "running",
+      "ranking": [
+        {
+          "agent": "codex-b",
+          "change": "I56299d60c0f82cafcd32aa592bc0e18827efa94f",
+          "position": 1,
+          "score": 1080,
+          "eligible": true,
+          "reasons": [
+            "tests pass",
+            "rebase: mergiraf",
+            "churn 2"
+          ]
+        },
+        {
+          "agent": "claude-b",
+          "change": "Ie408587fa5be4701351fbd631dd6aa785d6f670b",
+          "position": 2,
+          "score": 1038,
+          "eligible": true,
+          "reasons": [
+            "tests pass",
+            "rebase: resolver",
+            "churn 8"
+          ]
+        },
+        {
+          "agent": "cursor-b",
+          "change": "I8f4e6c41e5f070eeb5adc8e46a33a7232942e232",
+          "position": 3,
+          "score": -1,
+          "eligible": false,
+          "reasons": [
+            "tests fail",
+            "rebase: git",
+            "churn 2"
+          ]
+        }
+      ]
+    },
+    {
+      "name": "human approve",
+      "at_s": 128.3,
+      "change": "I56299d60c0f82cafcd32aa592bc0e18827efa94f",
+      "agent": "codex-b",
+      "seq": 65,
+      "workflow": "bestofn-weft-demo-b8b-mutf19pt"
+    },
+    {
+      "name": "BestOfN finished",
+      "at_s": 131.9,
+      "status": "complete",
+      "output": {
+        "status": "landing",
+        "winner": "I56299d60c0f82cafcd32aa592bc0e18827efa94f",
+        "approved_by": "john",
+        "land_instance": "land-I56299d60c0f8-1791093981058",
+        "waited": 4
+      }
+    },
+    {
+      "name": "B winner landed (LandChange)",
+      "at_s": 149.2,
+      "workflow": "land-I56299d60c0f8-1791093981058",
+      "status": "complete",
+      "output": {
+        "status": "landed",
+        "op_id": "op-534402b7193e06d59af16c2f",
+        "seq": 66,
+        "before": "fa24872f7997d1e8d3aa5771472d2873cd0473c7",
+        "after": "3a8661da77d6675cbe351faa259d9b3ee4f202dd",
+        "layer": "mergiraf",
+        "attempts": 1,
+        "queue_id": 8
+      }
+    },
+    {
+      "name": "human undo of A",
+      "at_s": 150.8,
+      "op_id": "op-9ea4ec84951dd27937daaea0",
+      "control_seq": 67,
+      "workflow": "revert-weft-demo-op-9ea4ec84951dd27937daaea0-1791094002392"
+    },
+    {
+      "name": "A reverted (RevertOperation)",
+      "at_s": 164.8,
+      "status": "complete",
+      "output": {
+        "status": "reverted",
+        "op_id": "op-a4e010b34a5f195bf70e318a",
+        "reverts_op_id": "op-9ea4ec84951dd27937daaea0",
+        "seq": 68,
+        "sha": "7540984e4966af7096dc397f10ed44f25770cf2c"
+      }
+    },
+    {
+      "name": "final",
+      "at_s": 168.1,
+      "trunk_head": "7540984e4966af7096dc397f10ed44f25770cf2c",
+      "trunk_log": [
+        "7540984 weft-revert Revert change I077b92cb51d9934a3b99aca294473995c40397d3",
+        "3a8661d weft-live catalog: pear costs 3",
+        "fa24872 weft-live catalog: apple costs 5"
+      ],
+      "catalog": [
+        "export const PRICES: Record<string, number> = {",
+        "  apple: 1,",
+        "  pear: 3,",
+        "};",
+        ""
+      ],
+      "ops": [
+        {
+          "op_id": "op-9ea4ec84951dd27937daaea0",
+          "seq": 60,
+          "kind": "land",
+          "change_id": "I077b92cb51d9934a3b99aca294473995c40397d3",
+          "sha": "fa24872f7997d1e8d3aa5771472d2873cd0473c7",
+          "trunk_ref": "refs/heads/main",
+          "reverts_seq": null,
+          "reverts_op_id": null,
+          "at": "2026-10-04T06:05:36.185Z"
+        },
+        {
+          "op_id": "op-534402b7193e06d59af16c2f",
+          "seq": 66,
+          "kind": "land",
+          "change_id": "I56299d60c0f82cafcd32aa592bc0e18827efa94f",
+          "sha": "3a8661da77d6675cbe351faa259d9b3ee4f202dd",
+          "trunk_ref": "refs/heads/main",
+          "reverts_seq": null,
+          "reverts_op_id": null,
+          "at": "2026-10-04T06:06:38.630Z"
+        },
+        {
+          "op_id": "op-a4e010b34a5f195bf70e318a",
+          "seq": 68,
+          "kind": "revert",
+          "change_id": "I077b92cb51d9934a3b99aca294473995c40397d3",
+          "sha": "7540984e4966af7096dc397f10ed44f25770cf2c",
+          "trunk_ref": null,
+          "reverts_seq": 60,
+          "reverts_op_id": "op-9ea4ec84951dd27937daaea0",
+          "at": "2026-10-04T06:06:55.492Z"
+        }
+      ],
+      "events": [
+        {
+          "seq": 59,
+          "kind": "checkpoint",
+          "actor": "artifacts",
+          "summary": "claude-a pushed checkpoint fa24872 — claude-a: catalog: apple costs 5"
+        },
+        {
+          "seq": 60,
+          "kind": "land",
+          "actor": "weft-workflows",
+          "summary": "claude-a landed I077b92cb51d9934a3b99aca294473995c40397d3 (0 symbols) — landed claude-a: Raise the apple price (fa24872f7997)"
+        },
+        {
+          "seq": 61,
+          "kind": "checkpoint",
+          "actor": "artifacts",
+          "summary": "codex-b pushed checkpoint 9cc866b — codex-b: catalog: pear costs 3"
+        },
+        {
+          "seq": 62,
+          "kind": "checkpoint",
+          "actor": "artifacts",
+          "summary": "cursor-b pushed checkpoint 263fe2f — cursor-b: pricing: simplify total (wrong)"
+        },
+        {
+          "seq": 63,
+          "kind": "checkpoint",
+          "actor": "artifacts",
+          "summary": "claude-b pushed checkpoint 9c11378 — claude-b: catalog: explicit per-kg unit, add kiwi"
+        },
+        {
+          "seq": 64,
+          "kind": "message",
+          "actor": "weft-workflows",
+          "summary": "cursor-b → I8f4e6c41e5f070eeb5adc8e46a33a7232942e232: Tests fail on your change rebased onto trunk fa24872f7997 (1 failed, 1 passed): `node…"
+        },
+        {
+          "seq": 66,
+          "kind": "land",
+          "actor": "weft-workflows",
+          "summary": "codex-b landed I56299d60c0f82cafcd32aa592bc0e18827efa94f (0 symbols) — landed codex-b: Catalog price tweaks (best of 3) (3a8661da77d6)"
+        },
+        {
+          "seq": 68,
+          "kind": "revert",
+          "actor": "weft-workflows",
+          "summary": "reverted #60: live demo: error spike after landing A"
+        },
+        {
+          "seq": 69,
+          "kind": "message",
+          "actor": "weft-workflows",
+          "summary": "claude-a → I077b92cb51d9934a3b99aca294473995c40397d3: Your landed change was reverted: live demo: error spike after landing A. The task is…"
+        }
+      ],
+      "tasks": [
+        {
+          "id": "b8a-mutf19pt",
+          "status": "open",
+          "candidates": [
+            [
+              "claude-a",
+              "reverted"
+            ]
+          ]
+        },
+        {
+          "id": "b8b-mutf19pt",
+          "status": "landed",
+          "candidates": [
+            [
+              "codex-b",
+              "landed"
+            ],
+            [
+              "cursor-b",
+              "closed"
+            ],
+            [
+              "claude-b",
+              "closed"
+            ]
+          ]
+        }
+      ]
+    }
+  ],
+  "finished_at": "2026-10-04T06:07:08.967Z",
+  "total_s": 176.183
+}

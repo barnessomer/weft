@@ -35,6 +35,13 @@ export function outboundProps(spec: ContainerSpec, secrets: RunSecrets, allowHos
     const u = new URL(spec.fork.remote);
     props.git = { host: u.hostname, path_prefix: u.pathname.replace(/\/+$/, ""), ...(secrets.git_token ? { token: secrets.git_token } : {}) };
   }
+  const gits = (spec.remotes ?? []).flatMap((r, i) => {
+    if (!r.remote.startsWith("https://")) return [];
+    const u = new URL(r.remote);
+    const token = secrets.remote_tokens?.[i];
+    return [{ host: u.hostname, path_prefix: u.pathname.replace(/\/+$/, ""), ...(token ? { token } : {}) }];
+  });
+  if (gits.length) props.gits = gits;
   if (spec.weft) props.weft = { origin: new URL(spec.weft.url).origin, ...(secrets.weft_token ? { token: secrets.weft_token } : {}) };
   return props;
 }

@@ -1,6 +1,101 @@
+# weft-workflows: ProcessRevision, LandChange, RevertOperation, BestOfN (Cloudflare Workflows).
+# Git work runs as weft-job.mjs in the sandbox (service binding to weft-sandbox's SandboxRunner);
+# the repo coordinator is reached through the gateway's system API (WEFT_SYSTEM_TOKEN).
 name = "weft-workflows"
 main = "src/index.ts"
-compatibility_date = "2025-09-06"
+compatibility_date = "2026-10-03"
+compatibility_flags = ["nodejs_compat"]
+workers_dev = true
+
+[observability]
+enabled = true
+
+[vars]
+WEFT_GATEWAY_URL = "https://weft-gateway.redacted-subdomain.workers.dev"
+
+[[workflows]]
+name = "weft-process-revision"
+binding = "PROCESS_REVISION"
+class_name = "ProcessRevision"
+
+[[workflows]]
+name = "weft-land-change"
+binding = "LAND_CHANGE"
+class_name = "LandChange"
+
+[[workflows]]
+name = "weft-revert-operation"
+binding = "REVERT_OPERATION"
+class_name = "RevertOperation"
+
+[[workflows]]
+name = "weft-best-of-n"
+binding = "BEST_OF_N"
+class_name = "BestOfN"
+
+[[d1_databases]]
+binding = "WEFT_DB"
+database_name = "weft"
+database_id = "d2cbb845-8748-4c45-8697-abbeb505eb95"
+
+[[artifacts]]
+binding = "ARTIFACTS"
+namespace = "weft"
+
+[[services]]
+binding = "SANDBOX"
+service = "weft-sandbox"
+entrypoint = "SandboxRunner"
+
+[[services]]
+binding = "GATEWAY"
+service = "weft-gateway"
+
+# Secrets (wrangler secret put <NAME> [--env preview]):
+#   WEFT_SYSTEM_TOKEN     gateway token with scope `system` (land/revert/message/queue/ops)
+#   WEFT_WORKFLOWS_TOKEN  bearer for this Worker's operator API (/v1/workflows)
 
 [env.preview]
 name = "weft-workflows-preview"
+workers_dev = true
+
+[env.preview.vars]
+WEFT_GATEWAY_URL = "https://weft-gateway-preview.redacted-subdomain.workers.dev"
+
+[[env.preview.workflows]]
+name = "weft-process-revision-preview"
+binding = "PROCESS_REVISION"
+class_name = "ProcessRevision"
+
+[[env.preview.workflows]]
+name = "weft-land-change-preview"
+binding = "LAND_CHANGE"
+class_name = "LandChange"
+
+[[env.preview.workflows]]
+name = "weft-revert-operation-preview"
+binding = "REVERT_OPERATION"
+class_name = "RevertOperation"
+
+[[env.preview.workflows]]
+name = "weft-best-of-n-preview"
+binding = "BEST_OF_N"
+class_name = "BestOfN"
+
+[[env.preview.d1_databases]]
+binding = "WEFT_DB"
+database_name = "weft-preview"
+database_id = "7bd18baa-103a-4712-8dcd-5bbac18000b1"
+
+[[env.preview.artifacts]]
+binding = "ARTIFACTS"
+namespace = "weft-preview"
+
+[[env.preview.services]]
+binding = "SANDBOX"
+service = "weft-sandbox-preview"
+entrypoint = "SandboxRunner"
+
+[[env.preview.services]]
+binding = "GATEWAY"
+service = "weft-gateway-preview"

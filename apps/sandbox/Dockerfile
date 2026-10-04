@@ -37,6 +37,7 @@ RUN cd /opt/weft/adapters/claude-code && npm install --no-fund --no-audit --omit
 	&& ln -s /opt/weft/adapters/claude-code/dist/weft-claude.mjs /usr/local/bin/weft-adapter-claude
 
 COPY image/agent-run.mjs /opt/weft/agent-run.mjs
+COPY image/weft-job.mjs /opt/weft/weft-job.mjs
 COPY image/versions.sh /opt/weft/versions.sh
 
 # Git: the Containers CA (HTTPS interception by the Outbound entrypoint) is passed per
