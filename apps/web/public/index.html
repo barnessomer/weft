@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="color-scheme" content="dark light">
+  <meta name="theme-color" content="#0b0d12">
+  <title>Weft</title>
+  <link rel="icon" href="/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/app.css">
+  <script type="module" src="/app.js"></script>
+</head>
+<body>
+  <header class="top">
+    <a class="brand" href="#/"><span class="mark" aria-hidden="true"></span>weft</a>
+    <select id="repo" aria-label="Repository"></select>
+    <nav id="nav"></nav>
+    <span class="grow"></span>
+    <div id="stats" class="stats"></div>
+    <span id="conn" class="conn idle"><span class="dot"></span>connecting</span>
+    <form method="post" action="/logout" class="who"><span id="who"></span></form>
+  </header>
+  <main id="main"><div class="empty">Loading…</div></main>
+  <aside id="drawer" class="drawer" hidden></aside>
+  <div id="toasts" class="toasts"></div>
+</body>
+</html>

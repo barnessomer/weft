@@ -29,3 +29,9 @@ Append-only. One dated entry per heartbeat that changed something.
 - Codex quota wall (resets 03:03) bouncing B5/B7/B9/B14 every dispatch. Decision: B7 (gates B8, critical path) and B9 (M2 UI) → default/Claude; B5 stays (needs Codex to probe), B14 stays (first cut candidate).
 - I1 not landed into hermes-ios main: it is stacked on pushed branch review/attribution (builds 25–31, 11 commits not on main, another session's work). Decision: pushed wt/weft-feed to origin; land after review/attribution reaches main rather than landing someone else's branch.
 - Day 1: M1 waits only on B5 (Codex adapter) after quota reset. On track.
+
+## 2026-10-04 02:35 — B7 + B9 landed
+- Landed wt/b9 (web UI, preview 302→Access/key gate) and wt/b7 (sandbox runner; /v1/health 200). design.md/runbook.md conflicts resolved keeping both sections. Gate green on main (web 20, sandbox 23, gateway 53, protocol 108, sequencer 42, …). weft_land posted #207/#208. Worktrees removed, pushed.
+- B5/B15 "stranded in ready" = Codex quota wall (rate_limited requeues, no failure count); resets 03:03 — no action. B8 (critical path) + B14 running.
+- Open for later: AI Gateway `weft` not created (wrangler OAuth can't); preview uses `default` — acceptable for demo, not a blocker.
+- Day 1: on track; M1 waits on B5 only.

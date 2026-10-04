@@ -370,7 +370,7 @@ export async function bestOfN(p: BestOfNParams, step: StepLike, deps: Deps, inst
   if (needsApproval(t0.risk)) {
     let ev: { payload: { change?: string; by?: string; reject?: boolean } };
     try {
-      ev = await step.waitForEvent<{ change?: string; by?: string; reject?: boolean }>("approval", { type: "approval", timeout: `${p.approval_timeout_s ?? 86_400} seconds` });
+      ev = await step.waitForEvent<{ change?: string; by?: string; reject?: boolean }>("approval", { type: "approve", timeout: `${p.approval_timeout_s ?? 86_400} seconds` });
     } catch {
       return { status: "approval_timeout", ranking, waited: i };
     }

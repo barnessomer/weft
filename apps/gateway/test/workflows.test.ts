@@ -106,7 +106,7 @@ describe("B8: workflows wiring", () => {
     await s.j("POST", `/v1/repos/${s.repo}/sessions`, agent, hello("claude-a", c.change), 201);
     const act = await s.j<{ workflow: string; record: { kind: string } }>("POST", `/v1/repos/${s.repo}/actions`, s.human, { type: "action", action: "approve", change: c.change }, 200);
     expect(act.workflow).toBe(ids.bestOfN(s.repo, "t_9"));
-    expect(s.wf.best.events).toEqual([{ id: ids.bestOfN(s.repo, "t_9"), type: "approval", payload: { change: c.change, by: "john" } }]);
+    expect(s.wf.best.events).toEqual([{ id: ids.bestOfN(s.repo, "t_9"), type: "approve", payload: { repo: s.repo, task: "t_9", change: c.change, by: "john" } }]);
   });
 
   it("human undo of a land starts RevertOperation; system revert endpoint too", async () => {

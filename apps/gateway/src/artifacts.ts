@@ -5,6 +5,7 @@
 //                                                           mint write token, register Change-Id,
 //                                                           subscribe the fork's pushes to the queue
 //   GET  /v1/repos/{repo}/tasks/{task}/candidates   observe list candidates (no tokens)
+//   GET  /v1/repos/{repo}/tasks                     observe board: tasks + candidates + evidence tally
 //   GET  /v1/repos/{repo}/changes/{change}          observe change + revisions + evidence
 //   POST /v1/repos/{repo}/changes/{change}/token    system  re-mint a fork token
 //   DELETE /v1/repos/{repo}/changes/{change}        system  abandon: unsubscribe + delete fork
@@ -140,6 +141,11 @@ export async function artifactsRoute(req: Request, env: ArtifactsEnv, k: Kit, re
     authorizeAny(k, g, repo);
     return selectBest(req, env, k, repo, task, g);
   }
+  if (rest === "/tasks" && m === "GET") {
+    const g = await k.authenticate(req);
+    k.authorize(g, "observe", repo);
+    return k.json({ type: "tasks", repo, tasks: await listTasks(db(env, k), repo) });
+  }
   const tm = /^\/tasks\/([^/]+)\/candidates$/.exec(rest);
   if (tm) {
     const task = decodeURIComponent(tm[1]!);
@@ -256,7 +262,7 @@ export async function forwardApproval(env: ArtifactsEnv, repo: string, change: s
   if (!row) return null;
   try {
     const inst = await env.WEFT_BEST_OF_N.get(ids.bestOfN(repo, row.task));
-    await inst.sendEvent({ type: "approval", payload: { change, by } });
+    await inst.sendEvent({ type: "approve", payload: { repo, task: row.task, change, by } });
     return inst.id;
   } catch {
     return null;
@@ -281,6 +287,38 @@ async function selectBest(req: Request, env: ArtifactsEnv, k: Kit, repo: string,
     k.fail("invalid_reference", `selection for ${task} already exists: ${(e as Error).message.slice(0, 200)}`);
   }
   return k.json({ type: "selection", task, n, risk, workflow: inst!.id }, 202);
+}
+
+/**
+ * Board view (B9 web UI): every task of the repo with its candidates (no tokens) and an
+ * evidence tally per candidate. Newest activity first; capped at 500 tasks.
+ */
+async function listTasks(d: D1Database, repo: string) {
+  const [tasks, changes, evidence] = await Promise.all([
+    d.prepare(`SELECT id, title, status, candidates, created_at, updated_at FROM tasks WHERE repo = ? ORDER BY updated_at DESC LIMIT 500`).bind(repo).all<{ id: string; title: string | null; status: string; candidates: number; created_at: number; updated_at: number }>(),
+    d.prepare(`SELECT id, task, n, agent, status, head_sha, updated_at FROM changes WHERE repo = ? ORDER BY task, n`).bind(repo).all<{ id: string; task: string; n: number; agent: string | null; status: string; head_sha: string | null; updated_at: number }>(),
+    d
+      .prepare(`SELECT e.change_id AS change_id, e.status AS status, COUNT(*) AS n FROM evidence e JOIN changes c ON c.id = e.change_id WHERE c.repo = ? GROUP BY e.change_id, e.status`)
+      .bind(repo)
+      .all<{ change_id: string; status: string; n: number }>(),
+  ]);
+  const tally = new Map<string, Record<string, number>>();
+  for (const e of evidence.results) tally.set(e.change_id, { ...(tally.get(e.change_id) ?? {}), [e.status]: e.n });
+  const byTask = new Map<string, unknown[]>();
+  for (const c of changes.results) {
+    const list = byTask.get(c.task) ?? [];
+    list.push({ change: c.id, n: c.n, ...(c.agent ? { agent: c.agent } : {}), status: c.status, ...(c.head_sha ? { head_sha: c.head_sha } : {}), evidence: tally.get(c.id) ?? {}, updated_at: new Date(c.updated_at).toISOString() });
+    byTask.set(c.task, list);
+  }
+  return tasks.results.map((t) => ({
+    task: t.id,
+    ...(t.title ? { title: t.title } : {}),
+    status: t.status,
+    candidate_count: t.candidates,
+    candidates: byTask.get(t.id) ?? [],
+    created_at: new Date(t.created_at).toISOString(),
+    updated_at: new Date(t.updated_at).toISOString(),
+  }));
 }
 
 async function createCandidates(req: Request, env: ArtifactsEnv, k: Kit, repo: string, task: string): Promise<Response> {

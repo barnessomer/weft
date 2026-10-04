@@ -157,6 +157,13 @@ Agent push: `git -c http.extraHeader="Authorization: Bearer $TOKEN" push $REMOTE
 
 Live proof (creates and deletes a throwaway trunk/fork/subscription): `pnpm --filter @weft/artifacts test:live`.
 
+## Web UI (apps/web)
+
+Preview: `https://weft-web-preview.redacted-subdomain.workers.dev` (operator key in
+`~/.config/weft/web-preview-key`; gateway token in `~/.config/weft/web-preview-token.json`,
+both mode 600). Deploy: `cd apps/web && pnpm exec wrangler deploy --env preview`. Access
+setup, secrets, local dev and the `scripts/demo-feed.mjs` traffic generator: `docs/web-ui.md`.
+
 ## Sandbox runner (B7)
 
 Preview: `https://weft-sandbox-preview.redacted-subdomain.workers.dev` (`/v1/health` public).

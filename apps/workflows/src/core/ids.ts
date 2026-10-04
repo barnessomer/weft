@@ -13,5 +13,5 @@ export const ids = {
   land: (change: string, at: number) => instanceId("land", change.slice(0, 13), String(at)),
   revert: (repo: string, op: string, at: number) => instanceId("revert", repo, op, String(at)),
   /** BestOfN: one per task, so `approve` and `candidate` events can find it. */
-  bestOfN: (repo: string, task: string) => instanceId("bon", repo, task),
+  bestOfN: (repo: string, task: string) => instanceId("bestofn", repo, task),
 };

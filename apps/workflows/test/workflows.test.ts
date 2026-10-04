@@ -2,6 +2,7 @@
 import { execFileSync } from "node:child_process";
 import { describe, expect, it } from "vitest";
 import { bounceText, instanceId, needsApproval, rank } from "../src/core/common";
+import { ids } from "../src/core/ids";
 import { BASE, FakeStep, sub, world } from "./harness";
 
 const hasMergiraf = (() => {
@@ -288,7 +289,7 @@ describe("BestOfN", () => {
     const { w, c, s } = await three("high");
     for (let i = 0; i < 3; i++) await w.wf.process(c[i]!, s[i]!);
     const step = new FakeStep();
-    step.events.push({ type: "approval", payload: { change: c[1]!.change, by: "john" } });
+    step.events.push({ type: "approve", payload: { change: c[1]!.change, by: "john" } });
     const r = await w.bestOfN({ repo: w.repo, task: "t9", n: 3 }, step, w.deps, "bon-t9");
     expect(r).toMatchObject({ status: "landing", winner: c[1]!.change, approved_by: "john" });
     expect(step.waits).toEqual(["approval"]);
@@ -308,6 +309,8 @@ describe("helpers", () => {
   it("instance ids are Workflows-safe", () => {
     expect(instanceId("bon", "weft-demo", "t_1.2:x")).toBe("bon-weft-demo-t_1_2_x");
     expect(instanceId("x", "a".repeat(200)).length).toBe(100);
+    // same convention as apps/web (bestOfNInstanceId), so either can signal the instance
+    expect(ids.bestOfN("weft-demo", "t_1.2")).toBe("bestofn-weft-demo-t_1_2");
   });
   it("risk tiers", () => {
     expect(needsApproval("low")).toBe(false);
