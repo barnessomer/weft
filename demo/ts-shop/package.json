@@ -1,0 +1,6 @@
+{
+  "name": "ts-shop",
+  "private": true,
+  "type": "module",
+  "description": "Weft demo target: a tiny TypeScript shop two agents edit concurrently."
+}

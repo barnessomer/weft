@@ -224,3 +224,11 @@ WCP v0.1 is specified in `docs/protocol/wcp-v0.md` (normative; implemented by `p
   (inject only, never block). A completion refused twice for the same open errors is treated
   as a deliberate retreat on the third try: the adapter appends a `release` for those keys,
   which is visible in the feed.
+
+## Update 2026-10-04 (B4, Claude Code adapter)
+- `packages/adapters/claude-code` is the first L3 adapter, proven with two real `claude -p` sessions against the preview gateway (`demo/evidence/README.md`): B's stale call is denied at PreToolUse with a positioned `stale_assumption` squiggle, B reroutes, and the merged result typechecks; with B told to give up, the Stop gate refuses 5× and the git pre-commit gate refuses the commit.
+- Pre-edit validation uses `submit mode:"check"` (spec §5.3), not an `intent` event: `intent` is never validated (§4.2).
+- **The squiggle must carry the other side's code.** In-flight edits live in the other agent's fork, so "read the new signature" is impossible from the receiver's checkout. The adapter fetches the causing event (`GET /events/{seq}`; agent tokens get `observe` scope) and quotes its hunks. Proposal: the coordinator could attach the relevant hunk to `stale_assumption`/`contract_changed` diagnostics itself (spec v0.2).
+- **base_seq advances only when coordinator text reaches the model**, to that response's `delivered_through`. Advancing on silent responses would let an agent that read a file before a signature change submit with a base past it, and R2 would miss the stale call (the demo collision). Remaining hole (protocol, not adapter): keys an agent starts using *after* a context injection that advanced its base past an unrelated-at-the-time signature change are not flagged; a per-key/per-file knowledge base would close it (proposal for v0.2).
+- Open errors are per WCP session: an adapter must not `bye` a session with open errors at harness exit, or they are silently forgiven. The Claude adapter keeps such sessions alive (detached heartbeat) so the pre-commit gate and resumed conversations still see them.
+- Change id = the `Change-Id` trailer (`I` + 40 hex), generated per checkout+task at install.

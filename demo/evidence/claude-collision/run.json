@@ -1,0 +1,9 @@
+{
+  "scenario": "reroute",
+  "stamp": "20261004-034515",
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "repo": "demo-claude-20261004-034515",
+  "work": "/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-claude-demo-20261004-034515",
+  "b_session": "1991db97-f3e2-4db0-aec4-5508ba742487",
+  "a_session": "28cb9cfe-0b97-40e4-a9d1-a4b6ca27e797"
+}
