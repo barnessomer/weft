@@ -396,6 +396,27 @@ function hookStats(hooks) {
   return out;
 }
 
+// Preflight: agent A must have noninteractive Claude auth, or `claude -p` answers
+// "Not logged in" and the run is wasted (M1 run 5). Checked before any run starts, so it
+// never changes how a started run is scored. Headless options: CLAUDE_CODE_OAUTH_TOKEN
+// (from `claude setup-token`), ANTHROPIC_API_KEY, or a working `claude /login` keychain entry.
+{
+  let st = {};
+  try {
+    st = JSON.parse(execFileSync("claude", ["auth", "status"], { encoding: "utf8", env: { ...process.env, OPENROUTER_API_KEY: "" } }));
+  } catch (err) {
+    try {
+      st = JSON.parse(String(err.stdout ?? ""));
+    } catch {
+      st = { error: String(err.message ?? err) };
+    }
+  }
+  if (!st.loggedIn) {
+    throw new Error(`claude is not authenticated (claude auth status: ${JSON.stringify(st)}); set CLAUDE_CODE_OAUTH_TOKEN or ANTHROPIC_API_KEY, or run claude /login`);
+  }
+  console.log(`[m1] claude auth: ${st.authMethod}`);
+}
+
 for (const b of [CLAUDE_BUNDLE, CODEX_BUNDLE]) {
   const pkg = dirname(dirname(b));
   execFileSync(process.execPath, [join(pkg, "scripts/build.mjs")], { stdio: "inherit" });

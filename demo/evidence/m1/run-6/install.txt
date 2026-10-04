@@ -1,0 +1,10 @@
+weft: installed Claude Code adapter in /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-111734-r6/agent-a
+  coordinator https://weft-gateway-preview.redacted-subdomain.workers.dev repo demo-m1-20261004-111734-r6 agent claude-a task T-1 change I8c11f81a384ceb0004baa95aae526501a960089e
+  hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-111734-r6/agent-a/.claude/settings.local.json
+  git hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-111734-r6/origin/.git/worktrees/agent-a/hooks/commit-msg, pre-commit
+  agent cli: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-111734-r6/agent-a/.weft/bin/weft
+weft: installed Codex adapter in /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-111734-r6/agent-b
+  coordinator https://weft-gateway-preview.redacted-subdomain.workers.dev repo demo-m1-20261004-111734-r6 agent codex-b task T-2 change I4283f423d32f4211250a0e6e23ae7bcc0668e2c8
+  hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-111734-r6/agent-b/.codex/hooks.json, /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-111734-r6/origin/.codex/hooks.json
+  git hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-111734-r6/origin/.git/worktrees/agent-b/hooks/commit-msg, pre-commit
+  agent cli: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-111734-r6/agent-b/.weft/bin/weft
