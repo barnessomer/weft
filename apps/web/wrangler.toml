@@ -18,10 +18,20 @@ run_worker_first = true
 binding = "GATEWAY"
 service = "weft-gateway"
 
+[[dispatch_namespaces]]
+binding = "POLICY_DISPATCH"
+namespace = "weft-policies"
+
+[[analytics_engine_datasets]]
+binding = "WEFT_ANALYTICS"
+dataset = "weft_operations"
+
 [vars]
 ACCESS_TEAM_DOMAIN = ""   # e.g. "<team>.cloudflareaccess.com"
 ACCESS_AUD = ""           # Access application AUD tag
 WEFT_ALLOWED_EMAILS = ""  # optional extra allow-list, comma-separated
+WEFT_EMAIL_REPO = "weft"
+WEFT_EMAIL_FROM = "tasks@weft.work"
 
 [observability]
 enabled = true
@@ -29,6 +39,7 @@ enabled = true
 # Secrets (wrangler secret put <NAME> [--env preview]):
 #   WEFT_WEB_TOKEN  gateway token, scopes ["observe","human"], repos ["*"], principal = the human
 #   WEFT_WEB_KEY    operator key for the fallback login (only while Access is not configured)
+#   WEFT_EMAIL_TOKEN gateway token, scopes ["observe","system"], restricted to WEFT_EMAIL_REPO
 #
 # Optional, once apps/workflows deploys BestOfN (approve then also calls instance.sendEvent):
 # [[workflows]]
@@ -46,7 +57,17 @@ routes = [{ pattern = "weft-web-preview.elier.ai", custom_domain = true }]
 binding = "GATEWAY"
 service = "weft-gateway-preview"
 
+[[env.preview.dispatch_namespaces]]
+binding = "POLICY_DISPATCH"
+namespace = "weft-policies-preview"
+
+[[env.preview.analytics_engine_datasets]]
+binding = "WEFT_ANALYTICS"
+dataset = "weft_operations_preview"
+
 [env.preview.vars]
 ACCESS_TEAM_DOMAIN = ""
 ACCESS_AUD = ""
 WEFT_ALLOWED_EMAILS = ""
+WEFT_EMAIL_REPO = "weft"
+WEFT_EMAIL_FROM = "tasks@weft.work"
