@@ -1,7 +1,7 @@
 {
   "scenario": "stop-gate",
   "stamp": "20261004-034620",
-  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "url": "https://weft-gateway-preview.elier.ai",
   "repo": "demo-claude-20261004-034620",
   "work": "/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-claude-demo-20261004-034620",
   "b_session": "d7c8887a-fdb1-4eba-a6f4-86616c57dc2e",

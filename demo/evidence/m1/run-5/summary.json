@@ -1,7 +1,7 @@
 {
   "run": 5,
   "repo": "demo-m1-20261004-110555-r5",
-  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "url": "https://weft-gateway-preview.elier.ai",
   "pass": false,
   "criteria": {
     "b_got_edit_time_diagnostic_from_a": false,

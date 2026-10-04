@@ -6,6 +6,8 @@ export default defineWorkersConfig(async () => {
   return {
     test: {
       include: ["test/**/*.test.ts"],
+      // Six files share one workerd; conformance/WS tests exceed 5 s under full-gate load.
+      testTimeout: 20_000,
       setupFiles: ["./test/apply-migrations.ts"],
       poolOptions: {
         workers: {

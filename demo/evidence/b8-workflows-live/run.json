@@ -1,7 +1,7 @@
 {
   "started_at": "2026-10-04T06:04:12.784Z",
-  "gateway": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
-  "workflows": "https://weft-workflows-preview.redacted-subdomain.workers.dev",
+  "gateway": "https://weft-gateway-preview.elier.ai",
+  "workflows": "https://weft-workflows-preview.elier.ai",
   "repo": "weft-demo",
   "steps": [
     {

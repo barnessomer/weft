@@ -1,6 +1,6 @@
 {
   "repo": "demo-b12-20261004-093805",
-  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "url": "https://weft-gateway-preview.elier.ai",
   "pass": true,
   "criteria": {
     "c_denied_at_edit_time_by_a": true,

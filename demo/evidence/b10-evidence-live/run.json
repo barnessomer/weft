@@ -1,7 +1,7 @@
 {
   "started_at": "2026-10-04T08:06:25.182Z",
-  "gateway": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
-  "workflows": "https://weft-workflows-preview.redacted-subdomain.workers.dev",
+  "gateway": "https://weft-gateway-preview.elier.ai",
+  "workflows": "https://weft-workflows-preview.elier.ai",
   "repo": "weft-demo",
   "steps": [
     {
@@ -77,10 +77,10 @@
         {
           "kind": "preview",
           "status": "pass",
-          "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/<sig>/",
+          "uri": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/<sig>/",
           "data": {
-            "url": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/",
-            "trunk_url": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-demo/f804de0d96e0095c3411de23a3a21c1996c8a532/9pnuqX2DsKw7btS453Kg8A/",
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/f804de0d96e0095c3411de23a3a21c1996c8a532/9pnuqX2DsKw7btS453Kg8A/",
             "routes": [
               "/",
               "/pricing.html"
@@ -93,31 +93,31 @@
         {
           "kind": "screenshot",
           "status": "pass",
-          "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/<sig>/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/index.png",
+          "uri": "https://weft-previews-preview.elier.ai/e/<sig>/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/index.png",
           "data": {
             "route": "/",
             "width": 1280,
             "height": 800,
             "key": "screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/index.png",
-            "trunk_uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/RMogZha8xmRXOTa7E4HDbw/screens/weft-demo/trunk/f804de0d96e0/index.png",
+            "trunk_uri": "https://weft-previews-preview.elier.ai/e/RMogZha8xmRXOTa7E4HDbw/screens/weft-demo/trunk/f804de0d96e0/index.png",
             "diff_uri": null,
             "diff_ratio": 0,
-            "preview": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/"
+            "preview": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/"
           }
         },
         {
           "kind": "screenshot",
           "status": "pass",
-          "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/<sig>/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.png",
+          "uri": "https://weft-previews-preview.elier.ai/e/<sig>/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.png",
           "data": {
             "route": "/pricing.html",
             "width": 1280,
             "height": 800,
             "key": "screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.png",
-            "trunk_uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/rQn2Om-PqrQt1gvmmM--hQ/screens/weft-demo/trunk/f804de0d96e0/pricing.html.png",
-            "diff_uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/g6z0gS41XISbyQ4gAUboXQ/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.diff.png",
+            "trunk_uri": "https://weft-previews-preview.elier.ai/e/rQn2Om-PqrQt1gvmmM--hQ/screens/weft-demo/trunk/f804de0d96e0/pricing.html.png",
+            "diff_uri": "https://weft-previews-preview.elier.ai/e/g6z0gS41XISbyQ4gAUboXQ/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.diff.png",
             "diff_ratio": 0.001432,
-            "preview": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/"
+            "preview": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/"
           }
         },
         {
@@ -136,7 +136,7 @@
                 "route": "/pricing.html",
                 "ratio": 0.001432,
                 "pixels": 1466,
-                "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/g6z0gS41XISbyQ4gAUboXQ/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.diff.png"
+                "uri": "https://weft-previews-preview.elier.ai/e/g6z0gS41XISbyQ4gAUboXQ/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.diff.png"
               }
             ],
             "max_ratio": 0.001432,
@@ -225,10 +225,10 @@
         {
           "kind": "preview",
           "status": "pass",
-          "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/<sig>/",
+          "uri": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/<sig>/",
           "data": {
-            "url": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/MCtlNpdx8OQQz3IQN5KcjQ/",
-            "trunk_url": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-demo/f804de0d96e0095c3411de23a3a21c1996c8a532/9pnuqX2DsKw7btS453Kg8A/",
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/MCtlNpdx8OQQz3IQN5KcjQ/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/f804de0d96e0095c3411de23a3a21c1996c8a532/9pnuqX2DsKw7btS453Kg8A/",
             "routes": [
               "/",
               "/pricing.html"
@@ -241,31 +241,31 @@
         {
           "kind": "screenshot",
           "status": "pass",
-          "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/<sig>/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.png",
+          "uri": "https://weft-previews-preview.elier.ai/e/<sig>/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.png",
           "data": {
             "route": "/",
             "width": 1280,
             "height": 800,
             "key": "screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.png",
-            "trunk_uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/RMogZha8xmRXOTa7E4HDbw/screens/weft-demo/trunk/f804de0d96e0/index.png",
-            "diff_uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/PW-vUiH3jPRjWaeqGmCR4A/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.diff.png",
+            "trunk_uri": "https://weft-previews-preview.elier.ai/e/RMogZha8xmRXOTa7E4HDbw/screens/weft-demo/trunk/f804de0d96e0/index.png",
+            "diff_uri": "https://weft-previews-preview.elier.ai/e/PW-vUiH3jPRjWaeqGmCR4A/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.diff.png",
             "diff_ratio": 0.016659,
-            "preview": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/MCtlNpdx8OQQz3IQN5KcjQ/"
+            "preview": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/MCtlNpdx8OQQz3IQN5KcjQ/"
           }
         },
         {
           "kind": "screenshot",
           "status": "pass",
-          "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/<sig>/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/pricing.html.png",
+          "uri": "https://weft-previews-preview.elier.ai/e/<sig>/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/pricing.html.png",
           "data": {
             "route": "/pricing.html",
             "width": 1280,
             "height": 800,
             "key": "screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/pricing.html.png",
-            "trunk_uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/rQn2Om-PqrQt1gvmmM--hQ/screens/weft-demo/trunk/f804de0d96e0/pricing.html.png",
+            "trunk_uri": "https://weft-previews-preview.elier.ai/e/rQn2Om-PqrQt1gvmmM--hQ/screens/weft-demo/trunk/f804de0d96e0/pricing.html.png",
             "diff_uri": null,
             "diff_ratio": 0,
-            "preview": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/MCtlNpdx8OQQz3IQN5KcjQ/"
+            "preview": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/MCtlNpdx8OQQz3IQN5KcjQ/"
           }
         },
         {
@@ -278,7 +278,7 @@
                 "route": "/",
                 "ratio": 0.016659,
                 "pixels": 17059,
-                "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/PW-vUiH3jPRjWaeqGmCR4A/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.diff.png"
+                "uri": "https://weft-previews-preview.elier.ai/e/PW-vUiH3jPRjWaeqGmCR4A/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.diff.png"
               },
               {
                 "route": "/pricing.html",
@@ -413,16 +413,16 @@
       "summary": "claude-a pushed checkpoint bdf3fa5 — evidence claude-a: tests 2/2, preview, 2 screenshots, review pass 100, risk low",
       "x_task_title": "Add kiwi to the pricing page",
       "x_evidence": {
-        "preview_url": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/",
-        "trunk_preview_url": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-demo/f804de0d96e0095c3411de23a3a21c1996c8a532/9pnuqX2DsKw7btS453Kg8A/",
+        "preview_url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/",
+        "trunk_preview_url": "https://weft-previews-preview.elier.ai/p/weft-demo/f804de0d96e0095c3411de23a3a21c1996c8a532/9pnuqX2DsKw7btS453Kg8A/",
         "tests": {
           "passed": 2,
           "failed": 0,
           "total": 2
         },
         "screenshots": [
-          "https://weft-previews-preview.redacted-subdomain.workers.dev/e/LOo2CFw6d6sVnEdaVdJhvw/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/index.png",
-          "https://weft-previews-preview.redacted-subdomain.workers.dev/e/69V-Gj4p3rNlz3RlBMmWBw/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.png"
+          "https://weft-previews-preview.elier.ai/e/LOo2CFw6d6sVnEdaVdJhvw/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/index.png",
+          "https://weft-previews-preview.elier.ai/e/69V-Gj4p3rNlz3RlBMmWBw/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.png"
         ],
         "visual_diff": [
           {
@@ -433,7 +433,7 @@
           {
             "route": "/pricing.html",
             "ratio": 0.001432,
-            "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/g6z0gS41XISbyQ4gAUboXQ/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.diff.png"
+            "uri": "https://weft-previews-preview.elier.ai/e/g6z0gS41XISbyQ4gAUboXQ/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.diff.png"
           }
         ],
         "review": {
@@ -452,22 +452,22 @@
       "summary": "codex-b pushed checkpoint 2d82195 — evidence codex-b: tests 2/2, preview, 2 screenshots, review fail 33, risk low",
       "x_task_title": "Add kiwi to the pricing page",
       "x_evidence": {
-        "preview_url": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/MCtlNpdx8OQQz3IQN5KcjQ/",
-        "trunk_preview_url": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-demo/f804de0d96e0095c3411de23a3a21c1996c8a532/9pnuqX2DsKw7btS453Kg8A/",
+        "preview_url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-2/2d821958bf543d492a2817ce715dc75ab6692228/MCtlNpdx8OQQz3IQN5KcjQ/",
+        "trunk_preview_url": "https://weft-previews-preview.elier.ai/p/weft-demo/f804de0d96e0095c3411de23a3a21c1996c8a532/9pnuqX2DsKw7btS453Kg8A/",
         "tests": {
           "passed": 2,
           "failed": 0,
           "total": 2
         },
         "screenshots": [
-          "https://weft-previews-preview.redacted-subdomain.workers.dev/e/QuXPu0g7poCynfkkhYCC3g/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.png",
-          "https://weft-previews-preview.redacted-subdomain.workers.dev/e/JMLevsgaLvcEvAeLW-VYLw/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/pricing.html.png"
+          "https://weft-previews-preview.elier.ai/e/QuXPu0g7poCynfkkhYCC3g/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.png",
+          "https://weft-previews-preview.elier.ai/e/JMLevsgaLvcEvAeLW-VYLw/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/pricing.html.png"
         ],
         "visual_diff": [
           {
             "route": "/",
             "ratio": 0.016659,
-            "uri": "https://weft-previews-preview.redacted-subdomain.workers.dev/e/PW-vUiH3jPRjWaeqGmCR4A/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.diff.png"
+            "uri": "https://weft-previews-preview.elier.ai/e/PW-vUiH3jPRjWaeqGmCR4A/screens/weft-demo/I0661f444ed5a35d93596cb198c30d8c3350eaf42/2d821958bf54/index.diff.png"
           },
           {
             "route": "/pricing.html",
@@ -548,15 +548,15 @@
       "summary": "claude-a landed I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2 (0 symbols) — landed claude-a: Add kiwi to the pricing page (bdf3fa588902)",
       "x_task_title": "Add kiwi to the pricing page",
       "x_evidence": {
-        "preview_url": "https://weft-previews-preview.redacted-subdomain.workers.dev/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/",
+        "preview_url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-b10-mutjeffj-1/bdf3fa5889022f05b824cbab90e67b3dfa827371/OfvlbAnNS8jNr23Iak6wQg/",
         "tests": {
           "passed": 2,
           "failed": 0,
           "total": 2
         },
         "screenshots": [
-          "https://weft-previews-preview.redacted-subdomain.workers.dev/e/LOo2CFw6d6sVnEdaVdJhvw/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/index.png",
-          "https://weft-previews-preview.redacted-subdomain.workers.dev/e/69V-Gj4p3rNlz3RlBMmWBw/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.png"
+          "https://weft-previews-preview.elier.ai/e/LOo2CFw6d6sVnEdaVdJhvw/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/index.png",
+          "https://weft-previews-preview.elier.ai/e/69V-Gj4p3rNlz3RlBMmWBw/screens/weft-demo/I177bd4b3c3e9a49c39c1357ab964e7cea5ee8fc2/bdf3fa588902/pricing.html.png"
         ],
         "review": {
           "verdict": "pass",

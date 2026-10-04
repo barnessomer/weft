@@ -1,8 +1,8 @@
 weft: installed Claude Code adapter in /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064805-r3/agent-a
-  coordinator https://weft-gateway-preview.redacted-subdomain.workers.dev repo demo-m1-20261004-064805-r3 agent claude-a task T-1 change I03872423dad09a825b201358a20a71a7245d5e07
+  coordinator https://weft-gateway-preview.elier.ai repo demo-m1-20261004-064805-r3 agent claude-a task T-1 change I03872423dad09a825b201358a20a71a7245d5e07
   hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064805-r3/agent-a/.claude/settings.local.json
   git hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064805-r3/origin/.git/worktrees/agent-a/hooks/commit-msg, pre-commit
 weft: installed Codex adapter in /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064805-r3/agent-b
-  coordinator https://weft-gateway-preview.redacted-subdomain.workers.dev repo demo-m1-20261004-064805-r3 agent codex-b task T-2 change Id5f10ed5807cef48593c06d9b2dca7c1d75b7407
+  coordinator https://weft-gateway-preview.elier.ai repo demo-m1-20261004-064805-r3 agent codex-b task T-2 change Id5f10ed5807cef48593c06d9b2dca7c1d75b7407
   hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064805-r3/agent-b/.codex/hooks.json, /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064805-r3/origin/.codex/hooks.json
   git hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064805-r3/origin/.git/worktrees/agent-b/hooks/commit-msg, pre-commit

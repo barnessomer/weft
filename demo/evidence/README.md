@@ -7,7 +7,7 @@
 
 Produced by `node demo/claude-collision.mjs [stop-gate]` on 2026-10-04 (Claude Code 2.1.289,
 headless `claude -p --output-format stream-json --include-hook-events`), against the live
-preview gateway `https://weft-gateway-preview.redacted-subdomain.workers.dev`. Each run
+preview gateway `https://weft-gateway-preview.elier.ai`. Each run
 creates a fresh coordinator repo, two git worktrees of `demo/ts-shop` (one per agent, so
 neither sees the other's edits on disk), mints agent tokens (never printed), and installs
 this adapter in both with `weft-adapter-claude install`.

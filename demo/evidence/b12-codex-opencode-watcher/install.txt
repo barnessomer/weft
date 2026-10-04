@@ -1,16 +1,16 @@
 weft: installed Codex adapter in $WORK/agent-b
-  coordinator https://weft-gateway-preview.redacted-subdomain.workers.dev repo demo-b12-20261004-110944 agent codex-b task T-2 change I3de6443a0e891facdd5062f4b3d66d2692d16f8d
+  coordinator https://weft-gateway-preview.elier.ai repo demo-b12-20261004-110944 agent codex-b task T-2 change I3de6443a0e891facdd5062f4b3d66d2692d16f8d
   hooks: $WORK/agent-b/.codex/hooks.json, $WORK/origin/.codex/hooks.json
   git hooks: $WORK/origin/.git/worktrees/agent-b/hooks/commit-msg, pre-commit
   agent cli: $WORK/agent-b/.weft/bin/weft
 weft: installed opencode adapter in $WORK/agent-c
-  coordinator https://weft-gateway-preview.redacted-subdomain.workers.dev repo demo-b12-20261004-110944 agent opencode-c task T-3 change I104f44923d3efe1dc70dd591bd2ebb6ecfefaadc
+  coordinator https://weft-gateway-preview.elier.ai repo demo-b12-20261004-110944 agent opencode-c task T-3 change I104f44923d3efe1dc70dd591bd2ebb6ecfefaadc
   capabilities {"level":3,"observe":"sync","inject":"immediate","deny_edit":true,"refuse_stop":true,"commit_gate":"tool_interception"}
   plugin: $WORK/agent-c/.opencode/plugin/weft.js
   git hooks: $WORK/origin/.git/worktrees/agent-c/hooks/commit-msg, pre-commit
   agent cli: $WORK/agent-c/.weft/bin/weft
 weft: installed file-watcher adapter in $WORK/agent-w
-  coordinator https://weft-gateway-preview.redacted-subdomain.workers.dev repo demo-b12-20261004-110944 agent human-w task T-4 change I28bb8845fce5ce7f52c8125c19923b650c8a038a
+  coordinator https://weft-gateway-preview.elier.ai repo demo-b12-20261004-110944 agent human-w task T-4 change I28bb8845fce5ce7f52c8125c19923b650c8a038a
   capabilities {"level":0,"observe":"async","inject":false,"deny_edit":false,"refuse_stop":false,"commit_gate":"native"}
   run: /opt/homebrew/Cellar/node@24/24.21.0/bin/node $REPO/packages/adapters/watcher/dist/weft-watch.mjs run   (from the checkout; Ctrl-C to stop)
   git hooks: $WORK/origin/.git/worktrees/agent-w/hooks/commit-msg, pre-commit

@@ -5,7 +5,7 @@
 
 Topology (all real Cloudflare resources):
 
-- **Demo target**: Worker `weft-demo` (https://weft-demo.redacted-subdomain.workers.dev), connected
+- **Demo target**: Worker `weft-demo` (https://weft-demo.elier.ai), connected
   to **Workers Builds** from the Artifacts trunk `weft-preview/weft-demo` (`main`, deploy command
   `npx wrangler deploy`, connected in the dashboard via *Create application → Continue with
   Artifacts*). Every trunk push (land, revert, seed) builds and deploys it. The trunk's
