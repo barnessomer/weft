@@ -296,6 +296,21 @@ describe("BestOfN", () => {
     expect(w.landed[0]!.requested_by).toBe("human:john");
   });
 
+  it("a bounced (conflicting) candidate counts as settled and is ranked ineligible", async () => {
+    const w = await world();
+    const c1 = await w.candidate("t7", "claude-a");
+    const c2 = await w.candidate("t7", "codex-b");
+    const s1 = await c1.push({ "src/pricing.ts": sub(P, "apple: 1", "apple: 2") }, "apple 2");
+    const s2 = await c2.push({ "src/cart.ts": "export const cart = ['k'];\n" }, "cart k");
+    await w.trunkCommit({ "src/pricing.ts": sub(P, "apple: 1", "apple: 3") }, "apple 3");
+    expect((await w.wf.process(c1, s1)).status).toBe("conflict");
+    await w.wf.process(c2, s2);
+    const step = new FakeStep();
+    const r = await w.bestOfN({ repo: w.repo, task: "t7", n: 2 }, step, w.deps, "bestofn-t7");
+    expect(r).toMatchObject({ status: "landing", winner: c2.change, waited: 0 });
+    expect(r.ranking!.find((x) => x.change === c1.change)!.eligible).toBe(false);
+  });
+
   it("high risk without an approval times out and lands nothing", async () => {
     const { w, c, s } = await three("high");
     for (let i = 0; i < 3; i++) await w.wf.process(c[i]!, s[i]!);

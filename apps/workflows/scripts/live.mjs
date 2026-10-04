@@ -217,7 +217,7 @@ async function main() {
   step("B processed (3 × ProcessRevision)", { wall_s: (Date.now() - pushedB) / 1000, ...res });
   // What the resolver agent wrote (the fork's refs/heads/weft/rebased), vs. trunk after A.
   for (const [k, c] of [["b3", b3]]) {
-    if (res[k].layer !== "resolver") continue;
+    if (res[k].layer !== "resolver" || res[k].revision !== "processed") continue;
     const d = mkdtempSync(join(tmpdir(), "weft-b8-resolved-"));
     git(["init", "-q", d]);
     git(["fetch", "-q", c.fork.remote, "refs/heads/weft/rebased"], { cwd: d, token: c.token.plaintext });

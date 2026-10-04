@@ -339,7 +339,8 @@ export async function bestOfN(p: BestOfNParams, step: StepLike, deps: Deps, inst
   let snapshot = await step.do("collect 0", () => store.candidates(p.repo, p.task));
   let i = 0;
   const settled = (s: typeof snapshot) => s.filter((c) => c.revision && ["processed", "conflict", "failed"].includes(c.revision.status));
-  while (settled(snapshot).filter((c) => c.revision!.status === "processed").length < p.n) {
+  // N candidates = N settled revisions (processed, or bounced as conflict/failed): a bounced one is ranked ineligible.
+  while (settled(snapshot).length < p.n) {
     const now = await step.do(`clock ${i}`, async () => deps.now());
     if (now >= deadline) break;
     try {
