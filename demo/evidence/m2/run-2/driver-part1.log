@@ -1,0 +1,40 @@
+[m2 run-2 +0.8s] preflight {"gateway":200,"claude":"logged in","codex":"Logged in using ChatGPT","opencode_model":"opencode/big-pickle"}
+[m2 run-2 +5.8s] trunk seeded {"before":"d2f5a4f99c9faf6f8c89739f773e15bf8ba45de9","base":"ea906828fcc241a116b7e0bf9463632d82af3edc","seed_tests_exit":0}
+[m2 run-2 +6.1s] mark seeded
+[m2 run-2 +99.8s] tasks + candidates {"tasks":[{"task":"m2-muts51hi-t1","title":"Session expiry","risk":"medium"},{"task":"m2-muts51hi-t2","title":"Signup endpoint","risk":"low"},{"task":"m2-muts51hi-t3","title":"Session refresh","risk":"low"},{"task":"m2-muts51hi-t4","title":"Bulk discount","risk":"low"},{"task":"m2-muts51hi-t5","title":"Free shipping over $50","risk":"low"},{"task":"m2-muts51hi-t6","title":"Kiwi on the pricing page","risk":"medium"}],"candidates":[{"agent":"claude-t1","change":"I5235e5e5e0267e492daa5bee3165e2c61556b4c5","fork":"weft-weft-demo-m2-muts51hi-t1-1"},{"agent":"codex-t1","change":"I334df0fc52883933c33f529186089cd9c0b68f5e","fork":"weft-weft-demo-m2-muts51hi-t1-2"},{"agent":"opencode-t1","change":"Iaba0976efac000b4440e21919ee0f7ec01ea6529","fork":"weft-weft-demo-m2-muts51hi-t1-3"},{"agent":"claude-t2","change":"I19d34bb0886312aafc025277fc7b602acc81d2eb","fork":"weft-weft-demo-m2-muts51hi-t2-1"},{"agent":"codex-t2","change":"Ia4b9e8cb9e09a5b80cfe4684f4fbea483cafb4ba","fork":"weft-weft-demo-m2-muts51hi-t2-2"},{"agent":"opencode-t2","change":"I15b380b9e96f8f6d57346113a0400bb3f211d2a9","fork":"weft-weft-demo-m2-muts51hi-t2-3"},{"agent":"claude-t3","change":"Ib5b3084727aae0d57f8eff0b3316df79c999991e","fork":"weft-weft-demo-m2-muts51hi-t3-1"},{"agent":"codex-t3","change":"I26912ddb83b8b608968533a66ded3564fb327207","fork":"weft-weft-demo-m2-muts51hi-t3-2"},{"agent":"opencode-t3","change":"I617810dc4917027dd9e1a5180c7740df87e1736e","fork":"weft-weft-demo-m2-muts51hi-t3-3"},{"agent":"claude-t4","change":"Ic1070c998758fac5c2571452afb5cf8343c3270a","fork":"weft-weft-demo-m2-muts51hi-t4-1"},{"agent":"codex-t4","change":"Ie8836dddaff8cb1f54aac5ffd6176474362fec96","fork":"weft-weft-demo-m2-muts51hi-t4-2"},{"agent":"opencode-t4","change":"I9dd689de92c8e6e833a0334b7134d55db33000c5","fork":"weft-weft-demo-m2-muts51hi-t4-3"},{"agent":"claude-t5","change":"Ia2fb71194c88896f314334a58fc6aa1beb598cef","fork":"weft-weft-demo-m2-muts51hi-t5-1"},{"agent":"codex-t5","change":"I7b613afbe039ed1832609fb2abb1af52c524e0cc","fork":"weft-weft-demo-m2-muts51hi-t5-2"},{"agent":"opencode-t5","change":"Iad0ac46bd56d6e7d7985d4d1d5323a3bb6c84b1a","fork":"weft-weft-demo-m2-muts51hi-t5-3"},{"agent":"claude-t6","change":"I3e337804325dc98bd9e9350b9a13df8a0148481b","fork":"weft-weft-demo-m2-muts51hi-t6-1"},{"agent":"codex-t6","change":"Id329030c63a961a342a1056fef1b24fee79e121c","fork":"weft-weft-demo-m2-muts51hi-t6-2"},{"agent":"opencode-t6","change":"If50a207b0a187edcbf872b0c36bdbcdc99c54d1f","fork":"weft-weft-demo-m2-muts51hi-t6-3"}]}
+[m2 run-2 +131.4s] mark agents_ready
+[m2 run-2 +154s] pushed claude-t5 {"sha":"5c46d4ccc8d08e61eb5f866f61cd7cc493fc3ab5"}
+[m2 run-2 +155.7s] pushed claude-t6 {"sha":"66cb8d1be680f5131179b5a904d25bc92351cbf1"}
+[m2 run-2 +158.9s] pushed claude-t4 {"sha":"b4ac1be9f3e384015a9113da3d401e2647c47a6f"}
+[m2 run-2 +194.4s] mark planners_joined
+[m2 run-2 +200.5s] pushed codex-t5 {"sha":"02e1f0a60d4cc6c7b1fbf0a4554e278580387aba"}
+[m2 run-2 +205.4s] mark t1_signature_accepted
+[m2 run-2 +205.4s] t1 signature change {"seq":183}
+[m2 run-2 +207.5s] pushed codex-t4 {"sha":"e4fb875a2c986f15755c59d8dcf6f8101e0e4445"}
+[m2 run-2 +209.2s] pushed codex-t6 {"sha":"53146efdbde3ac35201b8d3848acb8937b3c16a6"}
+[m2 run-2 +338s] mark plans_done
+[m2 run-2 +354.8s] resume t1 owner for a proposal {"owner":"opencode-t1","proposal_seq":207,"from":"claude-t3"}
+[m2 run-2 +402.7s] pushed codex-t3 {"sha":"a8190fa47bf7c91fff7ca94255b6fdc84e0b95a8"}
+[m2 run-2 +435.2s] pushed codex-t2 {"sha":"9bfc05359c4a73f26c864dcfc7b358f5dcc23e5a"}
+[m2 run-2 +453.3s] pushed opencode-t6 {"sha":"b223e8c0428cbbb079ffc66875d1f72d27098d60"}
+[m2 run-2 +534.7s] pushed opencode-t5 {"sha":"bd870e46fdf964a01c5cdfee4ad3456b9e655f16"}
+[m2 run-2 +771.3s] pushed claude-t2 {"sha":"71252c8474054bebfd77d5ed7e673e6199525978"}
+[m2 run-2 +773.6s] pushed claude-t3 {"sha":"c0a1d76df0e4581bc92b5d628df0b52be927c144"}
+[m2 run-2 +795.8s] pushed opencode-t4 {"sha":"e6c2587cb7cc19a33184d9a9d075280768066911"}
+[m2 run-2 +810s] pushed opencode-t3 {"sha":"e01e8f1ca5201a4978ba41b72efed59f6f66d553"}
+[m2 run-2 +1124.7s] pushed opencode-t2 {"sha":"66600afc8092dd57950d69b85cfa173f6229ee72"}
+[m2 run-2 +1124.7s] mark t2_t3_done
+[m2 run-2 +1126.6s] pushed claude-t1 {"sha":"9bbaa91bb1f9508dd1967c561f57655d4dbe81f6"}
+[m2 run-2 +1128.4s] pushed codex-t1 {"sha":"f2056979a6c24f860cca52b6951fbbbde139a891"}
+[m2 run-2 +1130.7s] pushed opencode-t1 {"sha":"309794a812433fcf025e8093623c31d43be35413"}
+[m2 run-2 +1130.7s] mark t1_done
+[m2 run-2 +1130.7s] mark all_agents_done
+SyntaxError: Expected ',' or '}' after property value in JSON at position 307 (line 1 column 308)
+    at JSON.parse (<anonymous>)
+    at summarize (file:///Users/john/github/weft/.worktrees/m2/demo/m2-full.mjs:604:39)
+    at file:///Users/john/github/weft/.worktrees/m2/demo/m2-full.mjs:521:158
+    at Array.map (<anonymous>)
+    at file:///Users/john/github/weft/.worktrees/m2/demo/m2-full.mjs:521:106
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async Promise.all (index 12)
+    at async main (file:///Users/john/github/weft/.worktrees/m2/demo/m2-full.mjs:513:3)

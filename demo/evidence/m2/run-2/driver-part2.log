@@ -1,0 +1,10 @@
+[m2 run-2 +1134.6s] resuming run 2 (muts51hi) after: Expected ',' or '}' after property value in JSON at position 307 (line 1 column 308)
+[m2 run-2 +1135.7s] mark evidence_done
+[m2 run-2 +1155.4s] select started {"t1":{"workflow":"bestofn-weft-demo-m2-muts51hi-t1","n":3,"risk":"medium","started_at_s":1137.8},"t2":{"workflow":"bestofn-weft-demo-m2-muts51hi-t2","n":3,"risk":"low","started_at_s":1141},"t3":{"workflow":"bestofn-weft-demo-m2-muts51hi-t3","n":3,"risk":"low","started_at_s":1144.1},"t4":{"workflow":"bestofn-weft-demo-m2-muts51hi-t4","n":3,"risk":"low","started_at_s":1147.3},"t5":{"workflow":"bestofn-weft-demo-m2-muts51hi-t5","n":3,"risk":"low","started_at_s":1150.4},"t6":{"workflow":"bestofn-weft-demo-m2-muts51hi-t6","n":3,"risk":"medium","started_at_s":1153.4}}
+Error: POST /v1/repos/weft-demo/actions -> 400: {"type":"error","error":{"code":"invalid_message","message":"invalid action","retryable":false,"details":{"issues":[{"path":"/type","message":"required"}]}}}
+    at api (file:///Users/john/github/weft/.worktrees/m2/demo/m2-full.mjs:97:64)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async settleSelection (file:///Users/john/github/weft/.worktrees/m2/demo/m2-full.mjs:666:21)
+    at async Promise.all (index 0)
+    at async finishRun (file:///Users/john/github/weft/.worktrees/m2/demo/m2-full.mjs:554:3)
+    at async resume (file:///Users/john/github/weft/.worktrees/m2/demo/m2-full.mjs:786:3)

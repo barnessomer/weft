@@ -1,0 +1,5 @@
+[live +3.1s] preflight: demo serves trunk {"trunk_head":"510f0b1ed354f643b8136d1d335cfc44fb57e6aa","quote":{"status":200,"ms":77,"body":"{\"sku\":\"pear\",\"qty\":2,\"total\":4}","waited_s":0.078},"versions":{"error":"CF GET /workers/scripts/weft-demo/versions: [{\"code\":10000,\"message\":\"Authentication error\"}]"}}
+[live] FAILED: Error: CF GET /queues?per_page=100: [{"code":10000,"message":"Authentication error"}]
+    at cf (file:///Users/john/github/weft/.worktrees/m2/apps/production-signal/scripts/live.mjs:79:25)
+    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)
+    at async prove (file:///Users/john/github/weft/.worktrees/m2/apps/production-signal/scripts/live.mjs:196:18)

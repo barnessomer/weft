@@ -1,0 +1,48 @@
+[m2 run-3 +1.4s] preflight {"gateway":200,"claude":"logged in","codex":"Logged in using ChatGPT","opencode_model":"opencode/big-pickle"}
+[m2 run-3 +6.5s] trunk seeded {"before":"510f0b1ed354f643b8136d1d335cfc44fb57e6aa","base":"9cf108f01b97f15c28d38fee02d59d05e08c8dcf","seed_tests_exit":0}
+[m2 run-3 +6.6s] mark seeded
+[m2 run-3 +105.7s] tasks + candidates {"tasks":[{"task":"m2-mutt9hoi-t1","title":"Session expiry","risk":"medium"},{"task":"m2-mutt9hoi-t2","title":"Signup endpoint","risk":"low"},{"task":"m2-mutt9hoi-t3","title":"Session refresh","risk":"low"},{"task":"m2-mutt9hoi-t4","title":"Bulk discount","risk":"low"},{"task":"m2-mutt9hoi-t5","title":"Free shipping over $50","risk":"low"},{"task":"m2-mutt9hoi-t6","title":"Kiwi on the pricing page","risk":"medium"}],"candidates":[{"agent":"claude-t1-r3","change":"Ibca2d3ac1b11269188982359a1fc968017e2d09f","fork":"weft-weft-demo-m2-mutt9hoi-t1-1"},{"agent":"codex-t1-r3","change":"Ifef462754ad55d022c3fc055f225b82dca76e8c6","fork":"weft-weft-demo-m2-mutt9hoi-t1-2"},{"agent":"opencode-t1-r3","change":"I0634eb6f1e85b89d3c042f857f3e5a28e7aeffcd","fork":"weft-weft-demo-m2-mutt9hoi-t1-3"},{"agent":"claude-t2-r3","change":"Ia5cf2363fb3bde668a8581020674c0f19fd86efd","fork":"weft-weft-demo-m2-mutt9hoi-t2-1"},{"agent":"codex-t2-r3","change":"Id9584229f2f6fb5786453841b6bc716dac3b1188","fork":"weft-weft-demo-m2-mutt9hoi-t2-2"},{"agent":"opencode-t2-r3","change":"I4e80b195866efa55a42305060c79f5e476edebd0","fork":"weft-weft-demo-m2-mutt9hoi-t2-3"},{"agent":"claude-t3-r3","change":"I36f76d172e440934676814c5795252b71cf6ac16","fork":"weft-weft-demo-m2-mutt9hoi-t3-1"},{"agent":"codex-t3-r3","change":"Ifc25ae2879a6d3e02927890cd22e8fa1a2bdb987","fork":"weft-weft-demo-m2-mutt9hoi-t3-2"},{"agent":"opencode-t3-r3","change":"Idc101a68598de2c835f023f8f00e0060f3d7f2e2","fork":"weft-weft-demo-m2-mutt9hoi-t3-3"},{"agent":"claude-t4-r3","change":"I5ed3a443f98e4b0d9fa3ed120afa72019e71185a","fork":"weft-weft-demo-m2-mutt9hoi-t4-1"},{"agent":"codex-t4-r3","change":"Ib78e3c33008d2262a1d2112165a74ce1e997cd47","fork":"weft-weft-demo-m2-mutt9hoi-t4-2"},{"agent":"opencode-t4-r3","change":"I5ce6ae49afec166d6b07975a0eb3034e6acccc3b","fork":"weft-weft-demo-m2-mutt9hoi-t4-3"},{"agent":"claude-t5-r3","change":"I3a0a1e79580e15390d56149c00c3c1f3da4b3a68","fork":"weft-weft-demo-m2-mutt9hoi-t5-1"},{"agent":"codex-t5-r3","change":"I8d083088ffb0083aa77d70c5de887e4f8e26c178","fork":"weft-weft-demo-m2-mutt9hoi-t5-2"},{"agent":"opencode-t5-r3","change":"Ibd9129d662f6776124c644ca723f4830bd339130","fork":"weft-weft-demo-m2-mutt9hoi-t5-3"},{"agent":"claude-t6-r3","change":"I4c686adc123d7fe2ed802dd6f9cc79defab7b305","fork":"weft-weft-demo-m2-mutt9hoi-t6-1"},{"agent":"codex-t6-r3","change":"Ia9bec4c549493c7e4226935739abfd8617bb41f6","fork":"weft-weft-demo-m2-mutt9hoi-t6-2"},{"agent":"opencode-t6-r3","change":"Iaa2bc983cbda3fc3c2c06e78e669c9a8957ba3a4","fork":"weft-weft-demo-m2-mutt9hoi-t6-3"}]}
+[m2 run-3 +139.1s] mark agents_ready
+[m2 run-3 +159.8s] pushed claude-t6-r3 {"sha":"e351fad0b61106dae54093dfaf91f5e1997c4e6e"}
+[m2 run-3 +165.1s] pushed claude-t5-r3 {"sha":"737a0508d988fbefb042a4a96b511f2e6382b133"}
+[m2 run-3 +168s] pushed claude-t4-r3 {"sha":"a2e26730319e96b3f0e886af91d6c105c97b69f0"}
+[m2 run-3 +186.2s] mark planners_joined
+[m2 run-3 +197.8s] mark t1_signature_accepted
+[m2 run-3 +197.8s] t1 signature change {"seq":354}
+[m2 run-3 +206.6s] mark plans_done
+[m2 run-3 +220.2s] resume t1 owner for a proposal {"owner":"claude-t1-r3","proposal_seq":371,"from":"claude-t3-r3"}
+[m2 run-3 +239.9s] pushed codex-t6-r3 {"sha":"50726250477c4577fe48bd5bcf3f199d9f37da80"}
+[m2 run-3 +241.6s] pushed codex-t5-r3 {"sha":"bf04848e4a2bc68270041a7a8d284adbfa020ca7"}
+[m2 run-3 +245.1s] pushed codex-t4-r3 {"sha":"c9492d013e6373c4e8ff8e481deecdb53975cc34"}
+[m2 run-3 +252.8s] resume t1 owner for a proposal {"owner":"claude-t1-r3","proposal_seq":395,"from":"codex-t2-r3"}
+[m2 run-3 +266.1s] pushed claude-t3-r3 {"sha":"8d31827e19b4d6f2924b30553e4bdeea8fa09397"}
+[m2 run-3 +267.7s] pushed codex-t3-r3 {"sha":"ccf78fb0d68c5f77399c629335d9437a9b3050f1"}
+[m2 run-3 +284.2s] pushed claude-t2-r3 {"sha":"bb5f04976f159705617e7d041e585ace49547e89"}
+[m2 run-3 +312.5s] pushed codex-t2-r3 {"sha":"dde36476c6c48866e564b4e9ef96459728a6337e"}
+[m2 run-3 +316.7s] pushed opencode-t6-r3 {"sha":"2d38ba1fdff2b8b240cb63f94668c65b76d1a1c2"}
+[m2 run-3 +380.7s] pushed opencode-t4-r3 {"sha":"0e8dbf900d57593f913f28651df64198eff67c48"}
+[m2 run-3 +406s] pushed opencode-t2-r3 {"sha":"dd077ac6729ddfdbcba36b425de37ebf4e755180"}
+[m2 run-3 +658.1s] pushed opencode-t3-r3 {"sha":"d65dd6c53d0e34ae9a31a5c47155b0231f02ca06"}
+[m2 run-3 +658.1s] mark t2_t3_done
+[m2 run-3 +659.9s] pushed claude-t1-r3 {"sha":"6675c2d5685386c476470debc0400e8ef4347d65"}
+[m2 run-3 +661.8s] pushed codex-t1-r3 {"sha":"70c945b4f5422d0844878f733514a21c33a31a90"}
+[m2 run-3 +663.7s] pushed opencode-t1-r3 {"sha":"970f4d976bda483bf26e45fc4ad42fc28ab5f812"}
+[m2 run-3 +663.7s] mark t1_done
+[m2 run-3 +939.8s] pushed opencode-t5-r3 {"sha":"beacf1c9d0173ac30f15a82d1e9c2fd0ac7d4578"}
+[m2 run-3 +939.8s] mark all_agents_done
+[m2 run-3 +2140.5s] mark evidence_done
+[m2 run-3 +2161s] select started {"t1":{"workflow":"bestofn-weft-demo-m2-mutt9hoi-t1","n":3,"risk":"medium","started_at_s":2142.6},"t2":{"workflow":"bestofn-weft-demo-m2-mutt9hoi-t2","n":3,"risk":"low","started_at_s":2145.9},"t3":{"workflow":"bestofn-weft-demo-m2-mutt9hoi-t3","n":3,"risk":"low","started_at_s":2149.3},"t4":{"workflow":"bestofn-weft-demo-m2-mutt9hoi-t4","n":3,"risk":"low","started_at_s":2152.6},"t5":{"workflow":"bestofn-weft-demo-m2-mutt9hoi-t5","n":3,"risk":"low","started_at_s":2155.8},"t6":{"workflow":"bestofn-weft-demo-m2-mutt9hoi-t6","n":3,"risk":"medium","started_at_s":2159}}
+[m2 run-3 +2171.7s] selection t4 {"status":"complete","result":"landing","winner":"claude-t4-r3","approved_by":null,"land":{"workflow_status":"complete","status":"landed","op_id":"op-1e03b4f1e4f49e5a5556f1c5","seq":470,"before":"9cf108f01b97f15c28d38fee02d59d05e08c8dcf","after":"a2e26730319e96b3f0e886af91d6c105c97b69f0","layer":"none","attempts":1,"queue_id":18}}
+[m2 run-3 +2172.1s] human approved t1 {"by":"john (human token, as the web UI's Approve)","change":"Ibca2d3ac1b11269188982359a1fc968017e2d09f","agent":"claude-t1-r3","why":"honours the accepted overload agreement","forwarded_to":"bestofn-weft-demo-m2-mutt9hoi-t1","at_s":2172.1}
+[m2 run-3 +2172.2s] human approved t6 {"by":"john (human token, as the web UI's Approve)","change":"I4c686adc123d7fe2ed802dd6f9cc79defab7b305","agent":"claude-t6-r3","why":"highest-ranked eligible","forwarded_to":"bestofn-weft-demo-m2-mutt9hoi-t6","at_s":2172.2}
+[m2 run-3 +2172.4s] human approved t2 {"by":"john (human token, as the web UI's Approve)","change":"I4e80b195866efa55a42305060c79f5e476edebd0","agent":"opencode-t2-r3","why":"highest-ranked eligible","forwarded_to":"bestofn-weft-demo-m2-mutt9hoi-t2","at_s":2172.4}
+[m2 run-3 +2172.6s] human approved t3 {"by":"john (human token, as the web UI's Approve)","change":"I36f76d172e440934676814c5795252b71cf6ac16","agent":"claude-t3-r3","why":"highest-ranked eligible","forwarded_to":"bestofn-weft-demo-m2-mutt9hoi-t3","at_s":2172.6}
+[m2 run-3 +2184.9s] selection t5 {"status":"complete","result":"landing","winner":"claude-t5-r3","approved_by":null,"land":{"workflow_status":"complete","status":"landed","op_id":"op-f5bc3ba5042bffe96041ea81","seq":475,"before":"a2e26730319e96b3f0e886af91d6c105c97b69f0","after":"fdb8febb3d98a8bf4997c3796232b9880b855761","layer":"mergiraf","attempts":1,"queue_id":19}}
+[m2 run-3 +2199.3s] selection t6 {"status":"complete","result":"landing","winner":"claude-t6-r3","approved_by":"john","land":{"workflow_status":"complete","status":"landed","op_id":"op-a907042f83b6317e0e9e1f2e","seq":476,"before":"fdb8febb3d98a8bf4997c3796232b9880b855761","after":"c368d636c17a315ddccbda4d6eb932176acd4d82","layer":"git","attempts":1,"queue_id":20}}
+[m2 run-3 +2223.1s] selection t3 {"status":"complete","result":"landing","winner":"claude-t3-r3","approved_by":"john","land":{"workflow_status":"complete","status":"landed","op_id":"op-d546a337f9f4fee2baa65cb2","seq":477,"before":"c368d636c17a315ddccbda4d6eb932176acd4d82","after":"08b1cbce8bc09696ec9356a8c789bf3bde58e143","layer":"git","attempts":1,"queue_id":21}}
+[m2 run-3 +2244.1s] selection t2 {"status":"complete","result":"landing","winner":"opencode-t2-r3","approved_by":"john","land":{"workflow_status":"complete","status":"landed","op_id":"op-b650b4f3cb96e17aec903961","seq":478,"before":"08b1cbce8bc09696ec9356a8c789bf3bde58e143","after":"3a97a1d41679a403f99718c0f265f335fa98c3db","layer":"git","attempts":1,"queue_id":22}}
+[m2 run-3 +2265.2s] selection t1 {"status":"complete","result":"landing","winner":"claude-t1-r3","approved_by":"john","land":{"workflow_status":"complete","status":"landed","op_id":"op-929bec042642ed9e2155eee4","seq":479,"before":"3a97a1d41679a403f99718c0f265f335fa98c3db","after":"e13a9d99bd3382fadd7a766c5a8fe18276135902","layer":"git","attempts":1,"queue_id":23}}
+[m2 run-3 +2265.2s] mark landed
+[m2 run-3 +2271.2s] mark trunk_checked
+[m2 run-3 +2891.5s] mark auto_revert_done
+[m2 run-3 +2924.8s] FAIL {"agents_live":true,"collision_squiggle_reroute":true,"structural_merge":true,"negotiation_both_land":true,"comparison_and_human_approval":true,"trunk_green":true,"auto_revert":false}

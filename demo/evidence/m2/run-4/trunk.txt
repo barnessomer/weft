@@ -1,0 +1,117 @@
+head 6badd965b7d0ec1105b349aa383d44728328ddff
+6badd96 Kiwi on the pricing page (claude-t6-r4)
+d8aae15 Session refresh (claude-t3-r4)
+55d6aa0 Session expiry (claude-t1-r4)
+6553663 Free shipping over $50 (claude-t5-r4)
+1c72b46 Bulk discount (claude-t4-r4)
+e7589e7 Signup endpoint (claude-t2-r4)
+4abad18 demo: M2 seed (run 4)
+4c135b3 Revert change Id80077a10ee98b1752667f4276d2fd1eb808aaba
+7c90721 quote: support ?unit=g
+e13a9d9 Session expiry (claude-t1-r3)
+3a97a1d Signup endpoint (opencode-t2-r3)
+08b1cbc Session refresh (claude-t3-r3)
+c368d63 Kiwi on the pricing page (claude-t6-r3)
+fdb8feb Free shipping over $50 (claude-t5-r3)
+a2e2673 Bulk discount (claude-t4-r3)
+--- tsc
+
+--- node --test
+✔ login with valid credentials returns a token that works for /api/me (49.816625ms)
+✔ login rejects a wrong password and missing fields (45.990084ms)
+✔ logout revokes the token (46.714292ms)
+✔ pages render and unknown routes 404 (22.209583ms)
+✔ calcTotal applies no discount under 10 units (0.388209ms)
+✔ calcTotal takes 10% off at 10 or more units (0.080042ms)
+✔ refreshSession replaces the session with a new one for the same user (0.549292ms)
+✔ refreshSession returns undefined for an unknown token (0.082125ms)
+✔ a refreshed-away token cannot be refreshed again (0.080084ms)
+✔ createSession issues a unique token bound to the user (0.712583ms)
+✔ createSession without options uses the default lifetime (0.132833ms)
+✔ revokeSession ends the session (0.10725ms)
+✔ getSession forgets a session once it expires (0.390667ms)
+✔ shippingFee is free when the cart total is $50 or more (0.503833ms)
+✔ shippingFee is unchanged below $50 (0.077833ms)
+✔ calcTotal sums price x qty (0.3575ms)
+✔ shippingFee is flat for a non-empty cart (0.055167ms)
+✔ every catalog price is positive (0.080708ms)
+✔ signup creates the user and signs them in (25.603167ms)
+✔ the new account can log in (46.270084ms)
+✔ signup rejects UserErrors with 400 (22.989667ms)
+✔ signup requires email and password (0.139125ms)
+ℹ tests 22
+ℹ suites 0
+ℹ pass 22
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 240.055208
+
+--- src/auth/session.ts
+import { randomBytes } from "node:crypto";
+
+/** A live session. Only created via createSession; callers read it, never construct it. */
+export type Session = {
+  token: string;
+  userId: string;
+  createdAt: number;
+  /** Epoch ms after which getSession treats the session as gone (createdAt + ttlMs). */
+  expiresAt: number;
+};
+
+export type SessionOptions = { ttlMs: number };
+
+/** Standard session lifetime (1 hour), shared by login, signup and refresh. */
+export const SESSION_TTL_MS = 60 * 60 * 1000;
+
+/** Default session options, used when none are given (e.g. refreshed sessions). */
+export const DEFAULT_SESSION_OPTIONS: SessionOptions = { ttlMs: SESSION_TTL_MS };
+
+const sessions = new Map<string, Session>();
+
+/** Start a session for a user and return it (the token is the bearer credential). */
+export function createSession(userId: string): Session;
+export function createSession(userId: string, opts: SessionOptions): Session;
+export function createSession(userId: string, opts: SessionOptions = DEFAULT_SESSION_OPTIONS): Session {
+  // Old one-argument call shape (refresh, signup) keeps working: it gets the default lifetime.
+  const createdAt = Date.now();
+  const session: Session = {
+    token: randomBytes(24).toString("base64url"),
+    userId,
+    createdAt,
+    expiresAt: createdAt + opts.ttlMs,
+  };
+  sessions.set(session.token, session);
+  return session;
+}
+
+/** The live session for a token, or undefined (expired sessions are forgotten). */
+export function getSession(token: string): Session | undefined {
+  const session = sessions.get(token);
+  if (session && Date.now() >= session.expiresAt) {
+    sessions.delete(token);
+    return undefined;
+  }
+  return session;
+}
+
+export function revokeSession(token: string): boolean {
+  return sessions.delete(token);
+}
+
+/** Test helper: forget every session. */
+export function resetSessions(): void {
+  sessions.clear();
+}
+
+--- src/pricing.ts
+export type Item = { sku: string; price: number; qty: number };
+
+/** calcTotal: sum of price × quantity over the cart. shippingFee: shipping for the cart, in dollars. */
+export function calcTotal(items: Item[]): number {
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const units = items.reduce((n, item) => n + item.qty, 0);
+  return units >= 10 ? subtotal * 0.9 : subtotal;
+}
+export function shippingFee(items: Item[]): number { return items.length && calcTotal(items) < 50 ? 5 : 0; }

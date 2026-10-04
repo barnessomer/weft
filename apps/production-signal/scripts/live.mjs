@@ -72,10 +72,21 @@ async function waitWf(kind, id, until = ["complete", "errored", "terminated"], m
     await sleep(3000);
   }
 }
-async function cf(method, path, body) {
-  const tok = /oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(join(homedir(), "Library/Preferences/.wrangler/config/default.toml"), "utf8"))[1];
-  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}${path}`, { method, headers: { authorization: `Bearer ${tok}`, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
+const WRANGLER_TOML = join(homedir(), "Library/Preferences/.wrangler/config/default.toml");
+const oauthToken = () => /oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(WRANGLER_TOML, "utf8"))[1];
+/** wrangler's OAuth access token lives ~1 h; once it has expired `wrangler whoami` refreshes it. */
+function refreshOauth() {
+  const env = { ...process.env };
+  delete env.CLOUDFLARE_API_TOKEN;
+  spawnSync("npx", ["wrangler", "whoami"], { cwd: join(here, ".."), env, stdio: "ignore", timeout: 60_000 });
+}
+async function cf(method, path, body, retried = false) {
+  const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}${path}`, { method, headers: { authorization: `Bearer ${oauthToken()}`, "content-type": "application/json" }, ...(body ? { body: JSON.stringify(body) } : {}) });
   const j = await r.json();
+  if (!j.success && !retried && (j.errors ?? []).some((e) => e.code === 10000 || e.code === 9109)) {
+    refreshOauth();
+    return cf(method, path, body, true);
+  }
   if (!j.success) throw new Error(`CF ${method} ${path}: ${JSON.stringify(j.errors)}`);
   return j.result;
 }
@@ -93,13 +104,14 @@ function write(dir, files) {
   }
 }
 const read = (dir, f) => readFileSync(join(dir, f), "utf8");
+const REPLAY_AFTER_MS = Number(process.env.WEFT_REPLAY_PUSH_AFTER_S ?? 90) * 1000;
 const D1_PREVIEW = "7bd18baa-103a-4712-8dcd-5bbac18000b1";
 async function d1(sql, params = []) {
   const r = await cf("POST", `/d1/database/${D1_PREVIEW}/query`, { sql, params });
   return r[0]?.results ?? [];
 }
 async function aeSql(sql) {
-  const tok = /oauth_token\s*=\s*"([^"]+)"/.exec(readFileSync(join(homedir(), "Library/Preferences/.wrangler/config/default.toml"), "utf8"))[1];
+  const tok = oauthToken();
   const r = await fetch(`https://api.cloudflare.com/client/v4/accounts/${ACCOUNT}/analytics_engine/sql`, { method: "POST", headers: { authorization: `Bearer ${tok}` }, body: sql });
   const t = await r.text();
   try { return JSON.parse(t).data; } catch { return { status: r.status, body: t.slice(0, 300) }; }
@@ -210,6 +222,10 @@ async function prove() {
     await api("POST", `/v1/repos/${REPO}/sessions`, agentTok, hello, 201);
     step("task + candidate", { task, change: c.change, fork: c.fork.name });
 
+    // A push made seconds after its subscription is created is not delivered (run 3/4 of M2: the
+    // fork's event never arrived when pushed ~3 s after subscribing; agents that push minutes
+    // later always were). Let a fresh subscription settle first; the replay below is the backstop.
+    if (sub) await sleep(Number(process.env.WEFT_SUB_SETTLE_S ?? 45) * 1000);
     const d = mkdtempSync(join(tmpdir(), "weft-b13-agent-"));
     git(["clone", "-q", c.fork.remote, d], { token: c.token.plaintext });
     if (read(d, "src/worker.ts") !== WORKER) throw new Error("trunk src/worker.ts differs from the seeded target; run `seed` first");
@@ -223,6 +239,7 @@ async function prove() {
     // 3. ProcessRevision -> land
     const t = Date.now();
     let rev;
+    let replayed = false;
     for (;;) {
       const ch = await api("GET", `/v1/repos/${REPO}/changes/${c.change}`, SYS, undefined, 200);
       rev = ch.revisions.find((x) => x.sha === sha);
@@ -232,6 +249,18 @@ async function prove() {
         break;
       }
       if (Date.now() - t > 600_000) throw new Error(`revision still ${rev?.status ?? "unseen"}`);
+      if (!rev && !replayed && Date.now() - t > REPLAY_AFTER_MS) {
+        // Artifacts did not deliver this fork's `pushed` event (seen 2026-10-04 13:20Z onward on the
+        // preview account: fork subscriptions created then never fired). Replay the same envelope
+        // Artifacts would send into the events queue (operator reconcile); flagged in run.json.
+        const before = git(["rev-parse", "HEAD~1"], { cwd: d });
+        const commit = { id: sha, message: git(["log", "-1", "--format=%B"], { cwd: d }), timestamp: new Date().toISOString(), parents: [before] };
+        const envelope = { type: "cf.artifacts.repo.pushed", source: { type: "artifacts.repo", namespace: c.fork.namespace, repoName: c.fork.name }, payload: { ref: "refs/heads/main", before, after: sha, commits: [commit], totalCommitsCount: 1 }, metadata: { accountId: ACCOUNT, eventTimestamp: new Date().toISOString(), x_replayed_by: "live.mjs" } };
+        await cf("POST", `/queues/${queue.queue_id}/messages`, { body: envelope, content_type: "json" });
+        replayed = true;
+        out.push_event_replayed = { after_s: (Date.now() - t) / 1000, reason: "Artifacts pushed event not delivered" };
+        step("push event not delivered by Artifacts; replayed into the queue", out.push_event_replayed);
+      }
       await sleep(3000);
     }
     if (rev.status !== "processed") throw new Error(`revision ${rev.status}`);
