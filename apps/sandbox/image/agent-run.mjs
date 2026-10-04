@@ -110,6 +110,16 @@ export function harnessCommand(spec, prompt) {
 /** Parse the harness's final outcome from its JSON event stream (best effort). */
 export function parseOutcome(harness, stdout) {
   let result;
+  if (harness === "script") {
+    // System jobs (weft-job.mjs) print one `{"weft_job": …}` line: lift it into result.json.
+    for (const line of stdout.split("\n")) {
+      if (!line.startsWith('{"weft_job"')) continue;
+      try {
+        result = { is_error: false, weft_job: JSON.parse(line).weft_job };
+      } catch {}
+    }
+    return result;
+  }
   for (const line of stdout.split("\n")) {
     if (!line.startsWith("{")) continue;
     let ev;
@@ -286,7 +296,7 @@ export async function agentRun(runDir, opts = {}) {
   const h = await timed("agent", () => run(argv, { cwd, env: hEnv, stdout: so, stderr: se, detached: true, timeoutMs: (spec.timeout_s ?? 3600) * 1000 }));
   await new Promise((r) => so.end(r));
   await new Promise((r) => se.end(r));
-  const outcome = spec.harness === "script" ? undefined : parseOutcome(spec.harness, await readFile(stdoutPath, "utf8").catch(() => ""));
+  const outcome = parseOutcome(spec.harness, await readFile(stdoutPath, "utf8").catch(() => ""));
   await log("harness_exit", { code: h.code, timed_out: h.timedOut, ms: timings.agent_ms, outcome_error: outcome?.is_error ?? null });
 
   // 6. push new commits (the checkpoint Artifacts turns into a WCP `checkpoint`)

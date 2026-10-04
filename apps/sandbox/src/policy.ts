@@ -7,6 +7,8 @@ export interface OutboundProps {
   change: string;
   agent: string;
   git?: { host: string; path_prefix: string; token?: string };
+  /** Extra git remotes for system jobs (B8: trunk + fork for rebase/land/revert), same rules as `git`. */
+  gits?: Array<{ host: string; path_prefix: string; token?: string }>;
   weft?: { origin: string; token?: string };
   allow_hosts?: string[];
 }
@@ -62,13 +64,17 @@ export function decide(method: string, url: URL, props: OutboundProps, env: Outb
     return { action: "forward", set, drop, kind: "aig" };
   }
 
-  if (props.git && host === props.git.host.toLowerCase()) {
-    const prefix = props.git.path_prefix.replace(/\/+$/, "");
-    if (url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)) {
-      const set: Record<string, string> = props.git.token ? { authorization: `Bearer ${props.git.token}` } : {};
-      return { action: "forward", set, drop: ["authorization"], kind: "git" };
+  const remotes = [...(props.git ? [props.git] : []), ...(props.gits ?? [])];
+  const sameHost = remotes.filter((g) => host === g.host.toLowerCase());
+  if (sameHost.length) {
+    for (const g of sameHost) {
+      const prefix = g.path_prefix.replace(/\/+$/, "");
+      if (url.pathname === prefix || url.pathname.startsWith(`${prefix}/`)) {
+        const set: Record<string, string> = g.token ? { authorization: `Bearer ${g.token}` } : {};
+        return { action: "forward", set, drop: ["authorization"], kind: "git" };
+      }
     }
-    return { action: "deny", status: 403, message: `${host}: only this run's fork is reachable` };
+    return { action: "deny", status: 403, message: `${host}: only this run's ${remotes.length > 1 ? "repositories are" : "fork is"} reachable` };
   }
 
   if (props.weft) {
