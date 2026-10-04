@@ -366,7 +366,10 @@ function matches(/** @type {WcpEvent} */ e) {
 function fillLog() {
   const log = document.getElementById("log");
   if (!log) return;
-  const list = events().filter(matches).slice(-MAX_ROWS).reverse();
+  // during a replay the log shows only what the replay has reached so far (render() during a
+  // replay would otherwise refill it with the whole log and the animation would be invisible)
+  const src = S.replay ? S.replay.list.slice(0, S.replay.i) : events();
+  const list = src.filter(matches).slice(-MAX_ROWS).reverse();
   mount(log, list.length ? list.map((e) => rowFor(e)) : h("li.empty", null, S.conn === "loading" ? "Loading…" : "No records yet. Agents' edits will stream in here live."));
 }
 
@@ -503,7 +506,9 @@ function flashSquiggle(/** @type {WcpEvent} */ e) {
 // ----- replay (demo): re-animate the stored log at N× speed
 
 function startReplay(/** @type {number} */ speed) {
-  const list = events();
+  // replay what the filter shows: gaps between matching records only, so a filtered replay of
+  // one run in a busy repo doesn't sit through every other run's records
+  const list = events().filter(matches);
   if (!list.length) return;
   S.replay = { timer: 0, speed, i: 0, list };
   const log = document.getElementById("log");

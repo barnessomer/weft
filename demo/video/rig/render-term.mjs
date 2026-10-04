@@ -19,10 +19,17 @@ const tapes = join(out, ".tapes");
 mkdirSync(tapes, { recursive: true });
 const NODE = "/opt/homebrew/opt/node@24/bin";
 
+function mainCheckout() {
+  const common = spawnSync("git", ["rev-parse", "--path-format=absolute", "--git-common-dir"], { cwd: REPO, encoding: "utf8" }).stdout.trim();
+  return common.replace(/\/\.git$/, "");
+}
+
 let failed = 0;
 for (const shot of spec.shots.filter((s) => !want || want.includes(s.id))) {
   const mp4 = join(out, `${shot.id}.mp4`);
   const cmd = shot.exec ?? `node demo/video/rig/play.mjs ${shot.id}`;
+  // "cwd": "main-checkout" runs a live command from the repo's main checkout (not a worktree path).
+  const cwd = shot.cwd === "main-checkout" ? mainCheckout() : REPO;
   const tape = [
     `Output "${mp4}"`,
     `Set Shell "bash"`,
@@ -38,7 +45,7 @@ for (const shot of spec.shots.filter((s) => !want || want.includes(s.id))) {
     `Set WaitTimeout 180s`,
     `Set WaitPattern /weft \\$\\s*$/`,
     `Hide`,
-    `Type "cd '${REPO}' && export PATH=${NODE}:$PATH && export PS1='weft \\$ ' && clear"`,
+    `Type "cd '${shot.exec ? cwd : REPO}' && export PATH=${NODE}:$PATH && export PS1='weft \\$ ' && clear"`,
     `Enter`,
     `Wait`,
     shot.exec ? `Show` : `Type "${cmd.replace(/"/g, '\\"')}"`,
@@ -53,7 +60,7 @@ for (const shot of spec.shots.filter((s) => !want || want.includes(s.id))) {
   let ms;
   if (shot.exec) {
     const t0 = Date.now();
-    sh("bash", ["-lc", `export PATH=${NODE}:$PATH; ${shot.exec}`], { cwd: REPO });
+    sh("bash", ["-lc", `export PATH=${NODE}:$PATH; ${shot.exec}`], { cwd });
     ms = Date.now() - t0 + 1500 + (shot.hold ?? 3000);
   } else {
     const r = spawnSync(process.execPath, [join(RIG, "play.mjs"), shot.id, "--estimate"], { cwd: REPO, encoding: "utf8" });

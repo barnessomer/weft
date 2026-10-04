@@ -1,0 +1,230 @@
+{
+  "total": 458.41,
+  "shots": [
+    {
+      "section": "00",
+      "shot": "S00a",
+      "at": 0,
+      "seconds": 13.31,
+      "clip_seconds": 15.73
+    },
+    {
+      "section": "00",
+      "shot": "S00b",
+      "at": 13.31,
+      "seconds": 3.66,
+      "clip_seconds": 3.66,
+      "kind": "card"
+    },
+    {
+      "section": "01",
+      "shot": "S01a",
+      "at": 16.97,
+      "seconds": 14.09,
+      "clip_seconds": 14.09,
+      "kind": "card"
+    },
+    {
+      "section": "01",
+      "shot": "S01c",
+      "at": 31.06,
+      "seconds": 23.86,
+      "clip_seconds": 26.6
+    },
+    {
+      "section": "02",
+      "shot": "S02a",
+      "at": 54.92,
+      "seconds": 35.55,
+      "clip_seconds": 41.2
+    },
+    {
+      "section": "02",
+      "shot": "S02b",
+      "at": 90.47,
+      "seconds": 5.65,
+      "clip_seconds": 7.93
+    },
+    {
+      "section": "03",
+      "shot": "S03a",
+      "at": 96.13,
+      "seconds": 26.29,
+      "clip_seconds": 28.8
+    },
+    {
+      "section": "03",
+      "shot": "S03b",
+      "at": 122.42,
+      "seconds": 15.48,
+      "clip_seconds": 16.04
+    },
+    {
+      "section": "03",
+      "shot": "S03c",
+      "at": 137.9,
+      "seconds": 4.78,
+      "clip_seconds": 7.76
+    },
+    {
+      "section": "03",
+      "shot": "S03d",
+      "at": 142.68,
+      "seconds": 20.33,
+      "clip_seconds": 20.56
+    },
+    {
+      "section": "04",
+      "shot": "S04a",
+      "at": 163,
+      "seconds": 14.73,
+      "clip_seconds": 17.63
+    },
+    {
+      "section": "04",
+      "shot": "S04b",
+      "at": 177.73,
+      "seconds": 6.24,
+      "clip_seconds": 6.84
+    },
+    {
+      "section": "04",
+      "shot": "S04c",
+      "at": 183.97,
+      "seconds": 12.15,
+      "clip_seconds": 12.15,
+      "kind": "card"
+    },
+    {
+      "section": "05",
+      "shot": "S05a",
+      "at": 196.12,
+      "seconds": 9.35,
+      "clip_seconds": 11.3
+    },
+    {
+      "section": "05",
+      "shot": "S05b",
+      "at": 205.47,
+      "seconds": 34.56,
+      "clip_seconds": 37.57
+    },
+    {
+      "section": "05",
+      "shot": "S05c",
+      "at": 240.03,
+      "seconds": 8.05,
+      "clip_seconds": 10.53
+    },
+    {
+      "section": "06",
+      "shot": "S06a",
+      "at": 248.08,
+      "seconds": 12.37,
+      "clip_seconds": 12.37,
+      "kind": "card"
+    },
+    {
+      "section": "06",
+      "shot": "S06c",
+      "at": 260.45,
+      "seconds": 12.42,
+      "clip_seconds": 13.12
+    },
+    {
+      "section": "06",
+      "shot": "S05c",
+      "at": 272.87,
+      "seconds": 4.34,
+      "clip_seconds": 10.53
+    },
+    {
+      "section": "06",
+      "shot": "S06d",
+      "at": 277.21,
+      "seconds": 7.39,
+      "clip_seconds": 10.07
+    },
+    {
+      "section": "07",
+      "shot": "S07b",
+      "at": 284.61,
+      "seconds": 29.83,
+      "clip_seconds": 33.3
+    },
+    {
+      "section": "07",
+      "shot": "S07c",
+      "at": 314.44,
+      "seconds": 9.24,
+      "clip_seconds": 9.24,
+      "kind": "card"
+    },
+    {
+      "section": "08",
+      "shot": "S08a",
+      "at": 323.67,
+      "seconds": 17.79,
+      "clip_seconds": 19.5
+    },
+    {
+      "section": "08",
+      "shot": "S08b",
+      "at": 341.46,
+      "seconds": 12.61,
+      "clip_seconds": 14
+    },
+    {
+      "section": "09",
+      "shot": "S09a",
+      "at": 354.08,
+      "seconds": 10.27,
+      "clip_seconds": 12.73
+    },
+    {
+      "section": "09",
+      "shot": "S09c",
+      "at": 364.35,
+      "seconds": 16.34,
+      "clip_seconds": 16.34,
+      "kind": "card"
+    },
+    {
+      "section": "09",
+      "shot": "S09b",
+      "at": 380.69,
+      "seconds": 9.75,
+      "clip_seconds": 11.5
+    },
+    {
+      "section": "10",
+      "shot": "S10a",
+      "at": 390.43,
+      "seconds": 13.11,
+      "clip_seconds": 13.11,
+      "kind": "card"
+    },
+    {
+      "section": "10",
+      "shot": "S10c",
+      "at": 403.54,
+      "seconds": 15.73,
+      "clip_seconds": 15.44
+    },
+    {
+      "section": "11",
+      "shot": "S11a",
+      "at": 419.28,
+      "seconds": 33.63,
+      "clip_seconds": 39.13
+    },
+    {
+      "section": "11",
+      "shot": "S11b",
+      "at": 452.91,
+      "seconds": 5.51,
+      "clip_seconds": 5.51,
+      "kind": "card"
+    }
+  ]
+}

@@ -63,14 +63,16 @@ sh("xcrun", ["simctl", "ui", dev.udid, "appearance", spec.appearance ?? "dark"])
 
 function token(kind) {
   if (kind === "human") return JSON.parse(readFileSync(join(homedir(), ".config/weft/web-preview-token.json"), "utf8")).token;
-  return readFileSync(join(homedir(), ".config/weft/observer-all-token"), "utf8").trim();
+  // other kinds: ~/.config/weft/<kind>-token, e.g. "observer-video" = observe-only, scoped to the
+  // repos on screen (the header shows the token's repo count, so an all-repos token reads "45 repos")
+  return readFileSync(join(homedir(), `.config/weft/${kind === "observer" ? "observer-all" : kind}-token`), "utf8").trim();
 }
 
 let failed = 0;
 for (const shot of spec.shots.filter((s) => !want || want.includes(s.id))) {
   try { sh("xcrun", ["simctl", "terminate", dev.udid, BUNDLE]); } catch {} // not running is fine
   // Filter (repos/onlyConflicts) is persisted app state: write it before launch.
-  const filter = { repos: shot.repos ?? [], tasks: [], agents: [], kinds: [], onlyConflicts: !!shot.onlyConflicts };
+  const filter = { repos: shot.repos ?? [], tasks: shot.tasks ?? [], agents: [], kinds: shot.kinds ?? [], onlyConflicts: !!shot.onlyConflicts };
   sh("xcrun", ["simctl", "spawn", dev.udid, "defaults", "write", BUNDLE, "weft.filter", "-data", Buffer.from(JSON.stringify(filter)).toString("hex")]);
   const launchArgs = ["-hermes.tab", "changes", "-hermes.url", "http://127.0.0.1:1", "-hermes.key", "x",
     "-weft.url", GATEWAY, "-weft.token", token(shot.token ?? "observer"), ...(shot.args ?? [])];
@@ -90,10 +92,11 @@ for (const shot of spec.shots.filter((s) => !want || want.includes(s.id))) {
   await new Promise((r) => rec.on("exit", r));
   const mp4 = join(out, `${shot.id}.mp4`);
   // Phone centred on a 1920x1080 stage; trim the first second (recorder warm-up).
-  sh("ffmpeg", ["-y", "-loglevel", "error", "-ss", "1", "-i", mov, "-filter_complex",
-    // simctl writes frames only when the screen changes (variable frame rate): pad with the last
-    // frame and cut to the scripted length.
-    `color=c=${spec.stage ?? "0x0b0d12"}:s=1920x1080:r=30[bg];[0:v]scale=-2:1000:flags=lanczos,fps=30,tpad=stop_mode=clone:stop_duration=60[ph];[bg][ph]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuv420p`,
+  sh("ffmpeg", ["-y", "-loglevel", "error", "-i", mov, "-filter_complex",
+    // simctl writes frames only when the screen changes (variable frame rate): fps=30 fills the
+    // gaps BEFORE the warm-up trim (an input-side -ss would drop the only frame of a still screen
+    // and leave the stage black until the next change), then pad with the last frame and cut.
+    `color=c=${spec.stage ?? "0x0b0d12"}:s=1920x1080:r=30[bg];[0:v]fps=30,trim=start=1,setpts=PTS-STARTPTS,scale=-2:1000:flags=lanczos,tpad=stop_mode=clone:stop_duration=60[ph];[bg][ph]overlay=(W-w)/2:(H-h)/2:shortest=1,format=yuv420p`,
     "-t", String(shot.seconds ?? 8), "-c:v", "libx264", "-preset", "slow", "-crf", "16", "-an", mp4]);
   rmSync(mov, { force: true });
   const check = scanVideo(mp4, 1);

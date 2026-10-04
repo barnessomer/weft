@@ -3,9 +3,9 @@
   "lead": 0.4,
   "tail": 0.7,
   "sections": [
-    { "id": "00", "shots": [{ "id": "S00a" }, { "id": "S00b", "cue": "This is Weft" }] },
+    { "id": "00", "shots": [{ "id": "S00a" }, { "id": "S00b", "cue": "This is Weft" }], "tail": 2.6 },
     { "id": "01", "shots": [{ "id": "S01a" }, { "id": "S01c", "cue": "Agents are not slow" }] },
-    { "id": "02", "shots": [{ "id": "S02a" }, { "id": "S02b", "cue": "The verdict goes straight back" }] },
+    { "id": "02", "shots": [{ "id": "S02a" }, { "id": "S02b", "cue": "The wire format is" }] },
     { "id": "03", "shots": [{ "id": "S03a" }, { "id": "S03b", "cue": "Codex gets the reason" }, { "id": "S03c", "cue": "Codex reads it" }, { "id": "S03d", "cue": "Both branches merge" }] },
     { "id": "04", "shots": [{ "id": "S04a" }, { "id": "S04b", "cue": "The proposal is injected" }, { "id": "S04c", "cue": "writes real TypeScript overloads" }] },
     { "id": "05", "shots": [{ "id": "S05a" }, { "id": "S05b", "cue": "Every push is rebased" }, { "id": "S05c", "cue": "Weft landed the right one" }] },

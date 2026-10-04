@@ -1,159 +1,394 @@
 {
-  "comment": "Web UI shots (record-web.mjs). Hash routes on the web UI base (default https://weft-web-preview.elier.ai). Repos marked dry-run are stand-ins until R3 produces the final runs on the preview gateway; see storyboard.md. 'mark start/end' bound the trimmed clip.",
+  "comment": "Web UI shots (record-web.mjs). Hash routes on the web UI base (default https://weft-web-preview.elier.ai). Holds are sized to the slots in `assemble.mjs --plan` (+~1.5 s). 'mark start/end' bound the trimmed clip.",
   "scale": 1.25,
   "shots": [
     {
       "id": "S00a",
       "note": "Cold open: the red squiggle on createSession (M1 run 1), Squiggles panel big.",
       "steps": [
-        { "goto": "#/r/demo-m1-20261004-064201-r1/live" },
-        { "waitFor": ".row[data-seq=\"9\"]" },
-        { "hold": 1500 },
-        { "mark": "start" },
-        { "hover": ".row[data-seq=\"9\"]" },
-        { "hold": 6000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/demo-m1-20261004-064201-r1/live"
+        },
+        {
+          "waitFor": ".row[data-seq=\"9\"]"
+        },
+        {
+          "hold": 1500
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "hover": ".row[data-seq=\"9\"]"
+        },
+        {
+          "hold": 15500
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S01c",
       "note": "Many agents' edits: the weft repo's own log replayed at 64x.",
       "steps": [
-        { "goto": "#/r/weft/live" },
-        { "waitFor": ".row" },
-        { "hold": 1500 },
-        { "select": ["select.speed", "64"] },
-        { "mark": "start" },
-        { "click": "button.replay" },
-        { "hold": 12000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/weft/live"
+        },
+        {
+          "waitFor": ".row"
+        },
+        {
+          "hold": 1500
+        },
+        {
+          "select": [
+            "select.speed",
+            "64"
+          ]
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "click": "button.replay"
+        },
+        {
+          "hold": 26500
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S02b",
       "note": "One record opened: reads/writes with sig/body chips and the diff.",
       "steps": [
-        { "goto": "#/r/demo-m1-20261004-064201-r1/live" },
-        { "waitFor": ".row[data-seq=\"3\"]" },
-        { "hold": 1000 },
-        { "mark": "start" },
-        { "click": ".row[data-seq=\"3\"]" },
-        { "hold": 7000 },
-        { "press": "Escape" },
-        { "hold": 800 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/demo-m1-20261004-064201-r1/live"
+        },
+        {
+          "waitFor": ".row[data-seq=\"3\"]"
+        },
+        {
+          "hold": 1000
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "click": ".row[data-seq=\"3\"]"
+        },
+        {
+          "hold": 7000
+        },
+        {
+          "press": "Escape"
+        },
+        {
+          "hold": 800
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S03a",
-      "note": "M1 replayed at 1x: #3 signature change, #9 REJECTED + squiggle, #10 accepted. Hover #9 outlines its cause #3.",
+      "note": "M1 replayed at 4x: #3 signature change, #9 REJECTED + squiggle, #10 accepted. Hover #9 outlines its cause #3, then open #9's detail.",
       "steps": [
-        { "goto": "#/r/demo-m1-20261004-064201-r1/live" },
-        { "waitFor": ".row" },
-        { "hold": 1000 },
-        { "select": ["select.speed", "4"] },
-        { "mark": "start" },
-        { "click": "button.replay" },
-        { "hold": 14000 },
-        { "hover": ".row[data-seq=\"9\"]" },
-        { "hold": 4000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/demo-m1-20261004-064201-r1/live"
+        },
+        {
+          "waitFor": ".row"
+        },
+        {
+          "hold": 1000
+        },
+        {
+          "select": [
+            "select.speed",
+            "4"
+          ]
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "click": "button.replay"
+        },
+        {
+          "hold": 14000
+        },
+        {
+          "hover": ".row[data-seq=\"9\"]"
+        },
+        {
+          "hold": 5000
+        },
+        {
+          "click": ".row[data-seq=\"9\"]"
+        },
+        {
+          "hold": 9500
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S04a",
-      "note": "DRY-RUN STAND-IN (synthetic demo-feed repo). R3: replace repo with the B11 run recorded on the preview gateway (WEFT_URL=https://weft-gateway-preview.elier.ai node demo/b11-negotiation.mjs).",
+      "note": "B11 run 6 on the deployed preview gateway (demo-b11-20261004-144005-r6): full log, filter to negotiation, open the proposal #10.",
       "steps": [
-        { "goto": "#/r/weft-ui-live1/live" },
-        { "waitFor": ".row" },
-        { "hold": 1000 },
-        { "mark": "start" },
-        { "fill": ["input.search", "negotiat"] },
-        { "hold": 5000 },
-        { "fill": ["input.search", ""] },
-        { "hold": 1000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/demo-b11-20261004-144005-r6/live"
+        },
+        {
+          "waitFor": ".row[data-seq=\"10\"]"
+        },
+        {
+          "hold": 1500
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "hold": 2500
+        },
+        {
+          "type": [
+            "input.search",
+            "negotiat"
+          ],
+          "delay": 110
+        },
+        {
+          "hold": 6000
+        },
+        {
+          "fill": [
+            "input.search",
+            ""
+          ]
+        },
+        {
+          "hold": 800
+        },
+        {
+          "click": ".row[data-seq=\"10\"]"
+        },
+        {
+          "hold": 7500
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S05a",
       "note": "Board of the demo target repo.",
       "steps": [
-        { "goto": "#/r/weft-demo/board" },
-        { "waitText": "Landed" },
-        { "hold": 1500 },
-        { "mark": "start" },
-        { "hold": 6000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/weft-demo/board"
+        },
+        {
+          "waitText": "Landed"
+        },
+        {
+          "hold": 1500
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "hold": 5000
+        },
+        {
+          "scroll": 400
+        },
+        {
+          "hold": 6000
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S05b",
-      "note": "B10: 'Add kiwi to the pricing page' — two candidates, screenshots, visual diff, review pass 100 vs fail 33.",
+      "note": "B10: 'Add kiwi to the pricing page' \u2014 two candidates, screenshots, visual diff, review pass 100 vs fail 33.",
       "steps": [
-        { "goto": "#/r/weft-demo/task/b10-mutjeffj" },
-        { "waitText": "Add kiwi" },
-        { "hold": 2500 },
-        { "mark": "start" },
-        { "hold": 5000 },
-        { "scroll": 420 },
-        { "hold": 6000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/weft-demo/task/b10-mutjeffj"
+        },
+        {
+          "waitText": "Add kiwi"
+        },
+        {
+          "hold": 2500
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "hold": 7000
+        },
+        {
+          "scroll": 250
+        },
+        {
+          "hold": 9000
+        },
+        {
+          "scroll": 300
+        },
+        {
+          "hold": 10000
+        },
+        {
+          "scroll": -550
+        },
+        {
+          "hold": 11000
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S05c",
       "note": "Ops view: land/revert op log with Undo.",
       "steps": [
-        { "goto": "#/r/weft-demo/ops" },
-        { "waitFor": "main" },
-        { "hold": 2500 },
-        { "mark": "start" },
-        { "hold": 6000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/weft-demo/ops"
+        },
+        {
+          "waitFor": "main"
+        },
+        {
+          "hold": 2500
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "hold": 10500
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S06d",
       "note": "B13: task reopened after auto-revert, review + production_tail_error evidence.",
       "steps": [
-        { "goto": "#/r/weft-demo/task/b13-mutj3m36" },
-        { "waitText": "Quote API" },
-        { "hold": 2500 },
-        { "mark": "start" },
-        { "hold": 4000 },
-        { "scroll": 600 },
-        { "hold": 5000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/weft-demo/task/b13-mutj3m36"
+        },
+        {
+          "waitText": "Quote API"
+        },
+        {
+          "hold": 2500
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "hold": 4000
+        },
+        {
+          "scroll": 600
+        },
+        {
+          "hold": 6000
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S07b",
-      "note": "B12: Claude Code + Codex + OpenCode + watcher on one coordinator (agents panel shows harness + level). R3: swap for the M2 repo if it has more harnesses.",
+      "note": "M2 full run 5 on weft-demo, filtered to its agents (-r5) and replayed at 64x: 18 live agents (6 tasks x Claude Code, Codex, OpenCode) on one coordinator; agents panel shows harness + level.",
       "steps": [
-        { "goto": "#/r/demo-b12-20261004-110944/live" },
-        { "waitFor": ".row" },
-        { "hold": 1000 },
-        { "select": ["select.speed", "16"] },
-        { "mark": "start" },
-        { "click": "button.replay" },
-        { "hold": 10000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/weft-demo/live"
+        },
+        {
+          "waitFor": ".row"
+        },
+        {
+          "hold": 1500
+        },
+        {
+          "select": [
+            "select.speed",
+            "64"
+          ]
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "type": [
+            "input.search",
+            "-r5"
+          ],
+          "delay": 120
+        },
+        {
+          "hold": 1200
+        },
+        {
+          "click": "button.replay"
+        },
+        {
+          "hold": 31500
+        },
+        {
+          "mark": "end"
+        }
       ]
     },
     {
       "id": "S09a",
       "note": "Built under Weft: the weft repo's log, squiggles only.",
       "steps": [
-        { "goto": "#/r/weft/live" },
-        { "waitFor": ".row" },
-        { "hold": 1500 },
-        { "mark": "start" },
-        { "click": "button.toggle" },
-        { "hold": 4000 },
-        { "scroll": 900 },
-        { "hold": 4000 },
-        { "mark": "end" }
+        {
+          "goto": "#/r/weft/live"
+        },
+        {
+          "waitFor": ".row"
+        },
+        {
+          "hold": 1500
+        },
+        {
+          "mark": "start"
+        },
+        {
+          "click": "button.toggle"
+        },
+        {
+          "hold": 5000
+        },
+        {
+          "scroll": 900
+        },
+        {
+          "hold": 7500
+        },
+        {
+          "mark": "end"
+        }
       ]
     }
   ]

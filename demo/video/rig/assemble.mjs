@@ -4,6 +4,7 @@
 // then concatenate all sections. Also writes captions.srt for the whole timeline.
 //
 //   node demo/video/rig/assemble.mjs [--audio demo/video/audio] [--sections 00,01] [--out demo/video/out]
+//        [--plan]       print each shot's slot vs clip length (no encoding)
 //        [--no-align]   caption timing proportional to words instead of whisper word timestamps
 //
 // Inputs: script.md (narration + captions text), rig/edl.json, clips/*/<shot>.mp4, <audio>/<id>.mp3.
@@ -27,7 +28,7 @@ const W = 1920, H = 1080, FPS = 30;
 const enc = ["-c:v", "libx264", "-preset", "medium", "-crf", "18", "-pix_fmt", "yuv420p", "-r", String(FPS)];
 
 function clip(id) {
-  for (const d of ["web", "term", "sim", "cards"]) {
+  for (const d of ["diagram", "web", "term", "sim", "cards"]) {
     const f = join(VIDEO, "clips", d, `${id}.mp4`);
     if (existsSync(f)) return f;
   }
@@ -37,7 +38,8 @@ function clip(id) {
 // ---- captions: chunking + timing ----
 function chunks(text) {
   const out = [];
-  for (const sent of text.replace(/\n/g, " ").match(/[^.!?]+[.!?]+["”]?|[^.!?]+$/g) ?? []) {
+  // sentence = up to . ! ? followed by whitespace/end ("Agent Plugins 1.0" is not a sentence end)
+  for (const sent of text.replace(/\n/g, " ").match(/.+?(?:[.!?]+["”]?(?=\s|$)|$)/g)?.map((s) => s.trim()).filter(Boolean) ?? []) {
     const words = sent.trim().split(/\s+/);
     let cur = [];
     for (const w of words) {
@@ -93,10 +95,23 @@ function timeCaptions(text, mp3, audioSec) {
 }
 
 // ---- caption PNGs (bottom band) ----
-const browser = await chromium.launch();
-const page = await browser.newPage({ viewport: { width: W, height: 220 } });
-async function captionPng(text, file) {
+// Chromium can die while whisper/ffmpeg hog the machine for minutes: relaunch on demand.
+let browser = null, page = null;
+async function capPage() {
+  if (!page || page.isClosed() || !browser?.isConnected()) {
+    try { await browser?.close(); } catch {}
+    browser = await chromium.launch();
+    page = await browser.newPage({ viewport: { width: W, height: 220 } });
+  }
+  return page;
+}
+async function captionPng(text, file, retry = true) {
+  try { return await captionPng1(text, file); }
+  catch (e) { if (!retry) throw e; page = null; return captionPng(text, file, false); }
+}
+async function captionPng1(text, file) {
   const esc = text.replace(/[&<>]/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" })[c]);
+  const page = await capPage();
   await page.setContent(`<!doctype html><html><body style="margin:0;width:${W}px;height:220px;display:flex;align-items:flex-end;justify-content:center;background:transparent">
     <div style="max-width:1500px;margin-bottom:34px;padding:12px 26px;border-radius:14px;background:rgba(8,10,14,.78);color:#f2f4f8;
       font:500 40px/1.3 'Inter','SF Pro Text',-apple-system,system-ui,sans-serif;text-align:center;letter-spacing:.005em">${esc}</div></body></html>`);
@@ -144,9 +159,29 @@ for (const sec of edl.sections.filter((s) => !want || want.includes(s.id))) {
   }
   // cut each shot to its slot
   const segs = [];
+  if (a.plan) {
+    for (const [i, s] of sec.shots.entries()) {
+      let have = NaN; try { have = durationSec(clip(s.id)) - (s.from ?? 0); } catch {}
+      const flag = clip(s.id).includes("/cards/") ? "card (slow zoom)" : have + 0.3 < slots[i] ? `SHORT by ${(slots[i] - have).toFixed(1)} s` : "ok";
+      console.log(`${sec.id} ${s.id.padEnd(5)} at ${(t0 + slots.slice(0, i).reduce((x, y) => x + y, 0)).toFixed(1).padStart(6)}  slot ${slots[i].toFixed(1).padStart(5)}  clip ${have.toFixed(1).padStart(5)}  ${flag}`);
+    }
+    t0 += D;
+    continue;
+  }
   for (const [i, s] of sec.shots.entries()) {
     const src = clip(s.id), seg = join(work, `${sec.id}-${i}-${s.id}.mp4`);
     const have = durationSec(src) - (s.from ?? 0);
+    const png = src.replace(/\.mp4$/, ".png");
+    if (src.includes("/cards/") && existsSync(png)) {
+      // still card: a slow push-in (4K source so zoompan doesn't jitter) instead of a frozen frame
+      const n = Math.ceil(slots[i] * FPS);
+      sh("ffmpeg", ["-y", "-loglevel", "error", "-loop", "1", "-framerate", String(FPS), "-i", png, "-vf",
+        `scale=3840:2160,zoompan=z='1+0.035*on/${n}':x='iw/2-(iw/zoom/2)':y='ih/2-(ih/zoom/2)':d=1:s=${W}x${H}:fps=${FPS},fade=t=in:st=0:d=0.25`,
+        "-t", slots[i].toFixed(3), "-an", ...enc, seg]);
+      segs.push(seg);
+      timeline.push({ section: sec.id, shot: s.id, at: +(t0 + slots.slice(0, i).reduce((x, y) => x + y, 0)).toFixed(2), seconds: +slots[i].toFixed(2), clip_seconds: +slots[i].toFixed(2), kind: "card" });
+      continue;
+    }
     const vf = [`scale=${W}:${H}:force_original_aspect_ratio=decrease`, `pad=${W}:${H}:(ow-iw)/2:(oh-ih)/2:color=0x0b0d12`, `fps=${FPS}`];
     if (s.fit === "speed" && have > slots[i]) vf.unshift(`setpts=${(slots[i] / have).toFixed(4)}*PTS`);
     else if (have < slots[i]) vf.push(`tpad=stop_mode=clone:stop_duration=${(slots[i] - have + 0.1).toFixed(2)}`);
@@ -181,7 +216,8 @@ for (const sec of edl.sections.filter((s) => !want || want.includes(s.id))) {
   console.log(`section ${sec.id} ${sc.title}: ${D.toFixed(1)} s (narration ${audioSec.toFixed(1)} s), ${sec.shots.length} shots, ${caps.length} captions`);
   t0 += D;
 }
-await browser.close();
+await browser?.close();
+if (a.plan) { console.log(`total ${t0.toFixed(1)} s`); process.exit(0); }
 
 const list = join(work, "all.txt");
 writeFileSync(list, parts.map((f) => `file '${f}'`).join("\n"));

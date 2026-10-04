@@ -5,13 +5,23 @@
   "shots": [
     {
       "id": "S08a",
-      "note": "The feed, live: Weft's own build repo (agents are editing it while this records) plus the M1 run.",
+      "note": "The feed across repos: the M2 full run (weft-demo: squiggles, landings, reverts), the B11 negotiation run and the M1 collision run. Token: observe-only, scoped to the repos on screen.",
       "repos": [
-        "weft",
+        "weft-demo",
+        "demo-b11-20261004-144005-r6",
         "demo-m1-20261004-064201-r1"
       ],
-      "seconds": 9,
-      "settle": 9000
+      "seconds": 19.5,
+      "settle": 9000,
+      "token": "observer-video",
+      "kinds": [
+        "intent",
+        "edit",
+        "negotiate",
+        "land",
+        "revert",
+        "control"
+      ]
     },
     {
       "id": "S08b",
@@ -24,16 +34,22 @@
         "demo-m1-20261004-064201-r1:9"
       ],
       "settle": 6000,
-      "seconds": 8
+      "seconds": 14,
+      "token": "observer-video"
     },
     {
       "id": "S09b",
-      "note": "Built under Weft: the weft repo, only conflicts.",
+      "note": "Built under Weft: the first collision in repo weft (#6, card t_22254bac, demo/beats/built-under-weft.md): the claim_wait warning that told the second worker to wait.",
       "repos": [
         "weft"
       ],
-      "onlyConflicts": true,
-      "seconds": 7
+      "seconds": 11.5,
+      "token": "observer-video",
+      "args": [
+        "-weft.openEvent",
+        "weft:6"
+      ],
+      "settle": 6000
     }
   ]
 }

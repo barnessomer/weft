@@ -1,0 +1,479 @@
+1
+00:00:00,400 --> 00:00:03,760
+This is an AI agent being stopped in the middle of an edit.
+
+2
+00:00:04,380 --> 00:00:07,320
+Not by a test, not by a merge conflict.
+
+3
+00:00:08,080 --> 00:00:11,300
+By another agent's change, made a few seconds earlier,
+
+4
+00:00:11,800 --> 00:00:12,800
+in a different checkout.
+
+5
+00:00:13,460 --> 00:00:14,460
+This is Weft.
+
+6
+00:00:17,368 --> 00:00:20,748
+Git and GitHub coordinate people at merge time.
+
+7
+00:00:21,148 --> 00:00:25,968
+You branch, you work for a day, and the pull request tells you what collided.
+
+8
+00:00:26,648 --> 00:00:30,508
+That works when changes are slow and humans read every diff.
+
+9
+00:00:31,208 --> 00:00:32,528
+Agents are not slow.
+
+10
+00:00:33,128 --> 00:00:36,108
+Ten of them can touch the same function in the same minute,
+
+11
+00:00:36,568 --> 00:00:41,068
+each in its own checkout, each sure its picture of the code is current.
+
+12
+00:00:41,588 --> 00:00:45,168
+By the time a pull request exists, the damage is done:
+
+13
+00:00:45,568 --> 00:00:48,688
+two branches that merge cleanly and do not compile.
+
+14
+00:00:49,548 --> 00:00:54,028
+Agents need coordination at edit time, while the code is being written.
+
+15
+00:00:55,323 --> 00:01:00,123
+Weft is a coordination layer for coding agents, built on Cloudflare.
+
+16
+00:01:00,803 --> 00:01:05,783
+Every tool call that edits code becomes an event in one strictly ordered log per
+
+17
+00:01:05,783 --> 00:01:06,783
+repository.
+
+18
+00:01:07,183 --> 00:01:13,263
+A sequencer, one Durable Object per repo, checks each edit against everything that
+
+19
+00:01:13,263 --> 00:01:17,783
+landed since the agent last looked, down to the symbol.
+
+20
+00:01:17,783 --> 00:01:22,663
+Nothing is locked; agents keep working, and Weft validates instead.
+
+21
+00:01:22,663 --> 00:01:27,203
+The verdict goes straight back into the agent's run as a diagnostic:
+
+22
+00:01:27,203 --> 00:01:30,003
+the multi-agent version of your editor's red squiggle.
+
+23
+00:01:30,623 --> 00:01:35,203
+The wire format is an open protocol, the Weft Coordination Protocol.
+
+24
+00:01:36,527 --> 00:01:39,407
+Here is the moment it exists for.
+
+25
+00:01:39,407 --> 00:01:42,167
+Two agents from two vendors.
+
+26
+00:01:42,167 --> 00:01:47,667
+Claude Code is adding session expiry, so it changes createSession to take an options
+
+27
+00:01:48,587 --> 00:01:49,587
+argument.
+
+28
+00:01:49,587 --> 00:01:54,447
+Codex, in its own checkout, planned a signup flow against the old signature.
+
+29
+00:01:54,447 --> 00:01:56,307
+Codex tries to write its call.
+
+30
+00:01:56,307 --> 00:02:02,567
+The pre-edit hook asks Weft, Weft answers no, and the edit never touches disk.
+
+31
+00:02:02,567 --> 00:02:06,347
+Codex gets the reason in its tool result: you use createSession,
+
+32
+00:02:06,607 --> 00:02:10,607
+whose signature changed in event three, by Claude,
+
+33
+00:02:10,607 --> 00:02:11,947
+after your base.
+
+34
+00:02:11,947 --> 00:02:18,047
+Below it, the actual diff, because Claude's change is not in Codex's checkout yet.
+
+35
+00:02:18,047 --> 00:02:21,427
+Codex reads it, passes a one-hour time-to-live, and retries.
+
+36
+00:02:21,427 --> 00:02:22,427
+Accepted.
+
+37
+00:02:22,827 --> 00:02:25,987
+Both branches merge, and main type-checks.
+
+38
+00:02:25,987 --> 00:02:29,947
+The conflict was resolved before either commit existed.
+
+39
+00:02:29,947 --> 00:02:35,447
+Only one side was told to yield: the agent that was first keeps the function,
+
+40
+00:02:35,447 --> 00:02:39,127
+so two agents never back off from each other forever.
+
+41
+00:02:39,947 --> 00:02:41,967
+Each check costs about half a second.
+
+42
+00:02:43,402 --> 00:02:45,442
+Being stopped is not the only option.
+
+43
+00:02:45,962 --> 00:02:49,782
+The losing agent can retreat, wait, negotiate, or escalate,
+
+44
+00:02:50,282 --> 00:02:52,282
+and each one is a protocol action.
+
+45
+00:02:52,902 --> 00:02:57,722
+Here, the second agent proposes a deal: keep the old one-argument form as an
+
+46
+00:02:57,722 --> 00:02:58,722
+overload.
+
+47
+00:02:58,722 --> 00:03:02,682
+The proposal is injected into the first agent's next tool call.
+
+48
+00:03:03,242 --> 00:03:08,802
+It accepts, writes real TypeScript overloads, and Weft won't let it finish until it
+
+49
+00:03:08,802 --> 00:03:09,802
+has.
+
+50
+00:03:09,802 --> 00:03:10,922
+Both changes land.
+
+51
+00:03:11,482 --> 00:03:15,262
+Six runs out of six, the last one live on Cloudflare.
+
+52
+00:03:16,518 --> 00:03:18,798
+Above the log sits a thin platform.
+
+53
+00:03:19,338 --> 00:03:24,238
+A task can get several candidate changes, each in its own fork in Cloudflare
+
+54
+00:03:24,238 --> 00:03:25,238
+Artifacts.
+
+55
+00:03:25,618 --> 00:03:29,358
+Every push is rebased onto trunk, tested in a sandbox,
+
+56
+00:03:30,138 --> 00:03:34,698
+previewed straight from the Artifacts commit, screenshotted with Browser Rendering
+
+57
+00:03:34,698 --> 00:03:39,638
+and pixel-diffed against trunk, then scored by a review agent against the task's
+
+58
+00:03:39,638 --> 00:03:40,638
+acceptance criteria.
+
+59
+00:03:40,638 --> 00:03:45,318
+Evidence binds to a stable Change-Id, not a commit hash,
+
+60
+00:03:45,318 --> 00:03:46,838
+so it survives every rebase.
+
+61
+00:03:46,838 --> 00:03:53,358
+For "add kiwi to the pricing page", one candidate changed the pricing page and
+
+62
+00:03:53,358 --> 00:03:54,358
+scored a hundred.
+
+63
+00:03:54,358 --> 00:03:59,338
+The other also rewrote the home page hero and failed review.
+
+64
+00:04:00,178 --> 00:04:04,218
+Weft landed the right one on its own, about eighty seconds after the push.
+
+65
+00:04:04,938 --> 00:04:07,158
+Risky work waits for a human to approve.
+
+66
+00:04:08,481 --> 00:04:10,321
+Landing is not the end.
+
+67
+00:04:10,941 --> 00:04:15,361
+We planted a bug, a missing null check that unit tests don't cover,
+
+68
+00:04:15,721 --> 00:04:16,721
+and let it land.
+
+69
+00:04:17,661 --> 00:04:19,941
+Workers Builds deployed it from the Artifacts trunk.
+
+70
+00:04:20,601 --> 00:04:23,041
+Six seconds later, production was throwing.
+
+71
+00:04:23,561 --> 00:04:26,581
+A Tail Worker fed every exception into a detector;
+
+72
+00:04:27,201 --> 00:04:32,361
+about fifteen seconds after the land, it started a revert from the operation log.
+
+73
+00:04:33,021 --> 00:04:36,821
+Forty-three seconds after the land, the fix was live again,
+
+74
+00:04:37,361 --> 00:04:41,961
+the task reopened with the stack trace attached, and the agent was told why.
+
+75
+00:04:42,561 --> 00:04:43,701
+No human touched it.
+
+76
+00:04:45,005 --> 00:04:47,545
+Weft does not care which agent you use.
+
+77
+00:04:48,065 --> 00:04:50,905
+Each harness gets a thin adapter over its own hooks,
+
+78
+00:04:51,425 --> 00:04:53,185
+and they all speak the same protocol.
+
+79
+00:04:53,925 --> 00:04:56,445
+In our full end-to-end run, eighteen live agents,
+
+80
+00:04:56,445 --> 00:05:03,525
+six each of Claude Code, Codex and OpenCode, worked six tasks against one
+
+81
+00:05:03,945 --> 00:05:04,945
+coordinator.
+
+82
+00:05:05,105 --> 00:05:08,725
+A plain file watcher covers any tool with no hooks at all,
+
+83
+00:05:09,105 --> 00:05:13,925
+and Hermes, the agent that built this project, has its own adapter too.
+
+84
+00:05:14,585 --> 00:05:18,705
+Adapters declare what they can do: observe, inject context,
+
+85
+00:05:19,365 --> 00:05:22,825
+block an edit, or refuse to finish while an error is open.
+
+86
+00:05:24,073 --> 00:05:27,613
+When agents write the code, nobody is watching an editor.
+
+87
+00:05:28,273 --> 00:05:30,473
+So Weft's human surface is a feed.
+
+88
+00:05:31,053 --> 00:05:36,073
+This is Hermes, on a phone: every intent, edit, squiggle,
+
+89
+00:05:36,593 --> 00:05:40,933
+negotiation, landing and revert, live, across repos.
+
+90
+00:05:41,613 --> 00:05:43,773
+Tap a squiggle to see what caused it.
+
+91
+00:05:44,193 --> 00:05:47,993
+Approve a candidate, undo a landing, pause an agent,
+
+92
+00:05:48,333 --> 00:05:50,753
+or send it a message, from wherever you are.
+
+93
+00:05:50,753 --> 00:05:53,053
+The same feed runs in a browser.
+
+94
+00:05:54,477 --> 00:05:56,977
+Weft was built by agents, under Weft.
+
+95
+00:05:57,597 --> 00:06:02,237
+Since the first night of the build, every kanban worker on this project ran the Weft
+
+96
+00:06:02,237 --> 00:06:03,237
+adapter.
+
+97
+00:06:03,257 --> 00:06:07,657
+In eleven hours, its own log recorded 627 events:
+
+98
+00:06:08,397 --> 00:06:12,937
+460 edits from three agent profiles across 25 tasks,
+
+99
+00:06:13,537 --> 00:06:20,037
+73 checkpoints and 18 landings, with 59 warnings that told one agent to wait for
+
+100
+00:06:20,037 --> 00:06:21,037
+another.
+
+101
+00:06:21,037 --> 00:06:23,877
+The first time two workers reached for the same function,
+
+102
+00:06:24,257 --> 00:06:28,057
+the second was told to wait, waited, and finished cleanly.
+
+103
+00:06:28,537 --> 00:06:29,537
+This is that log.
+
+104
+00:06:30,833 --> 00:06:36,713
+The Agent Plugins 1.0 spec says it plainly: hooks don't yet have consistent
+
+105
+00:06:36,713 --> 00:06:40,953
+semantics across clients, so they are not portable.
+
+106
+00:06:40,953 --> 00:06:43,693
+Coordination needs exactly that.
+
+107
+00:06:43,693 --> 00:06:50,433
+WCP is our answer: a small, versioned wire protocol with a conformance suite and a
+
+108
+00:06:50,433 --> 00:06:52,313
+reference implementation.
+
+109
+00:06:52,313 --> 00:06:57,693
+It's MIT-licensed, and we're proposing it as an open standard to the Agentic AI
+
+110
+00:06:57,693 --> 00:06:58,693
+Foundation.
+
+111
+00:06:59,677 --> 00:07:03,417
+Everything runs on Cloudflare, and every product carries weight.
+
+112
+00:07:04,257 --> 00:07:07,117
+Artifacts holds every repo, fork and preview.
+
+113
+00:07:07,937 --> 00:07:09,617
+Durable Objects are the sequencers.
+
+114
+00:07:10,397 --> 00:07:14,217
+Workflows run rebase, landing, revert and best-of-N.
+
+115
+00:07:14,217 --> 00:07:17,677
+Containers run agents and git with no secrets inside.
+
+116
+00:07:17,677 --> 00:07:23,197
+Queues carry pushes and production errors, Tail Workers watch production,
+
+117
+00:07:24,057 --> 00:07:29,517
+Browser Rendering takes the screenshots, Workers AI and AI Gateway run the reviewer,
+
+118
+00:07:30,317 --> 00:07:32,317
+D1 and R2 hold the evidence.
+
+119
+00:07:33,057 --> 00:07:34,057
+Weft.
+
+120
+00:07:34,057 --> 00:07:35,137
+Coordination at edit time.

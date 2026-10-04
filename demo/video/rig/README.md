@@ -15,6 +15,8 @@ node demo/video/rig/record-web.mjs                                        # → 
 node demo/video/rig/render-term.mjs                                       # → clips/term/*.mp4
 node demo/video/rig/record-sim.mjs [--build]                              # → clips/sim/*.mp4
 node demo/video/rig/render-cards.mjs                                      # → clips/cards/*.mp4
+node demo/video/rig/render-diagram.mjs                                    # → clips/diagram/S02a.mp4, S11a.mp4 (needs whisper cache: run assemble --plan first)
+node demo/video/rig/assemble.mjs --plan                                   # slot vs clip per shot, no encoding (flags SHORT takes)
 node demo/video/rig/assemble.mjs                                          # → out/weft-demo.mp4, out/captions.srt, out/timeline.json
 ```
 
@@ -30,7 +32,8 @@ node demo/video/rig/assemble.mjs                                          # → 
 | `play.mjs` + `shots/term.json` | prints transcript excerpts from evidence files with pacing + colour (`--estimate` = scripted length) |
 | `render-term.mjs` | writes a VHS tape per term shot (`clips/term/.tapes/`), films it, OCR-checks it |
 | `record-sim.mjs` + `shots/sim.json` | Hérmes Changes feed on a dedicated simulator, `simctl io recordVideo`, phone composed on a 1920x1080 stage |
-| `render-cards.mjs` + `shots/cards.json` | title/end/stat/quote/timeline/diagram slides → still clips |
+| `render-cards.mjs` + `shots/cards.json` | title/end/stat/quote/timeline slides → still clips (assemble gives stills a slow push-in from the PNG instead of a frozen frame) |
+| `render-diagram.mjs` | animated architecture diagrams (S02a, S11a): HTML/SVG filmed with Playwright; each step fires on its narration cue words (whisper timestamps, same mapping as assemble) |
 | `assemble.mjs` + `edl.json` | cut shots to narration length, burn captions, mux audio, concat, SRT, timeline, final OCR check |
 | `screen-safety.mjs` + `ocr.swift` | forbidden-pattern list, text redaction for transcripts, Apple Vision OCR of rendered frames |
 | `dogfood-stats.mjs` | numbers for §09 from the `weft` repo's own log |
@@ -94,7 +97,32 @@ regex per line, outside the repo so the names are never committed.
   cards gentle motion or more content. S05b now starts at "Every push is rebased" (EDL changed
   after the dry run).
 
-## Known issues for R3
+## Final cut (R3, 2026-10-04)
+
+- **Video**: https://weft-media.elier.ai/weft-demo.mp4 (R2 bucket `weft-media`, custom domain
+  `weft-media.elier.ai`; 7:38 = 458.5 s, H.264 1920x1080 30 fps + AAC 48 kHz, 72 MB, sha256
+  `0789c68c6b14a1def892529f21862ee8d2ae2c55c15b00a4b59956b243cbd64b`). Captions:
+  https://weft-media.elier.ai/weft-demo.en.srt. Too big for git (> 50 MB): `demo/video/weft-demo.mp4`
+  is gitignored; `../captions.srt`, `../timeline.json` and `../contact-sheet.jpg` are committed.
+- Narration: Workers AI Aura-2 `orion`, one mp3 per section (`audio/NN.mp3`, 7:07 of speech),
+  integrated loudness -17.3 LUFS. 120 burned-in caption cues on whisper word timing; spot-checked
+  against the final mix (e.g. "This is Weft" spoken 13.58 s, cue 13.46 s; "Git and GitHub" 17.12 s,
+  cue 17.37 s).
+- Every shot covers its slot (`assemble.mjs --plan`: no SHORT takes); stills get a slow push-in.
+  S02a and S11a are animated architecture diagrams (`render-diagram.mjs`) that light up each
+  component as it is named.
+- Screen safety: final OCR 229 frames, 0 hits; each clip OCR-checked as rendered.
+- Watch-back fixes: web UI Replay showed the whole log instead of animating (a render during the
+  replay refilled the list; `apps/web/public/app.js` now shows only what the replay has reached,
+  and a filtered replay replays only the filtered records; deployed to weft-web-preview);
+  captions split "Agent Plugins 1." / "0 spec" (sentence splitter fixed); S02a's verdict arrow
+  crossed the adapters (rerouted); simctl's first still frame was trimmed away, leaving S08a black
+  (record-sim now fills frames before trimming); S08a read "45 repos" (observe-only token scoped to
+  the 4 repos on screen, `~/.config/weft/observer-video-token`); S09b showed an empty filter
+  (now opens the first collision, `weft:6`); S10c ran in the worktree (`cwd: main-checkout`).
+
+## Known issues (historical, all resolved in the final cut)
+
 
 - **Evidence screenshots/previews are broken in the Task view** (S05b, S06d): D1 `evidence` rows
   and `x_evidence` payloads written before the hostname move still hold
