@@ -64,3 +64,27 @@ Do not make Sandboxes or Containers a deployment dependency yet. They require th
 - https://developers.cloudflare.com/artifacts/examples/sandbox-sdk-artifacts/
 - https://developers.cloudflare.com/sandbox/get-started/
 - https://developers.cloudflare.com/containers/guides/deploy/
+
+## Live verification (B6, 2026-10-04, account on Workers Paid)
+
+Verified facts (commands: `packages/artifacts/src/live/e2e.live.ts` via `pnpm --filter @weft/artifacts test:live`,
+plus direct CF API calls with wrangler OAuth):
+
+- Namespace `weft-preview` is created implicitly by the first repo create (`wrangler@4.147 artifacts repos create … --namespace weft-preview`).
+  The `[[artifacts]]` binding needs wrangler ≥ 4.14x (repo pins 4.147.0 for deploys; vitest-pool-workers keeps its own 4.35 and only warns).
+- `fork()` returns `{remote, token, tokenExpiresAt}` immediately; `createToken("write", ttl)` on the new fork worked right after (no FORK_IN_PROGRESS seen).
+  Candidate creation (fork + token + revoke initial token) takes ~5.4 s end to end from the gateway.
+- `git clone`/`git push` with the fork token via `http.extraHeader: Authorization: Bearer <token>` (passed in `GIT_CONFIG_*` env, never argv). Fork starts at trunk HEAD.
+- **Event subscriptions:** `pushed` exists only on source `artifacts.repo`, which **requires `repo_name`**. `repo_name: "*"` is accepted
+  by the API but delivers nothing (verified: push with a `*` subscription → backlog 0; with a literal subscription → 1 message).
+  The API event name is the short form `pushed` (`cf.artifacts.repo.pushed` is rejected as "Unrecognized event types").
+  ⇒ one subscription per fork: `POST /accounts/{acct}/event_subscriptions/subscriptions {source:{type:"artifacts.repo",namespace,repo_name}, destination:{type:"queues.queue",queue_id}, events:["pushed"]}`.
+- Delivered message body (HTTP pull) = JSON string of `{type:"cf.artifacts.repo.pushed", source:{namespace,repoName,type}, metadata:{accountId,eventSubscriptionId,eventSchemaVersion:1,eventTimestamp}, payload:{ref,before,after,commits[{id,message,messageTruncated,timestamp,author,committer,parents}],totalCommitsCount,commitsTruncated}}`;
+  message metadata `CF-sourceMessageSource: artifacts.repo`.
+- **Latency:** `eventTimestamp` → consumer `received_at` ≈ 3.1 s (consumer `max_batch_timeout = 2`); `git push` returned → WCP checkpoint visible via the observer API ≈ 5.2–5.5 s (3 runs, includes 500 ms polling).
+- **Landing CAS:** Artifacts receive-pack enforces the old value: two concurrent `git push --force-with-lease=refs/heads/main:<base>` of different commits → exactly one wins,
+  the other gets `[remote rejected] (stale ref)` (both outcomes observed across runs). Retrying the loser with the stale lease → client-side `stale info`.
+- Workers OAuth (wrangler) cannot create API tokens (`/accounts/{id}/tokens` → 9109 Unauthorized), so the gateway's `WEFT_CF_API_TOKEN` must be created by John in the dashboard.
+
+Unverified / for later: Workers `[[triggers.events]]` (wrangler 4.147 validates Artifacts event triggers with `filter = {namespace, repo_name?}` targeting **Workflows**) would give a
+namespace-wide `pushed` trigger without per-fork subscriptions — worth testing in B8 (ProcessRevision).

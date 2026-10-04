@@ -86,3 +86,35 @@ observer API, feed and resumable stream): `node apps/gateway/scripts/smoke.mjs`.
 Endpoints beyond the spec: `GET|POST /v1/repos/{repo}/system/queue` (submit queue: enqueue
 `{change}`, set `{id,status}`), `GET /v1/repos/{repo}/system/ops` (operation log), agent WS
 `submit` frames may carry `idempotency_key`.
+
+## Artifacts integration (B6)
+
+Resources (all `weft-`): Artifacts namespaces `weft` (prod) / `weft-preview`; Queues `weft-artifacts-events` /
+`weft-artifacts-events-preview` (consumer: the gateway's `queue()`); D1 `weft` / `weft-preview`
+(`apps/gateway/migrations`). Deploys need wrangler 4.147 (root devDependency) for the `[[artifacts]]` binding.
+
+```sh
+cd apps/gateway; unset CLOUDFLARE_API_TOKEN
+pnpm exec wrangler d1 migrations apply weft-preview --env preview --remote
+pnpm exec wrangler deploy --env preview
+# Per-fork event subscriptions from the gateway need a CF API token (Account > Queues: Edit):
+pnpm exec wrangler secret put WEFT_CF_API_TOKEN --env preview
+```
+
+```sh
+ADMIN=$(cat ~/.config/weft/preview-admin-token); U=https://weft-gateway-preview.redacted-subdomain.workers.dev
+# bind a Weft repo to an Artifacts trunk (create:true creates it in the env's namespace)
+curl -sX POST $U/v1/admin/artifacts/repos -H "authorization: Bearer ***" -d '{"repo":"weft-demo","create":true}'
+# candidates (system token): fork + write token (returned ONCE) + Change-Id + trailers
+curl -sX POST $U/v1/repos/weft-demo/tasks/t_123/candidates -H "authorization: Bearer ***" -d '{"count":3,"agents":["claude-a","codex-b","cursor-c"]}'
+# observe: GET  /v1/repos/{repo}/tasks/{task}/candidates, GET /v1/repos/{repo}/changes/{change} (revisions, evidence)
+# system:  POST /v1/repos/{repo}/changes/{change}/token {scope?,ttl?}; DELETE /v1/repos/{repo}/changes/{change};
+#          POST /v1/repos/{repo}/system/trunk-token {ttl?}   (landing: landByPush from @weft/artifacts/git)
+# subscriptions left pending (no WEFT_CF_API_TOKEN): GET|POST /v1/admin/artifacts/subscriptions {change, subscription_id}
+```
+
+Agent push: `git -c http.extraHeader="Authorization: Bearer $TOKEN" push $REMOTE HEAD:main` with trailers
+`Change-Id`, `Task-Id`, `Agent-Id` (from the candidate response). Each push becomes a `checkpoint` in the repo log
+(~5 s) and a `revisions` row with `status=queued` (B8 picks it up).
+
+Live proof (creates and deletes a throwaway trunk/fork/subscription): `pnpm --filter @weft/artifacts test:live`.

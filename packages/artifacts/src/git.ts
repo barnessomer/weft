@@ -90,7 +90,7 @@ export async function landByPush(o: LandOptions): Promise<LandResult> {
   const flag = line[0];
   if (r.code === 0 && flag !== undefined && flag !== "!") return { ok: true, ref, before: o.expected, after: o.sha };
   const detail = (line || r.stderr).trim();
-  if (/stale info|incorrect old value|fetch first|cannot lock ref|failed to update ref|but expected|non-fast-forward/i.test(detail + r.stderr)) {
+  if (/stale info|stale ref|incorrect old value|fetch first|cannot lock ref|failed to update ref|but expected|non-fast-forward/i.test(detail + r.stderr)) {
     const current = await lsRemote(o.remote, ref, o.token).catch(() => "unknown");
     if (current !== o.expected) return { ok: false, reason: "stale_trunk", ref, expected: o.expected, current, detail };
   }

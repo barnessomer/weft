@@ -405,7 +405,7 @@ async function record(push: Push, env: ArtifactsEnv, d: D1Database): Promise<Ing
       task: change.task,
       payload: { sha: push.after, ref: push.ref },
       ...(subject ? { intent: subject } : {}),
-      summary_hint: `${change.agent ?? "agent"} pushed ${push.after.slice(0, 7)} to ${change.fork}${push.totalCommits > 1 ? ` (${push.totalCommits} commits)` : ""}`.slice(0, 140),
+      summary_hint: `${change.agent ? `${change.agent}: ` : ""}${subject ?? change.fork}${push.totalCommits > 1 ? ` (+${push.totalCommits - 1} more)` : ""}`.slice(0, 140),
     };
     const r = (await stub.op("system", [draft, { type: "system", id: "artifacts" }])) as unknown as Result<EventRecord>;
     if (!r.ok) throw new Error(`checkpoint append failed: ${r.error.error.message}`);
