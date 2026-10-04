@@ -80,3 +80,15 @@ task is reopened with the stack trace as evidence.
 - `WEFT_PIN_EDGE_IP` (see `demo/lib/pin-dns.cjs`) resolves `*.elier.ai` locally to a
   Cloudflare edge IP. It exists because the Weft custom domains had no public DNS records
   when M2 ran; it changes nothing for deployed Workers.
+- Lost Artifacts `pushed` events: if a pushed revision has not reached the gateway 90 s after the
+  push, the driver (and `live.mjs` for the planted bug) replays the same `cf.artifacts.repo.pushed`
+  envelope into `weft-artifacts-events-preview`. Every replay is listed in run.json
+  (`push_events_replayed`, `auto-revert.json` `push_event_replayed`). See m2-report.md for why.
+- `node demo/m2-full.mjs --run N --rescore` recomputes a finished run's `criteria` from its saved
+  run.json + coordinator-log.json (no network). Use it only when a criterion's code was wrong;
+  the run's `rescored` field records before/after.
+- `--resume` finishes a run whose driver died after the agents pushed (phases D–G).
+- Claude auth: `claude auth status` must say logged in, or export `CLAUDE_CODE_OAUTH_TOKEN`
+  (`claude setup-token`) for the launcher process.
+- Runtime: 17–48 min per run (OpenCode/big-pickle is the long pole); cost is Claude usage for 6
+  agents plus Workers AI/Browser Rendering pennies.
