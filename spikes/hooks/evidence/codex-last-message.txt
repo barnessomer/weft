@@ -1,0 +1,3 @@
+STOP_ACK CONTEXT_ACK
+
+Read `probe.txt` successfully. The hook blocked creation of `blocked.txt`; no fallback tool was used.
