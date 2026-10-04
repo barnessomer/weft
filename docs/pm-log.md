@@ -18,3 +18,8 @@ Append-only. One dated entry per heartbeat that changed something.
 ## 2026-10-03 23:25 — S2 landed
 - S2 (arq) hit iteration budget 90/90, then re-dispatches bounced off the ChatGPT/Codex usage limit (resets 10-04 03:03; arq + backend share it). Worker output was complete but uncommitted → PM added a verified-vs-documented table, committed, landed; gate green. Claude Code L0–L3 verified live; Codex L0 verified, L1–L3 left to B5 to re-probe.
 - Decision: no reassignment of Codex-profile cards — next ones (B4/B5) gate on B2 and quota resets before then. P1 (default/Claude) now ready and dispatched. Day 0 on track.
+
+## 2026-10-04 00:25 — P1 + B2 landed
+- Landed wt/b2 (contains P1 WCP v0.1 spec + protocol pkg, RepoCoordinator DO + gateway). Gate green on main (protocol 108, sequencer 41, gateway 44, analyzer 13). Preview gateway responds 200. Worktrees b2/p1 removed, pushed.
+- B4/B5/B6 bouncing on Codex quota wall (resets 03:03). Decision: B4 (Claude Code adapter) + B6 (Artifacts) reassigned to default/Claude to keep the M1 critical path moving; B5 stays on Codex (needs it to probe). I1 hermes-ios landing deferred until I1b (editing the same worktree) finishes.
+- Day 1: ahead of plan (sequencer done; M1 due 10-07).
