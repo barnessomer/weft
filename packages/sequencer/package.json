@@ -6,7 +6,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./coordinator": "./src/coordinator.ts",
-    "./node-sqlite": "./src/node-sqlite.ts"
+    "./node-sqlite": "./src/node-sqlite.ts",
+    "./journal": "./src/journal.ts"
   },
   "scripts": {
     "typecheck": "tsc -p tsconfig.json",

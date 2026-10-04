@@ -4,9 +4,21 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "typecheck": "tsc --noEmit --strict --target ES2022 --lib ES2022 --module ESNext --moduleResolution Bundler --types @cloudflare/workers-types src/index.ts",
-    "test": "vitest run src/index.test.ts",
+    "typecheck": "tsc -p tsconfig.json && tsc -p tsconfig.test.json",
+    "test": "vitest run",
     "dev": "wrangler dev",
-    "deploy:preview": "wrangler deploy --env preview"
+    "deploy:preview": "wrangler deploy --env preview",
+    "live": "node scripts/live.mjs"
+  },
+  "dependencies": {
+    "@weft/artifacts": "workspace:*",
+    "@weft/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@weft/sequencer": "workspace:*"
+  },
+  "exports": {
+    "./ids": "./src/core/ids.ts",
+    "./core": "./src/core/workflows.ts"
   }
 }

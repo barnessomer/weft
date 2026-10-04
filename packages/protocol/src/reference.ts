@@ -102,7 +102,7 @@ const AGENT_KINDS = new Set<EventKind>([
   "message",
 ]);
 // `checkpoint` from the system = an observed push to the change's fork (Artifacts event).
-const SYSTEM_KINDS = new Set<EventKind>(["land", "revert", "release", "checkpoint"]);
+const SYSTEM_KINDS = new Set<EventKind>(["land", "revert", "release", "checkpoint", "message"]);
 const PAUSABLE = new Set<EventKind>(["edit", "claim", "checkpoint"]);
 const NEGOTIATION_REPLIES = new Set<EventKind>(["negotiate.accept", "negotiate.reject", "negotiate.counter"]);
 const STRONG: WriteKind[] = ["deleted", "signature"];

@@ -26,6 +26,8 @@ export interface RunRequest {
   /** `script` harness only: argv run in the checkout (tests, smoke, benchmarks). */
   command?: string[];
   fork?: { remote: string; branch?: string; token?: string };
+  /** Extra git remotes reachable from the run (system jobs: trunk + fork). Tokens stay in the DO. */
+  remotes?: Array<{ remote: string; token?: string }>;
   /** WCP coordinator for the adapter (claude-code harness). */
   weft?: { url: string; repo?: string; token?: string; priority?: number; mode?: "enforce" | "advise" };
   trailers?: Record<string, string>;
@@ -41,6 +43,8 @@ export interface RunRequest {
 
 export interface RunSecrets {
   git_token?: string;
+  /** Tokens for `remotes[i]` (same order; null = none). */
+  remote_tokens?: Array<string | null>;
   weft_token?: string;
 }
 
@@ -59,6 +63,7 @@ export interface ContainerSpec {
   agents_md?: string;
   command?: string[];
   fork?: { remote: string; branch?: string };
+  remotes?: Array<{ remote: string }>;
   weft?: { url: string; repo?: string; priority?: number; mode?: "enforce" | "advise" };
   trailers?: Record<string, string>;
   timeout_s?: number;
@@ -91,6 +96,10 @@ export function validateRunRequest(r: unknown): string[] {
     const f = q.fork as Record<string, unknown>;
     if (!f || typeof f.remote !== "string" || !/^(https:\/\/|file:\/\/)/.test(f.remote)) errs.push("fork.remote must be an https:// (or file:// in tests) git URL");
   }
+  if (q.remotes !== undefined) {
+    if (!Array.isArray(q.remotes) || q.remotes.length > 8 || !q.remotes.every((x) => x && typeof (x as { remote?: unknown }).remote === "string" && /^(https:\/\/|file:\/\/)/.test((x as { remote: string }).remote)))
+      errs.push("remotes must be at most 8 {remote: https:// git URL}");
+  }
   if (q.weft !== undefined) {
     const w = q.weft as Record<string, unknown>;
     if (!w || typeof w.url !== "string" || !/^https?:\/\//.test(w.url)) errs.push("weft.url must be an http(s) URL");
@@ -107,6 +116,7 @@ export function splitRequest(r: RunRequest, run: string, aiGatewayBase: string |
   const secrets: RunSecrets = {};
   if (r.fork?.token) secrets.git_token = r.fork.token;
   if (r.weft?.token) secrets.weft_token = r.weft.token;
+  if (r.remotes?.some((x) => x.token)) secrets.remote_tokens = r.remotes.map((x) => x.token ?? null);
   const spec: ContainerSpec = {
     run,
     repo: r.repo,
@@ -121,6 +131,7 @@ export function splitRequest(r: RunRequest, run: string, aiGatewayBase: string |
     ...(r.agents_md !== undefined ? { agents_md: r.agents_md } : {}),
     ...(r.command !== undefined ? { command: r.command } : {}),
     ...(r.fork ? { fork: { remote: r.fork.remote, ...(r.fork.branch ? { branch: r.fork.branch } : {}) } } : {}),
+    ...(r.remotes ? { remotes: r.remotes.map((x) => ({ remote: x.remote })) } : {}),
     ...(r.weft
       ? {
           weft: {

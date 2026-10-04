@@ -17,7 +17,7 @@ import {
   type Result,
 } from "@weft/sequencer";
 import { REPO_NAME, Registry, sha256Hex, type TokenSpec } from "./registry";
-import { artifactsAdmin, artifactsRoute, handleArtifactsBatch, type ArtifactsEnv, type Kit } from "./artifacts";
+import { artifactsAdmin, artifactsRoute, forwardApproval, handleArtifactsBatch, startRevert, type ArtifactsEnv, type Kit } from "./artifacts";
 
 export { RepoCoordinator } from "@weft/sequencer";
 export { Registry };
@@ -306,8 +306,17 @@ async function route(req: Request, env: Env): Promise<Response> {
   // ----- human actions (spec §9.6); attributed to the token's principal, never the body
   if (rest === "/actions" && m === "POST") {
     authorize(g, "human", repo);
-    const body = await readJson(req);
-    return json(unwrap(await stub.op("action", [g.principal, body])));
+    const body = (await readJson(req)) as { action?: string; change?: string; reason?: string };
+    const res = unwrap(await stub.op("action", [g.principal, body])) as { record?: { status?: string; payload?: { target?: { seq?: number; op_id?: string } } } };
+    const rec = res.record ?? {};
+    // B8: `undo` starts RevertOperation; `approve` releases a waiting BestOfN.
+    let workflow: string | null = null;
+    if (rec.status === "accepted" && body.action === "undo" && env.WEFT_REVERT_OPERATION) {
+      const t = rec.payload?.target ?? {};
+      workflow = await startRevert(env, kit(env), { repo, ...(t.op_id ? { op_id: t.op_id } : { seq: t.seq! }), reason: body.reason ?? "undo", requested_by: g.principal, requested_by_type: "human" });
+    }
+    if (rec.status === "accepted" && body.action === "approve" && typeof body.change === "string") workflow = await forwardApproval(env, repo, body.change, g.principal);
+    return json(workflow ? { ...res, workflow } : res);
   }
 
   // ----- system writers (spec §9.1): landing queue, revert workflow

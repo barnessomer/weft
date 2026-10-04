@@ -46,7 +46,7 @@ Roles and token scopes:
 | Agent adapter | `agent` | open a session, submit events, drain its inbox, heartbeat, ask gates |
 | Observer | `observe` | list repos, read/stream events, read the combined feed |
 | Human | `human` (implies `observe`) | approve, undo, pause/resume, message an agent |
-| System | `system` | append `land`, `revert`, `release`, `checkpoint` (landing queue, workflows, claim expiry, Artifacts push events) |
+| System | `system` | append `land`, `revert`, `release`, `checkpoint`, `message` (landing queue, workflows, claim expiry, Artifacts push events, rebase bounces) |
 
 ## 2. Transport
 
@@ -155,7 +155,7 @@ present (possibly empty).
 | `negotiate.counter` | agent | `{reply_to, terms}` | refs |
 | `negotiate.accept` | agent | `{reply_to}` | refs |
 | `negotiate.reject` | agent | `{reply_to, reason?}` | refs |
-| `message` | agent, human | `{to, text, intent?: steer\|negotiate\|info}` | refs |
+| `message` | agent, human, system | `{to, text, intent?: steer\|negotiate\|info}` (system: a workflow bouncing a rebase conflict / failed presubmit / revert to the change's agent) | refs |
 | `control` | human | `{action: pause\|resume\|approve\|undo, target, reason?}` | refs |
 | `land` | system | `{sha, op_id, trunk_ref?}` | R1 (trunk CAS) |
 | `revert` | system | `{op_id, reverts_seq\|reverts_op_id, sha?, reason, requested_by?}` | no |

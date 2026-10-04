@@ -18,6 +18,7 @@
 import { decodeEnvelope, forkName, newChangeId, parsePush, parseTrailers, withRepo, artifactsErrorCode, CloudflareEventSubscriber, type ArtifactsLike, type EventSubscriber, type Push, type TokenScope } from "@weft/artifacts";
 import type { EventDraft, EventRecord } from "@weft/protocol";
 import type { Grant, RepoCoordinator, Result } from "@weft/sequencer";
+import { ids } from "@weft/workflows/ids";
 
 export interface ArtifactsEnv {
   WEFT_REPO: DurableObjectNamespace<RepoCoordinator>;
@@ -32,6 +33,17 @@ export interface ArtifactsEnv {
   WEFT_CF_API_TOKEN?: string;
   /** Test hook: injected subscriber. */
   WEFT_EVENT_SUBSCRIBER?: EventSubscriber;
+  /** B8 workflows (script weft-workflows[-preview]). Absent => revisions stay `queued`. */
+  WEFT_PROCESS_REVISION?: WorkflowLike;
+  WEFT_LAND_CHANGE?: WorkflowLike;
+  WEFT_REVERT_OPERATION?: WorkflowLike;
+  WEFT_BEST_OF_N?: WorkflowLike;
+}
+
+/** Structural view of a Workflow binding (tests inject a fake). */
+export interface WorkflowLike {
+  create(o: { id?: string; params?: unknown }): Promise<{ id: string }>;
+  get(id: string): Promise<{ id: string; sendEvent(e: { type: string; payload: unknown }): Promise<void>; status(): Promise<{ status: string }> }>;
 }
 
 /** Helpers owned by index.ts (auth, errors, JSON). */
@@ -121,6 +133,14 @@ function ttlOf(k: Kit, v: unknown, dflt: number): number {
 /** Returns a Response if the path belongs to this module, else null. */
 export async function artifactsRoute(req: Request, env: ArtifactsEnv, k: Kit, repo: string, rest: string): Promise<Response | null> {
   const m = req.method;
+  const sm = /^\/tasks\/([^/]+)\/select$/.exec(rest);
+  if (sm && m === "POST") {
+    const task = decodeURIComponent(sm[1]!);
+    if (!TASK_ID.test(task)) k.fail("invalid_message", "bad task id", { issues: [{ path: "/task", message: TASK_ID.source }] });
+    const g = await k.authenticate(req);
+    authorizeAny(k, g, repo);
+    return selectBest(req, env, k, repo, task, g);
+  }
   if (rest === "/tasks" && m === "GET") {
     const g = await k.authenticate(req);
     k.authorize(g, "observe", repo);
@@ -142,11 +162,22 @@ export async function artifactsRoute(req: Request, env: ArtifactsEnv, k: Kit, re
     }
     return null;
   }
-  const cm = /^\/changes\/([^/]+)(\/token)?$/.exec(rest);
+  const cm = /^\/changes\/([^/]+)(\/token|\/land)?$/.exec(rest);
   if (cm) {
     const id = decodeURIComponent(cm[1]!);
     const g = await k.authenticate(req);
     const row = await db(env, k).prepare(`SELECT * FROM changes WHERE id = ? AND repo = ?`).bind(id, repo).first<ChangeRow>();
+    if (cm[2] === "/land") {
+      if (m !== "POST") return null;
+      authorizeAny(k, g, repo);
+      if (!row) k.fail("not_found", `change ${id} not found`);
+      if (row!.status !== "open") k.fail("invalid_reference", `change ${id} is ${row!.status}`);
+      if (!row!.head_sha) k.fail("invalid_reference", `change ${id} has no pushed revision`);
+      const wf = workflow(env, k, "WEFT_LAND_CHANGE");
+      const body = ((await k.readJson(req, true)) ?? {}) as { note?: unknown };
+      const inst = await wf.create({ id: ids.land(id, Date.now()), params: { repo, change: id, requested_by: g.principal, ...(str(body.note, 300) ? { note: str(body.note, 300) } : {}) } });
+      return k.json({ type: "landing", change: id, workflow: inst.id }, 202);
+    }
     if (cm[2]) {
       if (m !== "POST") return null;
       k.authorize(g, "system", repo);
@@ -163,7 +194,7 @@ export async function artifactsRoute(req: Request, env: ArtifactsEnv, k: Kit, re
       if (!row) k.fail("not_found", `change ${id} not found`);
       const d = db(env, k);
       const [revs, ev] = await Promise.all([
-        d.prepare(`SELECT sha, ref, before_sha, commits, subject, trailer_change_id, seq, status, pushed_at, received_at FROM revisions WHERE change_id = ? ORDER BY received_at, rowid`).bind(id).all(),
+        d.prepare(`SELECT sha, ref, before_sha, commits, subject, trailer_change_id, seq, status, pushed_at, received_at, onto_sha, rebased_sha, layer, workflow_id, processed_at FROM revisions WHERE change_id = ? ORDER BY received_at, rowid`).bind(id).all(),
         d.prepare(`SELECT id, sha, kind, status, uri, data, created_at FROM evidence WHERE change_id = ? ORDER BY id`).bind(id).all(),
       ]);
       return k.json({ type: "change", ...publicChange(row!), revisions: revs.results, evidence: ev.results });
@@ -183,6 +214,15 @@ export async function artifactsRoute(req: Request, env: ArtifactsEnv, k: Kit, re
     }
     return null;
   }
+  if (rest === "/system/revert" && m === "POST") {
+    const g = await k.authenticate(req);
+    k.authorize(g, "system", repo);
+    const body = (await k.readJson(req)) as { op_id?: unknown; seq?: unknown; reason?: unknown; evidence?: unknown };
+    const reason = str(body.reason, 500);
+    if (!reason || (str(body.op_id, 100) === undefined && typeof body.seq !== "number")) k.fail("invalid_message", "op_id or seq, and reason, required", { issues: [{ path: "", message: "op_id|seq, reason" }] });
+    const inst = await startRevert(env, k, { repo, ...(str(body.op_id, 100) ? { op_id: str(body.op_id, 100) } : { seq: body.seq as number }), reason: reason!, requested_by: g.principal, requested_by_type: "system", ...(body.evidence && typeof body.evidence === "object" ? { evidence: body.evidence } : {}) });
+    return k.json({ type: "revert", workflow: inst }, 202);
+  }
   if (rest === "/system/trunk-token" && m === "POST") {
     const g = await k.authenticate(req);
     k.authorize(g, "system", repo);
@@ -194,6 +234,59 @@ export async function artifactsRoute(req: Request, env: ArtifactsEnv, k: Kit, re
     return k.json({ type: "token", repo, trunk: t.trunk, remote: t.remote, branch: t.default_branch, token: { plaintext: tok.plaintext, scope, expires_at: tok.expiresAt } }, 201);
   }
   return null;
+}
+
+function authorizeAny(k: Kit, g: Grant, repo: string) {
+  try {
+    k.authorize(g, "system", repo);
+  } catch {
+    k.authorize(g, "human", repo);
+  }
+}
+
+function workflow(env: ArtifactsEnv, k: Kit, name: "WEFT_PROCESS_REVISION" | "WEFT_LAND_CHANGE" | "WEFT_REVERT_OPERATION" | "WEFT_BEST_OF_N"): WorkflowLike {
+  const wf = env[name];
+  if (!wf) k.fail("unavailable", `workflow binding ${name} is not configured`);
+  return wf!;
+}
+
+export async function startRevert(env: ArtifactsEnv, k: Kit, params: { repo: string; op_id?: string; seq?: number; reason: string; requested_by: string; requested_by_type: "human" | "system"; evidence?: unknown }): Promise<string> {
+  const inst = await workflow(env, k, "WEFT_REVERT_OPERATION").create({ id: ids.revert(params.repo, params.op_id ?? String(params.seq), Date.now()), params });
+  return inst.id;
+}
+
+/** Forward a human `approve` to the task's BestOfN (if one is waiting). Returns the instance id or null. */
+export async function forwardApproval(env: ArtifactsEnv, repo: string, change: string, by: string): Promise<string | null> {
+  if (!env.WEFT_BEST_OF_N || !env.WEFT_DB) return null;
+  const row = await env.WEFT_DB.prepare(`SELECT task FROM changes WHERE id = ? AND repo = ?`).bind(change, repo).first<{ task: string }>();
+  if (!row) return null;
+  try {
+    const inst = await env.WEFT_BEST_OF_N.get(ids.bestOfN(repo, row.task));
+    await inst.sendEvent({ type: "approve", payload: { repo, task: row.task, change, by } });
+    return inst.id;
+  } catch {
+    return null;
+  }
+}
+
+async function selectBest(req: Request, env: ArtifactsEnv, k: Kit, repo: string, task: string, _g: Grant): Promise<Response> {
+  const body = ((await k.readJson(req, true)) ?? {}) as { n?: unknown; risk?: unknown; collect_timeout_s?: unknown; approval_timeout_s?: unknown; poll_s?: unknown };
+  const t = await db(env, k).prepare(`SELECT id, candidates, risk FROM tasks WHERE repo = ? AND id = ?`).bind(repo, task).first<{ id: string; candidates: number; risk: string }>();
+  if (!t) k.fail("not_found", `task ${task} not found`);
+  const n = body.n === undefined ? t!.candidates : body.n;
+  if (typeof n !== "number" || !Number.isInteger(n) || n < 1 || n > MAX_CANDIDATES) k.fail("invalid_message", `n must be 1..${MAX_CANDIDATES}`, { issues: [{ path: "/n", message: "int" }] });
+  const risk = body.risk === undefined ? t!.risk : body.risk;
+  if (!["low", "medium", "high"].includes(risk as string)) k.fail("invalid_message", "risk must be low|medium|high", { issues: [{ path: "/risk", message: "enum" }] });
+  await db(env, k).prepare(`UPDATE tasks SET risk = ?, updated_at = ? WHERE repo = ? AND id = ?`).bind(risk, Date.now(), repo, task).run();
+  const num = (v: unknown) => (typeof v === "number" && v > 0 ? v : undefined);
+  const params = { repo, task, n, risk, ...(num(body.collect_timeout_s) ? { collect_timeout_s: num(body.collect_timeout_s) } : {}), ...(num(body.approval_timeout_s) ? { approval_timeout_s: num(body.approval_timeout_s) } : {}), ...(num(body.poll_s) ? { poll_s: num(body.poll_s) } : {}) };
+  let inst;
+  try {
+    inst = await workflow(env, k, "WEFT_BEST_OF_N").create({ id: ids.bestOfN(repo, task), params });
+  } catch (e) {
+    k.fail("invalid_reference", `selection for ${task} already exists: ${(e as Error).message.slice(0, 200)}`);
+  }
+  return k.json({ type: "selection", task, n, risk, workflow: inst!.id }, 202);
 }
 
 /**
@@ -301,7 +394,9 @@ async function createCandidates(req: Request, env: ArtifactsEnv, k: Kit, repo: s
 export async function artifactsAdmin(req: Request, env: ArtifactsEnv, k: Kit, path: string): Promise<Response | null> {
   const m = req.method;
   if (path === "/v1/admin/artifacts/repos" && m === "POST") {
-    const body = (await k.readJson(req)) as { repo?: unknown; trunk?: unknown; create?: unknown; default_branch?: unknown };
+    const body = (await k.readJson(req)) as { repo?: unknown; trunk?: unknown; create?: unknown; default_branch?: unknown; config?: unknown };
+    if (body.config !== undefined && (typeof body.config !== "object" || body.config === null || Array.isArray(body.config)))
+      k.fail("invalid_message", "config must be an object", { issues: [{ path: "/config", message: "object" }] });
     const repo = str(body.repo, 64);
     if (!repo) k.fail("invalid_message", "repo required", { issues: [{ path: "/repo", message: "string" }] });
     const trunk = str(body.trunk, 63) ?? repo!;
@@ -325,12 +420,13 @@ export async function artifactsAdmin(req: Request, env: ArtifactsEnv, k: Kit, pa
     }
     await db(env, k)
       .prepare(
-        `INSERT INTO artifacts_repos (repo, namespace, trunk, default_branch, remote, created_at) VALUES (?, ?, ?, ?, ?, ?)
-         ON CONFLICT (repo) DO UPDATE SET namespace = excluded.namespace, trunk = excluded.trunk, default_branch = excluded.default_branch, remote = excluded.remote`,
+        `INSERT INTO artifacts_repos (repo, namespace, trunk, default_branch, remote, created_at, config) VALUES (?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT (repo) DO UPDATE SET namespace = excluded.namespace, trunk = excluded.trunk, default_branch = excluded.default_branch, remote = excluded.remote,
+           config = COALESCE(excluded.config, artifacts_repos.config)`,
       )
-      .bind(repo, ns(env), trunk, info!.defaultBranch, info!.remote, Date.now())
+      .bind(repo, ns(env), trunk, info!.defaultBranch, info!.remote, Date.now(), body.config === undefined ? null : JSON.stringify(body.config))
       .run();
-    return k.json({ type: "artifacts.repo", repo, namespace: ns(env), trunk, default_branch: info!.defaultBranch, remote: info!.remote }, 201);
+    return k.json({ type: "artifacts.repo", repo, namespace: ns(env), trunk, default_branch: info!.defaultBranch, remote: info!.remote, ...(body.config !== undefined ? { config: body.config } : {}) }, 201);
   }
   if (path === "/v1/admin/artifacts/subscriptions" && m === "GET") {
     const rows = await db(env, k).prepare(`SELECT * FROM changes WHERE status = 'open' AND subscription_status IN ('pending', 'failed') ORDER BY created_at`).all<ChangeRow>();
@@ -419,6 +515,8 @@ async function record(push: Push, env: ArtifactsEnv, d: D1Database): Promise<Ing
     return { key: push.key, status: trunk ? "trunk" : "unmatched" };
   }
   if (push.deleted) return { key: push.key, status: "ignored", change: change.id };
+  // Only the change's branch is a revision; refs/heads/weft/* are written by the workflows (rebased results).
+  if (push.ref !== `refs/heads/${change.default_branch}`) return { key: push.key, status: "ignored", change: change.id };
 
   const head = push.commits.find((c) => c.id === push.after) ?? push.commits[push.commits.length - 1];
   const subject = head?.message.split("\n")[0]?.slice(0, 200) ?? null;
@@ -459,9 +557,18 @@ async function record(push: Push, env: ArtifactsEnv, d: D1Database): Promise<Ing
 }
 
 /**
- * Continuous-sync hook (design §6.3): rebase, tests, preview, review -> evidence.
- * B8 replaces this stub with a Workflow (ProcessRevision); for now it marks the revision queued.
+ * Continuous-sync hook (design §6.3): start ProcessRevision for this revision (rebase onto trunk
+ * with the layered merge, tests in the sandbox, evidence). The instance id is derived from
+ * (change, sha), so a redelivered push event does not start a second run.
  */
-export async function triggerProcessing(_env: ArtifactsEnv, d: D1Database, change: { id: string }, sha: string): Promise<void> {
+export async function triggerProcessing(env: ArtifactsEnv, d: D1Database, change: { id: string; repo: string }, sha: string): Promise<void> {
   await d.prepare(`UPDATE revisions SET status = 'queued' WHERE change_id = ? AND sha = ? AND status = 'recorded'`).bind(change.id, sha).run();
+  if (!env.WEFT_PROCESS_REVISION) return;
+  const id = ids.process(change.id, sha);
+  try {
+    await env.WEFT_PROCESS_REVISION.create({ id, params: { repo: change.repo, change: change.id, sha } });
+  } catch (e) {
+    if (!/already exists|already_exists|duplicate/i.test((e as Error).message)) throw e;
+  }
+  await d.prepare(`UPDATE revisions SET workflow_id = ? WHERE change_id = ? AND sha = ?`).bind(id, change.id, sha).run();
 }
