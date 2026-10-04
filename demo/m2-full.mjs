@@ -346,7 +346,7 @@ class Agent {
     const sha = git(["rev-parse", "HEAD"], { cwd: this.dir });
     const p = git(["push", "-q", "origin", "HEAD:refs/heads/main"], { cwd: this.dir, token: this.cand.token.plaintext, allowFail: true });
     if (p.code !== 0) return (this.push = { ok: false, reason: "push failed", detail: p.err.slice(0, 400) });
-    this.push = { ok: true, sha, at_s: secs(), trailers: git(["log", "-1", "--format=%(trailers:only)"], { cwd: this.dir }) };
+    this.push = { ok: true, sha, at_s: secs(), at_ms: Date.now(), trailers: git(["log", "-1", "--format=%(trailers:only)"], { cwd: this.dir }) };
     return this.push;
   }
 }
@@ -524,6 +524,24 @@ async function main() {
   await finishRun(agents, head0, sigSeq);
 }
 
+/**
+ * Fallback for a lost Artifacts `pushed` event (seen on the preview account 2026-10-04 from 13:20Z:
+ * subscriptions on newly created forks never fired, trunk's kept working). Replays the envelope
+ * Artifacts would have sent into the gateway's events queue; every replay is listed in run.json.
+ */
+let QUEUE_ID;
+async function replayPush(a) {
+  a.replayed = true;
+  QUEUE_ID ??= (await cf("GET", "/queues?per_page=100")).find((x) => x.queue_name === "weft-artifacts-events-preview").queue_id;
+  const sha = a.push.sha;
+  const before = git(["rev-parse", `${sha}~1`], { cwd: a.dir });
+  const commit = { id: sha, message: git(["log", "-1", "--format=%B", sha], { cwd: a.dir }), timestamp: new Date().toISOString(), parents: [before] };
+  const envelope = { type: "cf.artifacts.repo.pushed", source: { type: "artifacts.repo", namespace: a.cand.fork.namespace ?? "weft-preview", repoName: a.cand.fork.name }, payload: { ref: "refs/heads/main", before, after: sha, commits: [commit], totalCommitsCount: 1 }, metadata: { accountId: ACCOUNT, eventTimestamp: new Date().toISOString(), x_replayed_by: "m2-full.mjs" } };
+  await cf("POST", `/queues/${QUEUE_ID}/messages`, { body: envelope, content_type: "json" });
+  (out.push_events_replayed ??= []).push({ agent: a.id, sha, after_push_s: Math.round((Date.now() - (a.push.at_ms ?? Date.now())) / 1000) });
+  log(`replayed lost pushed event for ${a.id}`);
+}
+
 /** Phases D–G + verdict (also the entry point of `--resume`). */
 async function finishRun(agents, head0, sigSeq) {
 
@@ -537,8 +555,11 @@ async function finishRun(agents, head0, sigSeq) {
       for (;;) {
         const ch = await api("GET", `/v1/repos/${REPO}/changes/${a.cand.change}`, SYS, undefined, 200);
         const rev = ch.revisions.find((r) => r.sha === a.push.sha);
+        if (!rev && !a.replayed && Date.now() - (a.push.at_ms ?? 0) > 90_000) await replayPush(a);
         const rows = ch.evidence.filter((e) => e.sha === a.push.sha);
-        if ((rev && ["conflict", "failed", "superseded"].includes(rev.status)) || rows.some((e) => e.kind === "review") || Date.now() - t > 20 * 60_000) {
+        // ProcessRevision skips the evidence stages when tests fail (status stays `processed`)
+        const done = rows.some((e) => e.kind === "review") || (rev?.status === "processed" && rows.some((e) => e.kind === "test" && e.status === "fail"));
+        if ((rev && ["conflict", "failed", "superseded"].includes(rev.status)) || done || Date.now() - t > 20 * 60_000) {
           evidence[a.id] = { revision: rev ? { status: rev.status, layer: rev.layer } : null, rows: rows.map((e) => ({ kind: e.kind, status: e.status, data: summarize(e) })), waited_s: Math.round((Date.now() - t) / 1000) };
           return;
         }
@@ -576,6 +597,10 @@ async function finishRun(agents, head0, sigSeq) {
   out.trunk = await checkTrunk();
   mark("trunk_checked");
   save();
+
+  // Landing is done: drop this run's per-fork event subscriptions before the planted-bug beat
+  // creates its own (fewer live subscriptions on the shared preview queue).
+  for (const id of SUBS.splice(0)) await cf("DELETE", `/event_subscriptions/subscriptions/${id}`).catch(() => undefined);
 
   // Phase G: planted bug -> production errors -> auto-revert (B13)
   if (!SKIP_REVERT) {

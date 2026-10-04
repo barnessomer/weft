@@ -66,9 +66,12 @@ for (const r of runs) {
   if (c.structural_merge) L(`Structural merge: land layers t4/t5 = ${c.structural_merge.detail.layers.join(" / ")}.`);
   if (c.comparison_and_human_approval) L(`Comparison: t6 candidates with screenshots ${c.comparison_and_human_approval.detail.t6_with_screenshots.join(", ") || "none"}; approved ${c.comparison_and_human_approval.detail.approved ? `${c.comparison_and_human_approval.detail.approved.agent} (${c.comparison_and_human_approval.detail.approved.why})` : "—"}.`);
   if (r.trunk) L(`Trunk after landings: tsc exit ${r.trunk.tsc?.exit}, node --test exit ${r.trunk.test?.exit} (${(r.trunk.test?.summary ?? []).join(", ")}).`);
-  if (r.auto_revert) L(`Auto-revert: exit ${r.auto_revert.exit}.`);
+  if (r.auto_revert) L(`Auto-revert: exit ${r.auto_revert.exit}${r.auto_revert.duration_s ? `, ${r.auto_revert.duration_s} s` : ""}${r.auto_revert.timings ? ` (${Object.entries(r.auto_revert.timings).map(([k, v]) => `${k} ${v}`).join(", ")})` : ""}.`);
+  if (r.rescored) L(`Rescored ${r.rescored.at} (criterion code fixed after the run; events unchanged): ${Object.keys(r.rescored.after).filter((k) => r.rescored.before[k] !== r.rescored.after[k]).map((k) => `${k} ${yes(r.rescored.before[k])} → ${yes(r.rescored.after[k])}`).join(", ") || "no change"}.`);
   L();
 }
+const NOTES = join(ROOT, "demo/evidence/m2-notes.md");
+if (existsSync(NOTES)) L(readFileSync(NOTES, "utf8").trimEnd());
 const md = lines.join("\n") + "\n";
 if (process.argv.includes("--write")) writeFileSync(join(ROOT, "demo/evidence/m2-report.md"), md);
 process.stdout.write(md);

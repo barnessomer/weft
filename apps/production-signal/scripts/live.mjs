@@ -104,6 +104,7 @@ function write(dir, files) {
   }
 }
 const read = (dir, f) => readFileSync(join(dir, f), "utf8");
+const REPLAY_AFTER_MS = Number(process.env.WEFT_REPLAY_PUSH_AFTER_S ?? 90) * 1000;
 const D1_PREVIEW = "7bd18baa-103a-4712-8dcd-5bbac18000b1";
 async function d1(sql, params = []) {
   const r = await cf("POST", `/d1/database/${D1_PREVIEW}/query`, { sql, params });
@@ -234,6 +235,7 @@ async function prove() {
     // 3. ProcessRevision -> land
     const t = Date.now();
     let rev;
+    let replayed = false;
     for (;;) {
       const ch = await api("GET", `/v1/repos/${REPO}/changes/${c.change}`, SYS, undefined, 200);
       rev = ch.revisions.find((x) => x.sha === sha);
@@ -243,6 +245,18 @@ async function prove() {
         break;
       }
       if (Date.now() - t > 600_000) throw new Error(`revision still ${rev?.status ?? "unseen"}`);
+      if (!rev && !replayed && Date.now() - t > REPLAY_AFTER_MS) {
+        // Artifacts did not deliver this fork's `pushed` event (seen 2026-10-04 13:20Z onward on the
+        // preview account: fork subscriptions created then never fired). Replay the same envelope
+        // Artifacts would send into the events queue (operator reconcile); flagged in run.json.
+        const before = git(["rev-parse", "HEAD~1"], { cwd: d });
+        const commit = { id: sha, message: git(["log", "-1", "--format=%B"], { cwd: d }), timestamp: new Date().toISOString(), parents: [before] };
+        const envelope = { type: "cf.artifacts.repo.pushed", source: { type: "artifacts.repo", namespace: c.fork.namespace, repoName: c.fork.name }, payload: { ref: "refs/heads/main", before, after: sha, commits: [commit], totalCommitsCount: 1 }, metadata: { accountId: ACCOUNT, eventTimestamp: new Date().toISOString(), x_replayed_by: "live.mjs" } };
+        await cf("POST", `/queues/${queue.queue_id}/messages`, { body: envelope, content_type: "json" });
+        replayed = true;
+        out.push_event_replayed = { after_s: (Date.now() - t) / 1000, reason: "Artifacts pushed event not delivered" };
+        step("push event not delivered by Artifacts; replayed into the queue", out.push_event_replayed);
+      }
       await sleep(3000);
     }
     if (rev.status !== "processed") throw new Error(`revision ${rev.status}`);
