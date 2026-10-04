@@ -42,6 +42,8 @@ importers:
         specifier: workspace:*
         version: link:../workflows
 
+  apps/production-signal: {}
+
   apps/sandbox:
     dependencies:
       '@weft/artifacts':

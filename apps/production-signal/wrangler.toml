@@ -1,0 +1,75 @@
+name = "weft-production-signal"
+main = "src/index.ts"
+compatibility_date = "2025-09-06"
+workers_dev = true
+
+# Tail events are written to `weft_prod` and fanned out through this queue. Create the
+# queue once (`wrangler queues create weft-prod-events`) before the first deployment.
+[[queues.producers]]
+binding = "WEFT_PROD_EVENTS"
+queue = "weft-prod-events"
+
+[[queues.consumers]]
+queue = "weft-prod-events"
+max_batch_size = 25
+max_batch_timeout = 5
+max_retries = 3
+
+[[analytics_engine_datasets]]
+binding = "WEFT_PROD"
+dataset = "weft_prod"
+
+# Shared gateway D1: the detector joins errors to the recent `landings` operation log.
+[[d1_databases]]
+binding = "WEFT_DB"
+database_name = "weft"
+database_id = "d2cbb845-8748-4c45-8697-abbeb505eb95"
+migrations_dir = "../gateway/migrations"
+
+[[workflows]]
+name = "weft-revert-operation"
+binding = "WEFT_REVERT_OPERATION"
+class_name = "RevertOperation"
+script_name = "weft-workflows"
+
+[vars]
+WEFT_REPO = "weft-demo"
+WEFT_SPIKE_WINDOW_SECONDS = "300"
+WEFT_SPIKE_THRESHOLD = "5"
+
+[observability]
+enabled = true
+
+[env.preview]
+name = "weft-production-signal-preview"
+
+[[env.preview.queues.producers]]
+binding = "WEFT_PROD_EVENTS"
+queue = "weft-prod-events-preview"
+
+[[env.preview.queues.consumers]]
+queue = "weft-prod-events-preview"
+max_batch_size = 25
+max_batch_timeout = 5
+max_retries = 3
+
+[[env.preview.analytics_engine_datasets]]
+binding = "WEFT_PROD"
+dataset = "weft_prod_preview"
+
+[[env.preview.d1_databases]]
+binding = "WEFT_DB"
+database_name = "weft-preview"
+database_id = "7bd18baa-103a-4712-8dcd-5bbac18000b1"
+migrations_dir = "../gateway/migrations"
+
+[[env.preview.workflows]]
+name = "weft-revert-operation-preview"
+binding = "WEFT_REVERT_OPERATION"
+class_name = "RevertOperation"
+script_name = "weft-workflows-preview"
+
+[env.preview.vars]
+WEFT_REPO = "weft-demo"
+WEFT_SPIKE_WINDOW_SECONDS = "300"
+WEFT_SPIKE_THRESHOLD = "5"

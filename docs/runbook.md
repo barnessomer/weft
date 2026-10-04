@@ -51,6 +51,38 @@ pnpm --filter @weft/gateway deploy:preview
 
 All Worker names and future Cloudflare resources must begin with `weft-`. Do not use the preview command to deploy production without an approved environment configuration.
 
+## Production signal and auto-revert (B13)
+
+`@weft/production-signal` is a Tail Worker and Queue consumer. It writes exception-only tail
+events to Analytics Engine (`weft_prod` / `weft_prod_preview`), persists the short detector
+window in the shared Weft D1 database, and starts the normal `RevertOperation` workflow only
+when the configured threshold is reached after an unreverted `landings` operation. The workflow
+remains the sole component that changes trunk state, reopens the task, and attaches the stack
+trace evidence.
+
+Before a first preview deploy, create the Queue and apply the gateway migration to the same D1
+database. Then deploy the consumer:
+
+```sh
+wrangler queues create weft-prod-events-preview
+pnpm --filter @weft/gateway exec wrangler d1 migrations apply weft-preview --remote
+pnpm --filter @weft/production-signal deploy:preview
+```
+
+Attach the deployed `weft-production-signal-preview` service as a Tail Consumer of the demo
+target's preview Worker in that target's Wrangler configuration (the Tail Consumer declaration
+belongs to the target, not this consumer):
+
+```toml
+[[tail_consumers]]
+service = "weft-production-signal-preview"
+```
+
+For a controlled proof, land a throwaway demo change whose route throws, invoke it at least
+`WEFT_SPIKE_THRESHOLD` times inside `WEFT_SPIKE_WINDOW_SECONDS`, and verify one
+`prod-revert-<land-op-id>` workflow plus the reopened task/evidence. Remove the planted bug and
+the Tail Consumer after the proof. Do not run this against production without explicit approval.
+
 ## Gateway + sequencer (B2)
 
 Preview: `https://weft-gateway-preview.redacted-subdomain.workers.dev` (`/v1/health` is public).
