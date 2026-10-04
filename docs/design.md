@@ -185,3 +185,42 @@ WCP v0.1 is specified in `docs/protocol/wcp-v0.md` (normative; implemented by `p
 - Every state change goes through an **input journal** (`journal` table: op, args, clock). Replaying it into an empty DO reproduces the log and all state byte-for-byte; one operation runs at one frozen instant (found by the replay test: the local runtime clock advanced mid-call).
 - Tokens/repos live in a `Registry` DO, issued via `/v1/admin` (operator secret). Observer views redact secrets in `diff`/`intent` (spec §13); the log keeps originals.
 - Not yet: `/v1/feed/stream` (spec SHOULD), rate limiting of `check` (SHOULD), Access-gated human tokens (SHOULD). Preview Worker is `weft-gateway-preview` (runbook's preview env); the bare `weft-gateway` name is left for the PM's production deploy.
+
+## Update 2026-10-04 (B16, Hermes adapter + dogfood)
+- `packages/adapters/hermes`: a Python Hermes plugin at L3. `pre_tool_call` runs a `check` on
+  `write_file`/`patch` and blocks with `verdict.context`. `post_tool_call` sends a `commit`,
+  including edits made through the terminal, which are diffed against a snapshot of dirty
+  files taken before the command; a HEAD move becomes a `checkpoint`. `transform_tool_result`
+  adds `weft_diagnostics` to the tool result. `kanban_complete`/`kanban_request_review` and
+  `pre_verify` go through `gate stop`, and a terminal `git commit` goes through `gate commit`.
+  Symbol keys come from `@weft/analyzer`, bundled to one `analyze.mjs` that runs as a
+  persistent node child, plus cross-file reads from relative imports. Non-TS files get a
+  whole-file key `path#*`.
+- Scope guard: hooks do nothing outside `~/github/weft` (incl. `.worktrees/*`, so all
+  worktrees share repo-relative keys) and `~/code/hermes-ios/.worktrees/weft-feed` (key prefix
+  `ios/`). Installed on profiles default/backend/arq, connected to the preview gateway, repo
+  `weft`. Agent ids are `hermes-<profile>` (one repo-scoped token per profile) and change ids
+  are `hermes-<profile>/<kanban task id>`, so concurrent cards on one profile still arbitrate
+  as separate changes.
+- Dogfood is live: real kanban workers produced the first collision, and the PM cron's own
+  checkpoints are in the same log (`demo/beats/built-under-weft.md`).
+- Design gap (proposal): Weft's build lands by `git merge` in the PM, outside Weft. Nothing
+  appends `land`, so soft claims of finished cards linger until TTL (30 min) and later cards
+  get `claim_wait` against work that is already on main. Proposal: the PM's merge step posts a
+  system `land {sha, op_id}` per merged change (system token). That releases its claims and
+  sends `trunk_advanced` to everyone affected. B8's landing queue should own this; until then
+  a small PM script can do it.
+- Done (t_4ea09be8): `packages/adapters/hermes/scripts/weft_land.py`, run by the PM after each
+  `git merge` (weft-pm skill, docs/runbook.md). It maps the merged branch to kanban task ids
+  (kanban DB, branch name, `[t_…]` commit tags), finds their changes via `GET /events?task=`, and
+  posts `land {sha, op_id = uuid5(repo/change/sha)}` with `base_seq` = head for every change with
+  edits after its last land; R1 rejections are retried on a fresh head. When B8 lands, the queue
+  takes this over: the PM enqueues instead of merging, and the script goes away.
+- Adapter fix found by the live landing check: a rebase checkpoint's verdict repeats the still
+  unacked `trunk` item, which re-set the adapter's rebase floor right after the commit cleared
+  it, so a rebased agent's next edit of a landed symbol was blocked with `stale_overwrite`. The
+  floor is now cleared after the verdict is queued.
+- Adapter escape hatches, so a dogfood worker can't get wedged: `WEFT_HERMES_MODE=advise`
+  (inject only, never block). A completion refused twice for the same open errors is treated
+  as a deliberate retreat on the third try: the adapter appends a `release` for those keys,
+  which is visible in the feed.

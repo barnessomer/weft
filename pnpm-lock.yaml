@@ -50,6 +50,19 @@ importers:
 
   packages/adapters/gemini: {}
 
+  packages/adapters/hermes:
+    dependencies:
+      '@weft/analyzer':
+        specifier: workspace:*
+        version: link:../../analyzer
+      typescript:
+        specifier: ^5.9.3
+        version: 5.9.3
+    devDependencies:
+      esbuild:
+        specifier: ^0.25.4
+        version: 0.25.4
+
   packages/adapters/watcher: {}
 
   packages/analyzer:
