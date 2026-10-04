@@ -8,11 +8,11 @@
 //   heartbeat-loop keep a WCP session alive between hooks (spawned detached by SessionStart)
 //   status         print config (never the token) and session state
 import { spawn, execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HttpTransport } from "./client";
+import { HttpTransport, type Transport } from "./client";
 import { CONFIG_REL, currentSession, loadConfig, readState, stateDir, type AdapterConfig, type Loaded } from "./config";
 import { ClaudeAdapter, type HookInput } from "./hooks";
 
@@ -25,8 +25,9 @@ async function readStdin(): Promise<string> {
   return text;
 }
 
-function adapterFor(loaded: Loaded): ClaudeAdapter {
-  const transport = new HttpTransport(loaded.config.url, loaded.token, loaded.config.repo, loaded.config.timeoutMs ?? 8000);
+function adapterFor(loaded: Loaded, calls?: Call[]): ClaudeAdapter {
+  const http = new HttpTransport(loaded.config.url, loaded.token, loaded.config.repo, loaded.config.timeoutMs ?? 8000);
+  const transport = calls ? timed(http, calls) : http;
   return new ClaudeAdapter(loaded, {
     transport,
     analyze: async (changes, root, prefix) => (await import("./analysis")).analyzeChanges(changes, root, prefix),
@@ -41,16 +42,72 @@ function adapterFor(loaded: Loaded): ClaudeAdapter {
   });
 }
 
+type Call = { op: string; ms: number };
+
+/** Time every coordinator call of this hook process (written to .weft/log/hooks.jsonl). */
+function timed(t: Transport, calls: Call[]): Transport {
+  return new Proxy(t, {
+    get(target, prop, recv) {
+      const v = Reflect.get(target, prop, recv) as unknown;
+      if (typeof v !== "function") return v;
+      return async (...args: unknown[]) => {
+        const start = performance.now();
+        try {
+          return await (v as (...a: unknown[]) => Promise<unknown>).apply(target, args);
+        } finally {
+          calls.push({ op: String(prop), ms: Math.round(performance.now() - start) });
+        }
+      };
+    },
+  });
+}
+
+/** Model-visible text a hook output injects (for token-overhead accounting). */
+export function injectedText(out: unknown): string {
+  const o = (out ?? {}) as { reason?: unknown; hookSpecificOutput?: { additionalContext?: unknown; permissionDecisionReason?: unknown } };
+  return [o.reason, o.hookSpecificOutput?.additionalContext, o.hookSpecificOutput?.permissionDecisionReason].filter((x): x is string => typeof x === "string").join("\n");
+}
+
 async function hook(): Promise<void> {
   let out: unknown;
+  let input: HookInput | undefined;
+  let loaded: Loaded | undefined;
+  const calls: Call[] = [];
+  const handleStart = performance.now();
   try {
-    const input = JSON.parse(await readStdin()) as HookInput;
-    const loaded = loadConfig(input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
-    if (loaded) out = await adapterFor(loaded).handle(input);
+    input = JSON.parse(await readStdin()) as HookInput;
+    loaded = loadConfig(input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
+    if (loaded) out = await adapterFor(loaded, calls).handle(input);
   } catch {
-    out = undefined; // fail open: malformed input or a bug must not block Claude
+    out = undefined; // fail open: malformed input or a bug must not block the harness
   }
   if (out) process.stdout.write(JSON.stringify(out));
+  if (loaded && input) {
+    // Per-hook timing: total = since this node process started (incl. boot), handle = hook
+    // logic incl. coordinator calls; injected = chars of text that reached the model.
+    try {
+      const o = out as { decision?: string; hookSpecificOutput?: { permissionDecision?: string } } | undefined;
+      const injected = injectedText(out);
+      const rec = {
+        ts: new Date().toISOString(),
+        event: input.hook_event_name,
+        tool: input.tool_name,
+        session: input.session_id,
+        total_ms: Math.round(performance.now()),
+        handle_ms: Math.round(performance.now() - handleStart),
+        calls,
+        decision: o?.hookSpecificOutput?.permissionDecision ?? o?.decision,
+        injected_chars: injected.length,
+        weft_chars: /\[weft/.test(injected) ? injected.length : 0,
+        // WEFT_HOOK_TRACE=1: keep the verbatim injected text (demo evidence; may quote code)
+        ...(process.env.WEFT_HOOK_TRACE === "1" && injected ? { injected } : {}),
+      };
+      mkdirSync(join(loaded.root, ".weft", "log"), { recursive: true });
+      appendFileSync(join(loaded.root, ".weft", "log", "hooks.jsonl"), JSON.stringify(rec) + "\n");
+    } catch {
+      /* timing is best-effort */
+    }
+  }
 }
 
 function arg(args: string[], name: string): string | undefined {
@@ -60,6 +117,27 @@ function arg(args: string[], name: string): string | undefined {
 
 function git(cwd: string, args: string[]): string {
   return execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
+}
+
+/**
+ * Where this checkout's git hooks go. Respects core.hooksPath. A linked worktree shares
+ * `<common>/hooks` with every other worktree of the repo, so two adapters installed in two
+ * worktrees (e.g. Claude Code in one, Codex in the other) would overwrite each other's
+ * commit-msg/pre-commit; give the worktree its own hooks dir via worktree-scoped config.
+ */
+export function gitHooksDir(root: string): string {
+  try {
+    return resolve(root, git(root, ["config", "core.hooksPath"]));
+  } catch {
+    /* not set */
+  }
+  const gitDir = resolve(root, git(root, ["rev-parse", "--git-dir"]));
+  const common = resolve(root, git(root, ["rev-parse", "--git-common-dir"]));
+  if (gitDir === common) return resolve(root, git(root, ["rev-parse", "--git-path", "hooks"]));
+  const dir = join(gitDir, "hooks");
+  git(root, ["config", "extensions.worktreeConfig", "true"]);
+  git(root, ["config", "--worktree", "core.hooksPath", dir]);
+  return dir;
 }
 
 function shellQuote(s: string): string {
@@ -142,13 +220,8 @@ async function install(args: string[]): Promise<void> {
   const settings = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, "utf8")) as Record<string, unknown>) : {};
   writeFileSync(settingsPath, JSON.stringify(mergeSettings(settings, command), null, 2) + "\n");
 
-  // git hooks (worktree-aware hooks dir; respect core.hooksPath)
-  let hooksDir: string;
-  try {
-    hooksDir = resolve(root, git(root, ["config", "core.hooksPath"]));
-  } catch {
-    hooksDir = resolve(root, git(root, ["rev-parse", "--git-path", "hooks"]));
-  }
+  // git hooks (respect core.hooksPath; per-worktree hooks for linked worktrees)
+  const hooksDir = gitHooksDir(root);
   mkdirSync(hooksDir, { recursive: true });
   for (const [name, body] of [["commit-msg", COMMIT_MSG(process.execPath)], ["pre-commit", PRE_COMMIT(process.execPath)]] as const) {
     const p = join(hooksDir, name);

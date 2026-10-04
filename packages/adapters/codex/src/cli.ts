@@ -8,11 +8,11 @@
 //   heartbeat-loop keep a WCP session alive between hooks (spawned detached by SessionStart)
 //   status         print config (never the token) and session state
 import { spawn, execFileSync } from "node:child_process";
-import { chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync, readdirSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
-import { HttpTransport } from "./client";
+import { HttpTransport, type Transport } from "./client";
 import { CONFIG_REL, currentSession, loadConfig, readState, stateDir, type AdapterConfig, type Loaded } from "./config";
 import { CodexAdapter, type HookInput } from "./hooks";
 
@@ -25,8 +25,9 @@ async function readStdin(): Promise<string> {
   return text;
 }
 
-function adapterFor(loaded: Loaded): CodexAdapter {
-  const transport = new HttpTransport(loaded.config.url, loaded.token, loaded.config.repo, loaded.config.timeoutMs ?? 8000);
+function adapterFor(loaded: Loaded, calls?: Call[]): CodexAdapter {
+  const http = new HttpTransport(loaded.config.url, loaded.token, loaded.config.repo, loaded.config.timeoutMs ?? 8000);
+  const transport = calls ? timed(http, calls) : http;
   return new CodexAdapter(loaded, {
     transport,
     analyze: async (changes, root, prefix) => (await import("./analysis")).analyzeChanges(changes, root, prefix),
@@ -41,16 +42,72 @@ function adapterFor(loaded: Loaded): CodexAdapter {
   });
 }
 
+type Call = { op: string; ms: number };
+
+/** Time every coordinator call of this hook process (written to .weft/log/hooks.jsonl). */
+function timed(t: Transport, calls: Call[]): Transport {
+  return new Proxy(t, {
+    get(target, prop, recv) {
+      const v = Reflect.get(target, prop, recv) as unknown;
+      if (typeof v !== "function") return v;
+      return async (...args: unknown[]) => {
+        const start = performance.now();
+        try {
+          return await (v as (...a: unknown[]) => Promise<unknown>).apply(target, args);
+        } finally {
+          calls.push({ op: String(prop), ms: Math.round(performance.now() - start) });
+        }
+      };
+    },
+  });
+}
+
+/** Model-visible text a hook output injects (for token-overhead accounting). */
+export function injectedText(out: unknown): string {
+  const o = (out ?? {}) as { reason?: unknown; hookSpecificOutput?: { additionalContext?: unknown; permissionDecisionReason?: unknown } };
+  return [o.reason, o.hookSpecificOutput?.additionalContext, o.hookSpecificOutput?.permissionDecisionReason].filter((x): x is string => typeof x === "string").join("\n");
+}
+
 async function hook(): Promise<void> {
   let out: unknown;
+  let input: HookInput | undefined;
+  let loaded: Loaded | undefined;
+  const calls: Call[] = [];
+  const handleStart = performance.now();
   try {
-    const input = JSON.parse(await readStdin()) as HookInput;
-    const loaded = loadConfig(input.cwd ?? process.cwd());
-    if (loaded) out = await adapterFor(loaded).handle(input);
+    input = JSON.parse(await readStdin()) as HookInput;
+    loaded = loadConfig(input.cwd ?? process.cwd());
+    if (loaded) out = await adapterFor(loaded, calls).handle(input);
   } catch {
-    out = undefined; // fail open: malformed input or a bug must not block Codex
+    out = undefined; // fail open: malformed input or a bug must not block the harness
   }
   if (out) process.stdout.write(JSON.stringify(out));
+  if (loaded && input) {
+    // Per-hook timing: total = since this node process started (incl. boot), handle = hook
+    // logic incl. coordinator calls; injected = chars of text that reached the model.
+    try {
+      const o = out as { decision?: string; hookSpecificOutput?: { permissionDecision?: string } } | undefined;
+      const injected = injectedText(out);
+      const rec = {
+        ts: new Date().toISOString(),
+        event: input.hook_event_name,
+        tool: input.tool_name,
+        session: input.session_id,
+        total_ms: Math.round(performance.now()),
+        handle_ms: Math.round(performance.now() - handleStart),
+        calls,
+        decision: o?.hookSpecificOutput?.permissionDecision ?? o?.decision,
+        injected_chars: injected.length,
+        weft_chars: /\[weft/.test(injected) ? injected.length : 0,
+        // WEFT_HOOK_TRACE=1: keep the verbatim injected text (demo evidence; may quote code)
+        ...(process.env.WEFT_HOOK_TRACE === "1" && injected ? { injected } : {}),
+      };
+      mkdirSync(join(loaded.root, ".weft", "log"), { recursive: true });
+      appendFileSync(join(loaded.root, ".weft", "log", "hooks.jsonl"), JSON.stringify(rec) + "\n");
+    } catch {
+      /* timing is best-effort */
+    }
+  }
 }
 
 function arg(args: string[], name: string): string | undefined {
@@ -62,25 +119,68 @@ function git(cwd: string, args: string[]): string {
   return execFileSync("git", ["-C", cwd, ...args], { encoding: "utf8" }).trim();
 }
 
+/**
+ * Where this checkout's git hooks go. Respects core.hooksPath. A linked worktree shares
+ * `<common>/hooks` with every other worktree of the repo, so two adapters installed in two
+ * worktrees (e.g. Claude Code in one, Codex in the other) would overwrite each other's
+ * commit-msg/pre-commit; give the worktree its own hooks dir via worktree-scoped config.
+ */
+export function gitHooksDir(root: string): string {
+  try {
+    return resolve(root, git(root, ["config", "core.hooksPath"]));
+  } catch {
+    /* not set */
+  }
+  const gitDir = resolve(root, git(root, ["rev-parse", "--git-dir"]));
+  const common = resolve(root, git(root, ["rev-parse", "--git-common-dir"]));
+  if (gitDir === common) return resolve(root, git(root, ["rev-parse", "--git-path", "hooks"]));
+  const dir = join(gitDir, "hooks");
+  git(root, ["config", "extensions.worktreeConfig", "true"]);
+  git(root, ["config", "--worktree", "core.hooksPath", dir]);
+  return dir;
+}
+
+/** Main worktree of a linked worktree (parent of the common `.git` dir), if any. */
+export function mainWorktree(root: string): string | undefined {
+  try {
+    const common = resolve(root, git(root, ["rev-parse", "--git-common-dir"]));
+    if (!common.endsWith(`${sep}.git`)) return undefined; // bare repo: no main worktree
+    const main = dirname(common);
+    return realpathSync(main) === realpathSync(root) ? undefined : main;
+  } catch {
+    return undefined;
+  }
+}
+
 function shellQuote(s: string): string {
   return /^[A-Za-z0-9_\/.:@%+=,-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
 type HookEntry = { matcher?: string; hooks: Array<{ type: string; command: string; timeout?: number }> };
 
-/** Merge Weft hooks into Codex's `.codex/hooks.json`, replacing previous Weft entries. */
+/**
+ * Merge Weft hooks into Codex's `.codex/hooks.json` (the file Codex discovers in the
+ * project layer), replacing previous Weft entries and keeping foreign ones.
+ */
 export function mergeSettings(settings: Record<string, unknown>, command: string): Record<string, unknown> {
   const hooks = { ...((settings.hooks as Record<string, HookEntry[]>) ?? {}) };
-  const ours = (matcher?: string): HookEntry => ({ ...(matcher !== undefined ? { matcher } : {}), hooks: [{ type: "command", command, timeout: 30 }] });
-  const want: Record<string, HookEntry> = {
-    PreToolUse: ours("apply_patch"),
-    PostToolUse: ours("apply_patch"),
+  const ours = (matcher?: string, timeout = 30): HookEntry => ({ ...(matcher !== undefined ? { matcher } : {}), hooks: [{ type: "command", command, timeout }] });
+  // SessionStart must be hooked: it says hello and pins base_seq to what the conversation has
+  // actually seen. Without it the first hello happens at the first edit with base = head, so
+  // R2 never fires for a signature change the agent read before (found in M1).
+  const want: Record<string, HookEntry[]> = {
+    SessionStart: [ours()],
+    UserPromptSubmit: [ours()],
+    PreToolUse: [ours("apply_patch"), ours("Bash")],
+    PostToolUse: [ours("apply_patch"), ours("Bash")],
+    Stop: [ours()],
+    SessionEnd: [ours(undefined, 3)],
   };
-  for (const [event, entry] of Object.entries(want)) {
+  for (const [event, entries] of Object.entries(want)) {
     const kept = (hooks[event] ?? [])
       .map((e) => ({ ...e, hooks: e.hooks.filter((h) => !h.command.includes(HOOK_MARK)) }))
       .filter((e) => e.hooks.length);
-    hooks[event] = [...kept, entry];
+    hooks[event] = [...kept, ...entries];
   }
   return { ...settings, hooks };
 }
@@ -127,24 +227,30 @@ async function install(args: string[]): Promise<void> {
   const exclude = resolve(root, git(root, ["rev-parse", "--git-path", "info/exclude"]));
   mkdirSync(dirname(exclude), { recursive: true });
   const ex = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
-  const want = [".weft/", ".codex/settings.local.json"].filter((l) => !ex.split("\n").includes(l));
+  const want = [".weft/", ...(args.includes("--shared") ? [] : [".codex/hooks.json"])].filter((l) => !ex.split("\n").includes(l));
   if (want.length) writeFileSync(exclude, `${ex}${ex && !ex.endsWith("\n") ? "\n" : ""}${want.join("\n")}\n`);
 
-  // Codex hooks. Default: .codex/settings.local.json (machine-specific absolute paths,
-  // never committed); --shared writes the committed .codex/settings.json instead.
+  // Codex hooks: `.codex/hooks.json` in the checkout (Codex's project hook layer; run Codex
+  // with `--dangerously-bypass-hook-trust` or trust the hooks once). The file holds
+  // machine-specific absolute paths, so it is git-excluded unless --shared.
   const command = `${shellQuote(process.execPath)} ${shellQuote(SELF)} hook`;
-  const settingsPath = join(root, ".codex", args.includes("--shared") ? "settings.json" : "settings.local.json");
-  mkdirSync(dirname(settingsPath), { recursive: true });
-  const settings = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, "utf8")) as Record<string, unknown>) : {};
-  writeFileSync(settingsPath, JSON.stringify(mergeSettings(settings, command), null, 2) + "\n");
-
-  // git hooks (worktree-aware hooks dir; respect core.hooksPath)
-  let hooksDir: string;
-  try {
-    hooksDir = resolve(root, git(root, ["config", "core.hooksPath"]));
-  } catch {
-    hooksDir = resolve(root, git(root, ["rev-parse", "--git-path", "hooks"]));
+  const settingsPath = join(root, ".codex", "hooks.json");
+  const hookFiles = [settingsPath];
+  // Codex resolves the project config layer of a linked git worktree at the MAIN worktree
+  // (verified with codex-cli 0.154: a SessionStart hook in <main>/.codex/hooks.json fires for
+  // a session in a linked worktree, the worktree's own .codex/hooks.json does not). Install
+  // there too. The command is checkout-agnostic: each hook finds its checkout's .weft config
+  // from the hook's cwd and does nothing in checkouts without one.
+  const main = mainWorktree(root);
+  if (main && main !== root) hookFiles.push(join(main, ".codex", "hooks.json"));
+  for (const file of hookFiles) {
+    mkdirSync(dirname(file), { recursive: true });
+    const settings = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>) : {};
+    writeFileSync(file, JSON.stringify(mergeSettings(settings, command), null, 2) + "\n");
   }
+
+  // git hooks (respect core.hooksPath; per-worktree hooks for linked worktrees)
+  const hooksDir = gitHooksDir(root);
   mkdirSync(hooksDir, { recursive: true });
   for (const [name, body] of [["commit-msg", COMMIT_MSG(process.execPath)], ["pre-commit", PRE_COMMIT(process.execPath)]] as const) {
     const p = join(hooksDir, name);
@@ -159,7 +265,7 @@ async function install(args: string[]): Promise<void> {
   process.stdout.write(
     `weft: installed Codex adapter in ${root}\n` +
       `  coordinator ${config.url} repo ${config.repo} agent ${config.agent} task ${config.task.id} change ${config.change}\n` +
-      `  hooks: ${settingsPath}\n  git hooks: ${hooksDir}/commit-msg, pre-commit\n` +
+      `  hooks: ${hookFiles.join(", ")}\n  git hooks: ${hooksDir}/commit-msg, pre-commit\n` +
       (hasToken ? "" : `  NOTE: no token yet — write it to ${config.tokenFile} (mode 600) or export WEFT_TOKEN\n`),
   );
 }
