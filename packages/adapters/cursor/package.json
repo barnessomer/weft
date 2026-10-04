@@ -3,8 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "description": "WCP v0.1 adapter for Cursor CLI (cursor-agent) hooks: preToolUse deny (L2), postToolUse additional_context (L1), stop followup_message (L3).",
+  "bin": {
+    "weft-adapter-cursor": "./bin/weft-adapter-cursor.mjs"
+  },
   "scripts": {
-    "typecheck": "tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --types vitest/globals,node src/index.test.ts",
-    "test": "vitest run src/index.test.ts"
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node scripts/build.mjs && vitest run"
+  },
+  "dependencies": {
+    "@weft/analyzer": "workspace:*",
+    "@weft/protocol": "workspace:*",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.4"
   }
 }

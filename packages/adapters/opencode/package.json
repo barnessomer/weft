@@ -1,11 +1,11 @@
 {
-  "name": "@weft/adapter-watcher",
+  "name": "@weft/adapter-opencode",
   "version": "0.0.0",
   "private": true,
   "type": "module",
-  "description": "Harness-agnostic WCP L0 adapter: a file watcher that reports edits after the fact, plus a git pre-commit gate.",
+  "description": "WCP v0.1 adapter for OpenCode: a generated plugin (tool.execute.before/after, session.idle) bridged to the shared WCP core (L3).",
   "bin": {
-    "weft-adapter-watcher": "./bin/weft-adapter-watcher.mjs"
+    "weft-adapter-opencode": "./bin/weft-adapter-opencode.mjs"
   },
   "scripts": {
     "build": "node scripts/build.mjs",

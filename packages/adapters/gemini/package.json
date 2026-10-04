@@ -3,8 +3,21 @@
   "version": "0.0.0",
   "private": true,
   "type": "module",
+  "description": "WCP v0.1 adapter for Gemini CLI hooks (BeforeTool/AfterTool/AfterAgent). FIXTURE-TESTED ONLY: no live Gemini CLI run (no usable auth).",
+  "bin": {
+    "weft-adapter-gemini": "./bin/weft-adapter-gemini.mjs"
+  },
   "scripts": {
-    "typecheck": "tsc --noEmit --strict --target ES2022 --module ESNext --moduleResolution Bundler --types vitest/globals,node src/index.test.ts",
-    "test": "vitest run src/index.test.ts"
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node scripts/build.mjs && vitest run"
+  },
+  "dependencies": {
+    "@weft/analyzer": "workspace:*",
+    "@weft/protocol": "workspace:*",
+    "typescript": "^5.9.3"
+  },
+  "devDependencies": {
+    "esbuild": "^0.25.4"
   }
 }

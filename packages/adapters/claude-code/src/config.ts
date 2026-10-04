@@ -28,22 +28,22 @@ export type Loaded = { root: string; config: AdapterConfig; token: string };
 export const CONFIG_REL = ".weft/claude.json";
 
 /** Walk up from `start` to the first directory holding `.weft/claude.json`. */
-export function findRoot(start: string): string | undefined {
+export function findRoot(start: string, configRel: string = CONFIG_REL): string | undefined {
   let dir = resolve(start);
   for (;;) {
-    if (existsSync(join(dir, CONFIG_REL))) return dir;
+    if (existsSync(join(dir, configRel))) return dir;
     const parent = dirname(dir);
     if (parent === dir) return undefined;
     dir = parent;
   }
 }
 
-export function loadConfig(start: string, env: NodeJS.ProcessEnv = process.env): Loaded | undefined {
-  const root = env.WEFT_ROOT ? resolve(env.WEFT_ROOT) : findRoot(start);
+export function loadConfig(start: string, env: NodeJS.ProcessEnv = process.env, configRel: string = CONFIG_REL): Loaded | undefined {
+  const root = env.WEFT_ROOT ? resolve(env.WEFT_ROOT) : findRoot(start, configRel);
   if (!root) return undefined;
   let config: AdapterConfig;
   try {
-    config = JSON.parse(readFileSync(join(root, CONFIG_REL), "utf8")) as AdapterConfig;
+    config = JSON.parse(readFileSync(join(root, configRel), "utf8")) as AdapterConfig;
   } catch {
     return undefined;
   }
