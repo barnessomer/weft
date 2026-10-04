@@ -210,6 +210,16 @@ WCP v0.1 is specified in `docs/protocol/wcp-v0.md` (normative; implemented by `p
   system `land {sha, op_id}` per merged change (system token). That releases its claims and
   sends `trunk_advanced` to everyone affected. B8's landing queue should own this; until then
   a small PM script can do it.
+- Done (t_4ea09be8): `packages/adapters/hermes/scripts/weft_land.py`, run by the PM after each
+  `git merge` (weft-pm skill, docs/runbook.md). It maps the merged branch to kanban task ids
+  (kanban DB, branch name, `[t_…]` commit tags), finds their changes via `GET /events?task=`, and
+  posts `land {sha, op_id = uuid5(repo/change/sha)}` with `base_seq` = head for every change with
+  edits after its last land; R1 rejections are retried on a fresh head. When B8 lands, the queue
+  takes this over: the PM enqueues instead of merging, and the script goes away.
+- Adapter fix found by the live landing check: a rebase checkpoint's verdict repeats the still
+  unacked `trunk` item, which re-set the adapter's rebase floor right after the commit cleared
+  it, so a rebased agent's next edit of a landed symbol was blocked with `stale_overwrite`. The
+  floor is now cleared after the verdict is queued.
 - Adapter escape hatches, so a dogfood worker can't get wedged: `WEFT_HERMES_MODE=advise`
   (inject only, never block). A completion refused twice for the same open errors is treated
   as a deliberate retreat on the third try: the adapter appends a `release` for those keys,

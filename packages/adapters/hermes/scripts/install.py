@@ -17,7 +17,8 @@ What install does (idempotent):
   6. enables the plugin: ``hermes [-p <profile>] plugins enable weft --no-allow-tool-override``
 
 Uninstall reverses 6 -> 3 for the selected profiles (disables + removes the plugin dir, revokes the
-profile's token on the gateway, drops it from the config; deletes the config when empty).
+profile's token on the gateway, drops it from the config; deletes the config when empty, after
+revoking weft_land.py's system token).
 Secrets are never printed.
 """
 
@@ -200,6 +201,13 @@ def uninstall(args) -> None:
             status, _ = admin_call(cfg["url"], admin, "DELETE", f"/v1/admin/tokens/{entry['token_id']}")
             revoked = f"; token {entry['token_id']} revoked (HTTP {status})"
         print(f"[{profile}] disabled ({res.returncode}), removed {dest}{revoked}")
+    land = cfg.get("land") or {}
+    if not cfg.get("agents") and land:  # last profile gone: also revoke weft_land.py's system token
+        cfg.pop("land", None)
+        if land.get("token_id") and admin:
+            status, _ = admin_call(land.get("url") or cfg.get("url") or args.url, admin, "DELETE",
+                                   f"/v1/admin/tokens/{land['token_id']}")
+            print(f"land system token {land['token_id']} revoked (HTTP {status})")
     if cfg.get("agents"):
         save_config(cfg)
     elif CONFIG.exists():

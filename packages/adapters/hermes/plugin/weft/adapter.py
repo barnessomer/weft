@@ -833,8 +833,10 @@ class WeftAdapter:
             if self.task.get("title"):
                 event["summary_hint"] = self.task["title"][:100]
             verdict = self._submit("commit", event, f"{pend.call_id}:checkpoint")
-            self.rebase_floor = None  # a new commit on the worktree: assume it is rebased
             self._queue(verdict)
+            # A new commit on the worktree: assume it is rebased. Cleared after _queue, because
+            # this verdict repeats any still-unacked trunk item and would re-set the floor.
+            self.rebase_floor = None
         elif self.session and time.monotonic() - self.last_drain > DRAIN_EVERY_S:
             self._drain()
 

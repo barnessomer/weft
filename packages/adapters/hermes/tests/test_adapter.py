@@ -287,6 +287,24 @@ class TerminalAndGateTests(AdapterTestCase):
         self.assertEqual(kinds, ["edit", "checkpoint"])
         self.assertRegex(self.client.submits("commit")[1][3]["payload"]["sha"], r"^[0-9a-f]{40}$")
 
+    def test_rebase_checkpoint_clears_floor_even_if_its_verdict_repeats_the_trunk_item(self):
+        # A land (#12) put a requires_rebase trunk item in the inbox; the agent rebases before
+        # that item was acked, so the checkpoint's verdict still lists it. The new commit must
+        # still lift the rebase floor, or every later edit stays based below the landing.
+        trunk = {"id": 1, "kind": "trunk", "seq": 12, "requires_rebase": True,
+                 "diagnostic": {"severity": "info", "code": "trunk_advanced"}}
+        self.client.head = 13
+        self.client.script["commit"] = [{"verdict": "accept", "diagnostics": [], "inbox": [trunk],
+                                          "context": "[weft info] trunk_advanced", "delivered_through": 13}]
+        self.adapter.ensure_session()
+        self.adapter.rebase_floor = 12
+        args = {"command": "git commit --allow-empty -qm rebased", "workdir": str(self.repo)}
+        self.adapter.pre_tool_call(tool_name="terminal", args=args, tool_call_id="r1")
+        git(self.repo, "-c", "user.email=t@t", "-c", "user.name=t", "commit", "--allow-empty", "-qm", "rebased")
+        self.adapter.post_tool_call(tool_name="terminal", args=args, tool_call_id="r1")
+        self.assertEqual([c[3]["kind"] for c in self.client.submits("commit")], ["checkpoint"])
+        self.assertIsNone(self.adapter.rebase_floor)
+
     def test_git_integration_commands_do_not_claim_merged_files(self):
         git(self.repo, "checkout", "-qb", "other")
         (self.repo / "src" / "a.ts").write_text("export function refreshToken(a: string) { return a }\n")

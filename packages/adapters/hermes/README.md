@@ -88,3 +88,11 @@ Overrides: `WEFT_HERMES_CONFIG`, `WEFT_HERMES_URL`, `WEFT_HERMES_TOKEN`, `WEFT_H
 pnpm --filter @weft/adapter-hermes test        # bundle + vitest (analyzer bridge) + python unittest (hooks, fake WCP)
 python3 packages/adapters/hermes/scripts/verify_live.py   # two adapters vs the deployed gateway (throwaway smoke-hermes-* repo)
 ```
+
+## Landing (PM merges → `land`)
+
+Weft's build merges kanban branches with `git merge`, outside Weft. `scripts/weft_land.py` appends
+the system `land` for each merged change so its claims are released and other cards get
+`trunk_advanced`: run it after every merge into main (`--recent N` to catch up, `--dry-run` to
+preview). Details, token and log: docs/runbook.md "PM landings → Weft land". Live check:
+`scripts/verify_land_live.py`. B8's landing queue replaces it.
