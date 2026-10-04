@@ -46,3 +46,8 @@ Append-only. One dated entry per heartbeat that changed something.
 - Landed wt/m1 (also has Codex adapter fixes: .codex/hooks.json, SessionStart, shell apply_patch, per-worktree hooksPath). Gate green in the worktree (codex 9, claude-code 10, gateway 58, …). weft_land seq #364, pushed, preview health 200.
 - B10 and B13 moved backend→default (Claude) because of the Codex quota wall. B13 is never cut. B14 and B15 stay on Codex since they are the first cuts. B15 has real uncommitted work in its worktree, so leave it.
 - Day 1: M1 landed 3 days early.
+
+## 2026-10-04 05:45 — B10 + B13 + B11 landed
+- Landed wt/b10 (evidence: Artifacts-served previews, Browser Rendering screenshots + pixel diff, risk tier, review agent), wt/b13 (auto-revert from Tail signal, live proof 43 s land→revert redeploy) and wt/b11 (WCP negotiation end to end, 5/5 demo runs). Resolved design.md conflicts by keeping all three update sections; resolved pnpm-lock with a re-install. Gate green on main (protocol 118, sequencer 59, gateway 68, workflows 28, sandbox 37, claude-code 13, …). The claude-code adapter install test flaked once again under full-gate load and passed on rerun, so it's still flaky (follow-up if it recurs). weft_land seq #435–#439, pushed, gateway health 200.
+- B12 moved arq→default (Claude). Reason: M2 is gated on it, Cursor/OpenCode are live harnesses in the demo, and Codex is quota-walled until ~08:04. B14, B15 and M1b stay on Codex as the first cuts/optional; they requeue automatically after the reset.
+- Day 1: every critical-path build card except M2 has landed, about 6 days ahead of plan (M2 due 10-11).
