@@ -1,0 +1,39 @@
+{
+  "comment": "iOS Simulator shots (record-sim.mjs): Hérmes Changes feed against the preview gateway. repos = feed filter (persisted app state); args = extra debug launch args (docs: ~/code/hermes-ios/.worktrees/weft-feed/docs/weft.md). Human actions (-weft.debugAction) append real records: only use them on the R3 demo repo, never on evidence repos.",
+  "gateway": "https://weft-gateway-preview.elier.ai",
+  "appearance": "dark",
+  "shots": [
+    {
+      "id": "S08a",
+      "note": "The feed, live: Weft's own build repo (agents are editing it while this records) plus the M1 run.",
+      "repos": [
+        "weft",
+        "demo-m1-20261004-064201-r1"
+      ],
+      "seconds": 9,
+      "settle": 9000
+    },
+    {
+      "id": "S08b",
+      "note": "Event detail of the squiggle: cause link + quoted diff (M1 run 1, #9).",
+      "repos": [
+        "demo-m1-20261004-064201-r1"
+      ],
+      "args": [
+        "-weft.openEvent",
+        "demo-m1-20261004-064201-r1:9"
+      ],
+      "settle": 6000,
+      "seconds": 8
+    },
+    {
+      "id": "S09b",
+      "note": "Built under Weft: the weft repo, only conflicts.",
+      "repos": [
+        "weft"
+      ],
+      "onlyConflicts": true,
+      "seconds": 7
+    }
+  ]
+}
