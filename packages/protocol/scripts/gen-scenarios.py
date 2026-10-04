@@ -356,6 +356,141 @@ scenarios.append({
     ],
 })
 
+# ------------------------------------------------------------------ 12
+scenarios.append({
+    "name": "negotiation-overload-dues",
+    "description": "§7.4/§8.4: the loser of an R2 conflict proposes an overload; the owner's stop gate is refused until it replies, then until it makes the agreed edit; a new session of the owner's change gets the open agreement redelivered; after the overload the proposer's old-API edit is accepted.",
+    "covers": ["7.4", "8.4", "8.2"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "signature")]), "expect": {"verdict": "accept", "seq": 4}},
+        {"op": "submit", "as": "B", "submit": edit(3, [(Y, "body")], reads=[X], mode="check"),
+         "expect": {"verdict": "reject", "seq": 5, "diagnostics": [diag("error", "stale_assumption", X, 4, "claude-a")]}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": False, "open_errors": [{"code": "stale_assumption"}], "negotiations": "$absent"}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.propose", 5, {"to": {"change": "I-a"}, "keys": [X],
+            "terms": {"kind": "overload", "text": "Keep refreshToken(token) working as an overload."}}),
+         "expect": {"verdict": "accept", "seq": 6, "summary": "codex-b → I-a: proposes overload on refreshToken"}},
+        {"op": "gate", "as": "A", "gate": "stop", "expect": {"allow": False, "open_errors": [], "reason": "$any",
+            "negotiations": [{"seq": 6, "due": "reply", "keys": [X], "record": {"kind": "negotiate.propose", "agent": "codex-b"}}]}},
+        {"op": "gate", "as": "A", "gate": "commit", "expect": {"allow": True, "negotiations": "$absent"}},
+        {"op": "submit", "as": "A", "submit": submit("negotiate.accept", 4, {"reply_to": 6}),
+         "expect": {"verdict": "accept", "seq": 7, "summary": "claude-a accepted #6"}},
+        {"op": "gate", "as": "A", "gate": "stop", "expect": {"allow": False, "open_errors": [],
+            "negotiations": [{"seq": 7, "due": "fulfil", "keys": [X], "record": {"kind": "negotiate.accept"}}]}},
+        step_hello("A2", A(), "s3", 8),
+        {"op": "drain", "as": "A2", "expect": {"items": [{"id": 1, "seq": 7, "kind": "negotiation", "record": {"kind": "negotiate.accept", "payload": {"reply_to": 6}}}]}},
+        {"op": "submit", "as": "A", "submit": edit(4, [(X, "signature")], intent="restore refreshToken(token) as an overload"),
+         "expect": {"verdict": "accept", "seq": 9, "diagnostics": []}},
+        {"op": "gate", "as": "A", "gate": "stop", "expect": {"allow": True, "negotiations": "$absent"}},
+        {"op": "drain", "as": "B", "ack": "last", "expect": {"items": [
+            {"seq": 7, "kind": "negotiation", "record": {"kind": "negotiate.accept"}},
+            {"seq": 9, "diagnostic": {"code": "contract_changed"}}], "delivered_through": 9}},
+        {"op": "submit", "as": "B", "submit": edit(9, [(Y, "body")], reads=[X]), "expect": {"verdict": "accept", "seq": 10, "diagnostics": []}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": True}},
+    ],
+})
+
+# ------------------------------------------------------------------ 13
+scenarios.append({
+    "name": "escalation-merge",
+    "description": "§7.6 (escalation auto): the loser of an arbitration escalates; the coordinator merges the two tasks with a system control record (senior lead first), forgives the cross-task errors and stops arbitrating between them; a higher-priority change still wounds the whole group; repeat or conflict-free escalations are refused.",
+    "covers": ["7.6", "7.1", "7.2", "6.5"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        step_hello("C", C(), "s3", 3),
+        {"op": "submit", "as": "A", "submit": submit("claim", 1, {"firm": True, "source": "explicit"}, writes=[(Y, "body")]), "expect": {"verdict": "accept", "seq": 4}},
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")]),
+         "expect": {"verdict": "reject", "seq": 5, "diagnostics": [diag("error", "claim_wait", Y, 4, "claude-a", arbitration={
+             "outcome": "wait", "winner": {"change": "I-a"}, "loser": {"change": "I-b"}, "options": ["retreat", "wait", "negotiate", "escalate"]})]}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.escalate", 5, {"with": {"agent": "claude-a"}, "keys": [Y], "reason": "T-2 needs fetchWithAuth too"}),
+         "expect": {"verdict": "accept", "seq": 6, "head_seq": 7,
+                    "summary": "codex-b escalated conflict with claude-a to the coordinator (merge tasks) — T-2 needs fetchWithAuth too",
+                    "inbox": [{"id": 1, "seq": 7, "kind": "control", "record": {"kind": "control", "actor": {"type": "system", "id": "coordinator"},
+                        "payload": {"action": "merge", "target": {"changes": ["I-a", "I-b"]}, "cause": 6, "reason": "T-2 needs fetchWithAuth too"}}}]}},
+        {"op": "event", "seq": 7, "expect": {"kind": "control", "status": "accepted", "summary": "coordinator merged the tasks of I-a + I-b"}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": True, "open_errors": []}},
+        {"op": "drain", "as": "A", "ack": "last", "expect": {"items": [
+            {"seq": 6, "kind": "negotiation", "record": {"kind": "negotiate.escalate", "agent": "codex-b"}},
+            {"seq": 7, "kind": "control", "record": {"payload": {"action": "merge"}}}]}},
+        {"op": "submit", "as": "B", "submit": edit(7, [(Y, "body")]), "expect": {"verdict": "accept", "seq": 8, "diagnostics": []}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.escalate", 8, {"with": {"change": "I-a"}, "reason": "again"}), "expect": err("invalid_reference")},
+        {"op": "submit", "as": "C", "submit": submit("negotiate.escalate", 3, {"with": {"agent": "claude-a"}, "reason": "no conflict"}), "expect": err("invalid_reference")},
+        {"op": "submit", "as": "C", "submit": edit(3, [(Y, "body")]),
+         "expect": {"verdict": "accept", "seq": 9, "diagnostics": [diag("info", "claim_contended", Y, 4, "claude-a", arbitration={"outcome": "wound", "winner": {"change": "I-c"}})]}},
+        {"op": "drain", "as": "B", "expect": {"items": [{"seq": 7, "kind": "control"}, {"seq": 9, "diagnostic": {"code": "claim_wounded"}}]}},
+    ],
+})
+
+# ------------------------------------------------------------------ 14
+scenarios.append({
+    "name": "escalation-human",
+    "description": "§7.6 (escalation human): an escalation is recorded and delivered but does not merge; a human merge action does (senior lead first), after which the R2 error between the two changes is forgiven and no longer raised.",
+    "covers": ["7.6", "9.6"],
+    "escalation": "human",
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "signature")]), "expect": {"seq": 4}},
+        {"op": "submit", "as": "B", "submit": edit(3, [(Y, "body")], reads=[X], mode="check"), "expect": {"verdict": "reject", "seq": 5}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.escalate", 5, {"with": {"change": "I-a"}, "reason": "one feature, two cards"}),
+         "expect": {"verdict": "accept", "seq": 6, "head_seq": 6, "inbox": [{"id": 1, "seq": 4, "diagnostic": {"code": "contract_changed"}}]}},
+        {"op": "drain", "as": "A", "expect": {"items": [{"seq": 6, "kind": "negotiation", "record": {"kind": "negotiate.escalate"}}]}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": False, "open_errors": [{"code": "stale_assumption"}]}},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "merge", "changes": ["I-a", "I-b"], "reason": "same feature"},
+         "expect": {"seq": 7, "record": {"kind": "control", "actor": {"type": "human", "id": "john"},
+            "payload": {"action": "merge", "target": {"changes": ["I-b", "I-a"]}, "reason": "same feature"}, "summary": "john merged the tasks of I-b + I-a"}}},
+        {"op": "gate", "as": "B", "gate": "stop", "expect": {"allow": True, "open_errors": []}},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "merge", "changes": ["I-b", "I-a"]}, "expect": err("invalid_reference")},
+        {"op": "action", "human": "john", "action": {"type": "action", "action": "merge", "changes": ["I-b", "I-zzz"]}, "expect": err("invalid_reference")},
+        {"op": "submit", "as": "B", "submit": edit(5, [(Y, "body")], reads=[X]), "expect": {"verdict": "accept", "seq": 8, "diagnostics": []}},
+    ],
+})
+
+# ------------------------------------------------------------------ 15
+scenarios.append({
+    "name": "merge-by-agreement",
+    "description": "§7.4/§7.6: accepting merge_tasks terms makes the coordinator merge the two tasks (control record citing the accept).",
+    "covers": ["7.4", "7.6"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "signature")]), "expect": {"seq": 4}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.propose", 3, {"to": {"agent": "claude-a"}, "keys": [X],
+            "terms": {"kind": "merge_tasks", "text": "Let's do T-1 and T-2 as one task."}}), "expect": {"verdict": "accept", "seq": 5}},
+        {"op": "drain", "as": "A", "ack": "last", "expect": {"items": [{"seq": 5, "kind": "negotiation"}], "delivered_through": 5}},
+        {"op": "submit", "as": "A", "submit": submit("negotiate.accept", 5, {"reply_to": 5}),
+         "expect": {"verdict": "accept", "seq": 6, "head_seq": 7,
+                    "inbox": [{"seq": 5, "kind": "negotiation"},
+                              {"seq": 7, "kind": "control", "record": {"payload": {"action": "merge", "target": {"changes": ["I-b", "I-a"]}, "cause": 6}}}]}},
+        {"op": "drain", "as": "B", "ack": "last", "expect": {"items": [{"seq": 6, "kind": "negotiation"}, {"seq": 7, "kind": "control"}]}},
+    ],
+})
+
+# ------------------------------------------------------------------ 16
+scenarios.append({
+    "name": "overload-before-accept",
+    "description": "§8.4: an owner that makes the requested overload edit first and accepts afterwards owes nothing; an edit before the proposal does not count.",
+    "covers": ["8.4", "7.4"],
+    "steps": [
+        step_hello("A", A(), "s1", 1),
+        step_hello("B", B(), "s2", 2),
+        {"op": "submit", "as": "B", "submit": edit(2, [(Y, "body")], reads=[X]), "expect": {"seq": 3}},
+        {"op": "submit", "as": "A", "submit": edit(1, [(X, "signature")]), "expect": {"seq": 4}},
+        {"op": "submit", "as": "B", "submit": submit("negotiate.propose", 3, {"to": {"agent": "claude-a"}, "keys": [X],
+            "terms": {"kind": "overload", "text": "keep refreshToken(token)"}}), "expect": {"seq": 5}},
+        {"op": "drain", "as": "A", "ack": "last", "expect": {"delivered_through": 5}},
+        {"op": "submit", "as": "A", "submit": edit(5, [(X, "signature")]), "expect": {"verdict": "accept", "seq": 6}},
+        {"op": "gate", "as": "A", "gate": "stop", "expect": {"allow": False, "negotiations": [{"seq": 5, "due": "reply"}]}},
+        {"op": "submit", "as": "A", "submit": submit("negotiate.accept", 6, {"reply_to": 5}), "expect": {"verdict": "accept", "seq": 7}},
+        {"op": "gate", "as": "A", "gate": "stop", "expect": {"allow": True, "negotiations": "$absent"}},
+    ],
+})
+
 os.makedirs(OUT, exist_ok=True)
 for f in os.listdir(OUT):
     os.remove(os.path.join(OUT, f))

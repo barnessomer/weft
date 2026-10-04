@@ -7,17 +7,27 @@
 //   pre-commit     git pre-commit hook (last gate: refuses while the session has open errors)
 //   heartbeat-loop keep a WCP session alive between hooks (spawned detached by SessionStart)
 //   status         print config (never the token) and session state
+//   negotiate …    the agent's shell command for WCP negotiation (propose/accept/reject/counter/escalate)
+//   inbox          print what is waiting for this agent (inbox, open errors, negotiations owed)
 import { spawn, execFileSync } from "node:child_process";
 import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync, readdirSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
 import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
+import { NEGOTIATE_USAGE, parseNegotiate } from "@weft/protocol";
 import { HttpTransport, type Transport } from "./client";
 import { CONFIG_REL, currentSession, loadConfig, readState, stateDir, type AdapterConfig, type Loaded } from "./config";
 import { CodexAdapter, type HookInput } from "./hooks";
 
 const SELF = fileURLToPath(import.meta.url);
 const HOOK_MARK = "weft-codex";
+/** Per-checkout wrapper the model runs (`<checkout>/.weft/bin/weft negotiate …`). */
+export const CLI_REL = ".weft/bin/weft";
+
+function cliFor(root: string): string {
+  const wrapper = join(root, CLI_REL);
+  return existsSync(wrapper) ? wrapper : `${shellQuote(process.execPath)} ${shellQuote(SELF)}`;
+}
 
 async function readStdin(): Promise<string> {
   let text = "";
@@ -32,6 +42,7 @@ function adapterFor(loaded: Loaded, calls?: Call[]): CodexAdapter {
     transport,
     analyze: async (changes, root, prefix) => (await import("./analysis")).analyzeChanges(changes, root, prefix),
     diff: async (rel, before, after) => (await import("./analysis")).unifiedDiff(rel, before, after),
+    cli: cliFor(loaded.root),
     startHeartbeat: (codexSession) => {
       try {
         spawn(process.execPath, [SELF, "heartbeat-loop", codexSession, "--root", loaded.root], { detached: true, stdio: "ignore" }).unref();
@@ -261,11 +272,16 @@ async function install(args: string[]): Promise<void> {
     writeFileSync(p, body, { mode: 0o755 });
     chmodSync(p, 0o755);
   }
+  // The agent's own Weft command (negotiate / inbox), run through its shell tool.
+  const cliPath = join(root, CLI_REL);
+  mkdirSync(dirname(cliPath), { recursive: true });
+  writeFileSync(cliPath, `#!/bin/sh\n# ${HOOK_MARK}: Weft CLI for the agent in this checkout (negotiate, inbox)\nexec ${shellQuote(process.execPath)} ${shellQuote(SELF)} "$@"\n`, { mode: 0o755 });
+  chmodSync(cliPath, 0o755);
   const hasToken = existsSync(resolve(root, config.tokenFile!)) || !!process.env.WEFT_TOKEN;
   process.stdout.write(
     `weft: installed Codex adapter in ${root}\n` +
       `  coordinator ${config.url} repo ${config.repo} agent ${config.agent} task ${config.task.id} change ${config.change}\n` +
-      `  hooks: ${hookFiles.join(", ")}\n  git hooks: ${hooksDir}/commit-msg, pre-commit\n` +
+      `  hooks: ${hookFiles.join(", ")}\n  git hooks: ${hooksDir}/commit-msg, pre-commit\n  agent cli: ${cliPath}\n` +
       (hasToken ? "" : `  NOTE: no token yet — write it to ${config.tokenFile} (mode 600) or export WEFT_TOKEN\n`),
   );
 }
@@ -306,6 +322,40 @@ async function heartbeatLoop(codexSession: string, rootArg?: string): Promise<vo
   }
 }
 
+async function negotiateCmd(args: string[]): Promise<number> {
+  if (!args.length || args.includes("--help") || args.includes("-h")) {
+    process.stdout.write(`${NEGOTIATE_USAGE}\n\nWith no --to/--keys, propose and escalate target the agent behind your newest open Weft error.\n`);
+    return args.length ? 0 : 2;
+  }
+  const loaded = loadConfig(process.cwd());
+  if (!loaded) {
+    process.stderr.write("weft: not configured here (no .weft/codex.json or no token)\n");
+    return 2;
+  }
+  let cmd;
+  try {
+    cmd = parseNegotiate(args);
+  } catch (err) {
+    process.stderr.write(`weft: ${err instanceof Error ? err.message : String(err)}\n`);
+    return 2;
+  }
+  const r = await adapterFor(loaded).negotiate(currentSession(loaded.root) ?? "cli", cmd);
+  process.stdout.write(`${r.text}\n`);
+  return r.code;
+}
+
+async function inboxCmd(args: string[]): Promise<number> {
+  const loaded = loadConfig(process.cwd());
+  if (!loaded) {
+    process.stderr.write("weft: not configured here (no .weft/codex.json or no token)\n");
+    return 2;
+  }
+  const wait = Number(arg(args, "wait") ?? 0) || 0;
+  const r = await adapterFor(loaded).inbox(currentSession(loaded.root) ?? "cli", wait);
+  process.stdout.write(`${r.text}\n`);
+  return r.code;
+}
+
 function status(): void {
   const loaded = loadConfig(process.cwd());
   if (!loaded) {
@@ -340,8 +390,14 @@ async function main(): Promise<void> {
       return heartbeatLoop(args[0], arg(args, "root"));
     case "status":
       return status();
+    case "negotiate":
+      process.exitCode = await negotiateCmd(args);
+      return;
+    case "inbox":
+      process.exitCode = await inboxCmd(args);
+      return;
     default:
-      process.stderr.write("usage: weft-adapter-codex install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise] [--shared]\n       weft-adapter-codex hook|commit-msg FILE|pre-commit|status\n");
+      process.stderr.write("usage: weft-adapter-codex install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise] [--shared]\n       weft-adapter-codex hook|commit-msg FILE|pre-commit|status\n       weft-adapter-codex negotiate …|inbox (see negotiate --help)\n");
       process.exitCode = cmd ? 2 : 0;
   }
 }

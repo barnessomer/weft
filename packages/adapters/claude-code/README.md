@@ -75,6 +75,31 @@ edit was not coordinated) and is logged. Files outside the checkout, and under `
 `.claude`, `node_modules`, `dist`, are ignored. Edits whose analysis yields no writes
 (comment/import-only) are not submitted.
 
+## Negotiation from the shell (spec §7.4, §7.6, §8.4)
+
+`install` also writes `<checkout>/.weft/bin/weft`, the agent's own Weft command (the model runs
+it through its shell tool; it uses this checkout's session and token):
+
+```text
+weft negotiate propose <overload|transfer|share|sequence|merge_tasks|other> "<terms>" [--to AGENT|--change CHANGE] [--keys k1,k2] [--wait SECONDS]
+weft negotiate accept <seq>
+weft negotiate reject <seq> ["<reason>"]
+weft negotiate counter <seq> <kind> "<terms>" [--wait SECONDS]
+weft negotiate escalate "<reason>" [--to AGENT|--change CHANGE] [--keys k1,k2]
+weft inbox [--wait SECONDS]
+```
+
+- Without `--to`/`--keys`, `propose` and `escalate` target the agent behind this session's newest
+  open error, with the symbols it blocks. `--wait` blocks until the reply arrives (or times out).
+- Every loser-side error the adapter injects (`stale_assumption`, `claim_wait`, `claim_die`,
+  `claim_wounded`) ends with a `↳ Your options:` line naming retreat, wait, the exact
+  `negotiate propose` command and the `negotiate escalate` command.
+- Proposals addressed to this agent arrive as `[weft negotiation] #n …` lines (any hook that
+  injects context) with the answer commands; the Stop hook refuses to finish while one is
+  unanswered, or while an accepted `overload` has not been made (`[weft negotiation due]`).
+- Harness permissions: allow `Bash(<checkout>/.weft/bin/weft:*)` and `Bash(.weft/bin/weft:*)`
+  for headless runs (models use both forms).
+
 ## Development
 
 ```sh

@@ -58,6 +58,7 @@ export type Scenario = {
   covers: string[];
   repo: string;
   policy?: "wound-wait" | "wait-die";
+  escalation?: "auto" | "human";
   claim_ttl_ms?: number;
   session_ttl_ms?: number;
   /** Clock start (ISO). Each step advances 1 ms unless `advance` is used. */

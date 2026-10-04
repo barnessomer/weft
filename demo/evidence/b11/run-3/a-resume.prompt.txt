@@ -1,0 +1,4 @@
+cwd: /Users/john/.hermes/cache/scratch/weft-b11-20261004-081018-r3/agent-a
+claude -p --resume bdbe8dd8-d0f2-4b91-b8fd-37c89b900958 …
+
+Continue: handle anything Weft reports for you, then reply with a one-line summary.

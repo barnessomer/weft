@@ -1,0 +1,4 @@
+cwd: /Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/agent-b
+claude -p …
+
+Task T-2 (signup): add `POST /api/signup` taking a JSON body {email, name, password}. It registers the user with createUser from src/auth/users.ts and signs them in right away by starting a session exactly the way login in src/api/routes.ts does, responding 201 with {token, user: publicUser(user)}; a UserError becomes 400 {error}. Add the route to the accountRoutes array in src/api/account.ts and add test/signup.test.ts. For now ONLY read the relevant files and reply with a short plan that includes the exact code you will write. Do not edit any file yet.

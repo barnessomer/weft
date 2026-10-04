@@ -24,11 +24,11 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, renameSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import type { Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, Verdict } from "@weft/protocol";
+import type { AgentRef, Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, NegotiateCommand, NegotiationDue, Verdict } from "@weft/protocol";
 import { WcpError, PROTOCOL, type Transport } from "./client";
 import { readState, withLock, writeState, type Loaded, type SessionState } from "./config";
 import { EDIT_TOOLS, isGitCommit, patchPaths, proposedFiles, shellPatch } from "./edits";
-import { renderForModel, type EditedFile, type RenderCtx } from "./render";
+import { renderDues, renderForModel, type EditedFile, type RenderCtx } from "./render";
 import type { Sets, FileChange } from "./analysis";
 
 export const ADAPTER_VERSION = "0.1.0";
@@ -72,7 +72,12 @@ export type AdapterDeps = {
   model?: string;
   /** Spawn the background heartbeat for a Codex session (no-op in tests). */
   startHeartbeat?: (codexSession: string) => void;
+  /** Shell command the model runs for `negotiate` / `inbox` (e.g. `<checkout>/.weft/bin/weft`). */
+  cli?: string;
+  sleep?: (ms: number) => Promise<void>;
 };
+
+export type CliResult = { text: string; code: number };
 
 type Target = { abs: string; rel: string };
 
@@ -148,7 +153,14 @@ export class CodexAdapter {
   }
 
   private ctx(edited?: EditedFile): RenderCtx {
-    return { root: this.root, prefix: this.prefix, edited, fetchEvent: (s) => this.fetchEvent(s) };
+    return {
+      root: this.root,
+      prefix: this.prefix,
+      edited,
+      fetchEvent: (s) => this.fetchEvent(s),
+      change: this.loaded.config.change,
+      ...(this.deps.cli ? { cli: this.deps.cli } : {}),
+    };
   }
 
   // ------------------------------------------------------------------ session + base bookkeeping
@@ -352,7 +364,10 @@ export class CodexAdapter {
     const lines = [
       `[weft] This checkout is coordinated by Weft (repo ${config.repo}; you are agent ${config.agent}, task ${config.task.id}${config.task.title ? ` "${config.task.title}"` : ""}, change ${config.change}). ` +
         `Other agents edit the same codebase concurrently in their own checkouts. Every edit you make is checked against their work: ` +
-        `lines like "[weft error] <code> <file>:<line>: …" are multi-agent compiler diagnostics. An edit with errors is blocked, and you cannot finish while errors are open — fix the cited code (or retreat from it) instead of retrying the same edit.`,
+        `lines like "[weft error] <code> <file>:<line>: …" are multi-agent compiler diagnostics. An edit with errors is blocked, and you cannot finish while errors are open — fix the cited code (or retreat from it) instead of retrying the same edit.` +
+        (this.deps.cli
+          ? ` When another agent's change is in your way you may also negotiate with it (\`${this.deps.cli} negotiate propose|accept|reject|counter|escalate …\`, see \`${this.deps.cli} negotiate --help\`); proposals addressed to you arrive as "[weft negotiation]" lines and must be answered before you finish. \`${this.deps.cli} inbox\` shows what is waiting for you.`
+          : ""),
       ...(open ? [`Open errors:\n${open}`] : []),
       ...(inbox ? [inbox] : []),
     ];
@@ -519,7 +534,8 @@ export class CodexAdapter {
       st.stopRefusals = undefined;
       return undefined;
     }
-    const fingerprint = [...new Set(result.open_errors.map((d: Diagnostic) => `${d.code}:${d.symbol}`))].sort().join(",");
+    const dues: NegotiationDue[] = result.negotiations ?? [];
+    const fingerprint = [...new Set([...result.open_errors.map((d: Diagnostic) => `${d.code}:${d.symbol}`), ...dues.map((d) => `${d.due}:#${d.seq}`)])].sort().join(",");
     const count = st.stopRefusals?.fingerprint === fingerprint ? st.stopRefusals.count + 1 : 1;
     st.stopRefusals = { fingerprint, count };
     const max = this.loaded.config.maxStopRefusals ?? 5;
@@ -527,13 +543,22 @@ export class CodexAdapter {
       this.log(`stop gate: letting Codex stop after ${max} refusals; open errors stay visible in the feed (${fingerprint})`);
       return undefined;
     }
-    const errors = await renderForModel(result.open_errors, [], this.ctx());
+    const errors = result.open_errors.length ? await renderForModel(result.open_errors, [], this.ctx()) : "";
+    const owed = dues.length ? renderDues(dues, this.ctx()) : "";
     this.log(`stop gate refused #${count} (${fingerprint})`);
+    const text = [errors, owed].filter(Boolean).join("\n");
+    this.delivered(st, text, st.base, []);
     return {
       decision: "block",
       reason:
-        `[weft] Not done: ${result.open_errors.length} open Weft error(s) (stop refusal ${count}/${max}).\n${errors}\n` +
-        `Resolve each one by re-editing the cited code against the change it names (an accepted edit touching the symbol clears it), or retreat from that code.`,
+        `[weft] Not done (stop refusal ${count}/${max}): ${[
+          result.open_errors.length ? `${result.open_errors.length} open Weft error(s)` : "",
+          dues.length ? `${dues.length} negotiation(s) owed` : "",
+        ]
+          .filter(Boolean)
+          .join(", ")}.\n${text}\n` +
+        (result.open_errors.length ? `Resolve each error by re-editing the cited code against the change it names (an accepted edit touching the symbol clears it), or retreat from that code.` : "") +
+        (dues.length ? `${result.open_errors.length ? " " : ""}Answer each proposal and make every edit you agreed to.` : ""),
     };
   }
 
@@ -560,6 +585,146 @@ export class CodexAdapter {
     st.wcpSession = undefined;
     st.pending = {};
     return undefined;
+  }
+
+  // ------------------------------------------------------------------ shell CLI: negotiate + inbox
+
+  private async causeChange(seq: number): Promise<string | undefined> {
+    return (await this.fetchEvent(seq))?.change;
+  }
+
+  /**
+   * Default counterpart of `propose` / `escalate` without --to: the agent behind this
+   * session's newest open error, with the keys it blocks (spec §7.2: the loser acts).
+   */
+  private async defaultCounterpart(open: Diagnostic[]): Promise<{ to: AgentRef; keys: string[] } | undefined> {
+    const theirs = open.filter((d) => d.caused_by_agent !== this.loaded.config.agent).sort((a, b) => b.caused_by_seq - a.caused_by_seq);
+    if (!theirs.length) return undefined;
+    const change = await this.causeChange(theirs[0]!.caused_by_seq);
+    const agent = theirs[0]!.caused_by_agent;
+    const keys: string[] = [];
+    for (const d of theirs) {
+      if (!d.symbol || keys.includes(d.symbol)) continue;
+      const c = await this.causeChange(d.caused_by_seq);
+      if ((change && c === change) || (!change && d.caused_by_agent === agent)) keys.push(d.symbol);
+    }
+    return { to: change ? { change } : { agent }, keys };
+  }
+
+  /** `weft negotiate …` run by the model through its shell. Never throws. */
+  async negotiate(codexSession: string, cmd: NegotiateCommand): Promise<CliResult> {
+    let sent: number | null = null;
+    let out: CliResult;
+    try {
+      out = await withLock(this.root, codexSession, async () => {
+        const st = readState(this.root, codexSession);
+        try {
+          const batch = await this.call(st, (s) => this.deps.transport.drain(s, this.ack(st)));
+          const pre = this.delivered(st, await renderForModel([], batch.items, this.ctx()), batch.delivered_through, batch.items);
+          let kind: EventDraft["kind"];
+          let payload: Record<string, unknown>;
+          switch (cmd.cmd) {
+            case "propose":
+            case "escalate": {
+              const dflt = cmd.cmd === "propose" ? (cmd.to && cmd.keys ? undefined : await this.defaultCounterpart(batch.open_errors)) : cmd.with ? undefined : await this.defaultCounterpart(batch.open_errors);
+              const to = cmd.cmd === "propose" ? cmd.to ?? dflt?.to : cmd.with ?? dflt?.to;
+              const keys = cmd.keys ?? dflt?.keys ?? [];
+              if (!to) return { text: "weft: no open conflict to negotiate about here; pass --to AGENT (or --change CHANGE) and --keys path#symbol", code: 2 };
+              if (cmd.cmd === "propose") {
+                if (!keys.length) return { text: "weft: which symbols? pass --keys path#symbol[,…]", code: 2 };
+                kind = "negotiate.propose";
+                payload = { to, keys, terms: cmd.terms };
+              } else {
+                kind = "negotiate.escalate";
+                payload = { with: to, reason: cmd.reason, ...(keys.length ? { keys } : {}) };
+              }
+              break;
+            }
+            case "counter":
+              kind = "negotiate.counter";
+              payload = { reply_to: cmd.reply_to, terms: cmd.terms };
+              break;
+            case "accept":
+              kind = "negotiate.accept";
+              payload = { reply_to: cmd.reply_to };
+              break;
+            case "reject":
+              kind = "negotiate.reject";
+              payload = { reply_to: cmd.reply_to, ...(cmd.reason ? { reason: cmd.reason } : {}) };
+              break;
+          }
+          const event: EventDraft = { kind, base_seq: this.effectiveBase(st), payload, tool: { name: "weft-cli", harness_event: "Bash" } };
+          const verdict = await this.submit(st, "commit", event, `${kind}-${this.now()}`);
+          sent = verdict.seq;
+          this.log(`${kind} -> #${verdict.seq} ${verdict.verdict}`);
+          const after = this.delivered(st, await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx()), verdict.delivered_through, verdict.inbox);
+          const head = `[weft] sent #${verdict.seq}: ${verdict.summary ?? kind}`;
+          return { text: [pre, head, after].filter(Boolean).join("\n"), code: 0 };
+        } catch (err) {
+          if (err instanceof WcpError) return { text: `weft: ${err.code}: ${err.message}`, code: 1 };
+          throw err;
+        } finally {
+          writeState(this.root, st);
+        }
+      });
+    } catch (err) {
+      this.log(`negotiate failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+      return { text: `weft: coordinator unavailable (${err instanceof Error ? err.message : String(err)})`, code: 1 };
+    }
+    const wait = cmd.cmd === "propose" || cmd.cmd === "counter" ? cmd.wait ?? 0 : 0;
+    if (out.code !== 0 || !wait || sent === null) return out;
+    const reply = await this.waitFor(codexSession, wait, (i) => i.kind === "negotiation" && Number(i.record?.payload?.reply_to) === sent);
+    return { text: `${out.text}\n${reply.text}`, code: reply.code };
+  }
+
+  /** Poll the inbox (lock released between polls) until `match` or the deadline. */
+  private async waitFor(codexSession: string, seconds: number, match: (i: InboxItem) => boolean): Promise<CliResult> {
+    const sleep = this.deps.sleep ?? ((ms: number) => new Promise<void>((r) => setTimeout(r, ms)));
+    const deadline = this.now() + seconds * 1000;
+    const shown: string[] = [];
+    for (;;) {
+      const found = await withLock(this.root, codexSession, async () => {
+        const st = readState(this.root, codexSession);
+        try {
+          const batch = await this.call(st, (s) => this.deps.transport.drain(s, this.ack(st)));
+          const text = this.delivered(st, await renderForModel([], batch.items, this.ctx()), batch.delivered_through, batch.items);
+          if (text) shown.push(text);
+          return batch.items.some(match);
+        } finally {
+          writeState(this.root, st);
+        }
+      }).catch(() => false);
+      if (found) return { text: shown.join("\n"), code: 0 };
+      if (this.now() >= deadline) return { text: [...shown, `[weft] no reply after ${seconds}s. Do other work and check with \`${this.deps.cli ?? "weft"} inbox\`, or choose another option.`].join("\n"), code: 0 };
+      await sleep(3000);
+    }
+  }
+
+  /** `weft inbox [--wait S]`: what is waiting for this agent (items, open errors, negotiations owed). */
+  async inbox(codexSession: string, waitSec = 0): Promise<CliResult> {
+    try {
+      if (waitSec > 0) {
+        const r = await this.waitFor(codexSession, waitSec, () => true);
+        if (r.text && !r.text.startsWith("[weft] no reply")) return r;
+      }
+      return await withLock(this.root, codexSession, async () => {
+        const st = readState(this.root, codexSession);
+        try {
+          const batch = await this.call(st, (s) => this.deps.transport.drain(s, this.ack(st)));
+          const g = await this.call(st, (s) => this.deps.transport.gate(s, "stop"));
+          const items = await renderForModel([], batch.items, this.ctx());
+          const open = batch.open_errors.length ? await renderForModel(batch.open_errors, [], this.ctx()) : "";
+          const owed = g.negotiations?.length ? renderDues(g.negotiations, this.ctx()) : "";
+          const text = [items, open ? `Open errors:\n${open}` : "", owed ? `Owed:\n${owed}` : ""].filter(Boolean).join("\n");
+          this.delivered(st, text, batch.delivered_through, batch.items);
+          return { text: text || "[weft] inbox empty: no open errors, nothing owed.", code: 0 };
+        } finally {
+          writeState(this.root, st);
+        }
+      });
+    } catch (err) {
+      return { text: `weft: ${err instanceof WcpError ? `${err.code}: ${err.message}` : `coordinator unavailable (${String(err)})`}`, code: 1 };
+    }
   }
 
   // ------------------------------------------------------------------ git hooks + heartbeat

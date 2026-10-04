@@ -67,6 +67,7 @@ export const EVENT_KINDS = [
   "negotiate.accept",
   "negotiate.reject",
   "negotiate.counter",
+  "negotiate.escalate",
   "land",
   "revert",
   "message",
@@ -105,11 +106,19 @@ export type ProposePayload = { to: AgentRef; keys: SymbolKey[]; terms: Negotiati
 export type CounterPayload = { reply_to: Seq; terms: NegotiationTerms };
 export type AcceptPayload = { reply_to: Seq };
 export type RejectPayload = { reply_to: Seq; reason?: string };
+/**
+ * The losing agent asks the coordinator to resolve a conflict with another change by
+ * merging the two tasks (spec §7.6). `with` names the other change (or its agent).
+ */
+export type EscalatePayload = { with: AgentRef; keys?: SymbolKey[]; reason: string };
 export type MessagePayload = { to: AgentRef; text: string; intent?: "steer" | "negotiate" | "info" };
 export type ControlPayload = {
-  action: "pause" | "resume" | "approve" | "undo";
-  target: { agent?: string; change?: string; seq?: Seq; op_id?: string };
+  action: "pause" | "resume" | "approve" | "undo" | "merge";
+  /** `merge`: `changes` = the two changes whose tasks are merged (spec §7.6). */
+  target: { agent?: string; change?: string; seq?: Seq; op_id?: string; changes?: string[] };
   reason?: string;
+  /** `merge` appended by the coordinator: the escalate/accept record that caused it. */
+  cause?: Seq;
 };
 export type PresencePayload = { harness: string; level: CapabilityLevel };
 
@@ -196,6 +205,9 @@ export type Hello = {
 };
 
 export type ArbitrationPolicy = "wound-wait" | "wait-die";
+/** Who resolves `negotiate.escalate` (spec §7.6): the coordinator merges at once, or a human. */
+export type EscalationPolicy = "auto" | "human";
+export type RepoPolicy = { arbitration: ArbitrationPolicy; escalation?: EscalationPolicy };
 
 export type Welcome = {
   type: "welcome";
@@ -207,7 +219,7 @@ export type Welcome = {
   heartbeat_interval_ms: number;
   session_ttl_ms: number;
   claim_ttl_ms: number;
-  policy: { arbitration: ArbitrationPolicy };
+  policy: RepoPolicy;
   limits: { max_diff_bytes: number; max_keys: number; max_page: number };
 };
 
@@ -258,12 +270,20 @@ export type HeartbeatAck = {
 };
 
 export type Gate = { type: "gate"; gate: "stop" | "commit" };
+/**
+ * A negotiation the session still owes (spec §8.4): `reply` = a proposal/counter addressed
+ * to it is unanswered; `fulfil` = it accepted (or had accepted) an `overload` agreement as
+ * the giver and has not yet made an accepted edit of the agreed keys.
+ */
+export type NegotiationDue = { seq: Seq; due: "reply" | "fulfil"; record: EventRecord; keys: SymbolKey[] };
 export type GateResult = {
   type: "gate.result";
   gate: "stop" | "commit";
   allow: boolean;
   reason?: string;
   open_errors: Diagnostic[];
+  /** Stop gate only; absent when nothing is due. */
+  negotiations?: NegotiationDue[];
 };
 
 export type Bye = { type: "bye"; reason?: string };
@@ -277,7 +297,7 @@ export type RepoSummary = {
   active_changes: number;
   open_conflicts: number;
   last_event_at?: string;
-  policy: { arbitration: ArbitrationPolicy };
+  policy: RepoPolicy;
 };
 export type RepoList = { type: "repos"; repos: RepoSummary[] };
 
@@ -306,6 +326,7 @@ export type HumanAction =
   | { type: "action"; action: "approve"; change: string; task?: string; note?: string }
   | { type: "action"; action: "undo"; seq?: Seq; op_id?: string; reason: string }
   | { type: "action"; action: "pause" | "resume"; agent: string; reason?: string }
+  | { type: "action"; action: "merge"; changes: [string, string]; reason?: string }
   | {
       type: "action";
       action: "message";

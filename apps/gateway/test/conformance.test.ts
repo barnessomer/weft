@@ -88,6 +88,7 @@ async function runViaGateway(sc0: Scenario) {
   const sc = renamed(sc0, repo);
   await createRepo(repo, {
     ...(sc.policy ? { policy: sc.policy } : {}),
+    ...(sc.escalation ? { escalation: sc.escalation } : {}),
     ...(sc.claim_ttl_ms ? { claim_ttl_ms: sc.claim_ttl_ms } : {}),
     ...(sc.session_ttl_ms ? { session_ttl_ms: sc.session_ttl_ms } : {}),
   });
@@ -98,6 +99,7 @@ async function runViaGateway(sc0: Scenario) {
   const ref = new ReferenceCoordinator({
     repo,
     ...(sc.policy ? { policy: sc.policy } : {}),
+    ...(sc.escalation ? { escalation: sc.escalation } : {}),
     ...(sc.claim_ttl_ms ? { claim_ttl_ms: sc.claim_ttl_ms } : {}),
     ...(sc.session_ttl_ms ? { session_ttl_ms: sc.session_ttl_ms } : {}),
     now: refClock.now,
@@ -128,6 +130,7 @@ describe("WCP conformance through gateway + RepoCoordinator DO", () => {
     const init = {
       repo,
       ...(sc.policy ? { policy: sc.policy } : {}),
+      ...(sc.escalation ? { escalation: sc.escalation } : {}),
       ...(sc.claim_ttl_ms ? { claim_ttl_ms: sc.claim_ttl_ms } : {}),
       ...(sc.session_ttl_ms ? { session_ttl_ms: sc.session_ttl_ms } : {}),
     };

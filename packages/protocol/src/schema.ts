@@ -32,6 +32,7 @@ const KINDS = [
   "negotiate.accept",
   "negotiate.reject",
   "negotiate.counter",
+  "negotiate.escalate",
   "land",
   "revert",
   "message",
@@ -48,6 +49,7 @@ const PAYLOAD_BY_KIND: Record<string, string> = {
   "negotiate.accept": "AcceptPayload",
   "negotiate.reject": "RejectPayload",
   "negotiate.counter": "CounterPayload",
+  "negotiate.escalate": "EscalatePayload",
   land: "LandPayload",
   revert: "RevertPayload",
   message: "MessagePayload",
@@ -103,6 +105,7 @@ export const schema: JsonSchema = {
     Position: obj({ line: seq, character: seq }, ["line", "character"]),
     Range: obj({ start: ref("Position"), end: ref("Position") }, ["start", "end"]),
     AgentRef: agentRef,
+    RepoPolicy: obj({ arbitration: enumOf("wound-wait", "wait-die"), escalation: enumOf("auto", "human") }, ["arbitration"]),
     Arbitration: obj(
       {
         policy: enumOf("wound-wait", "wait-die"),
@@ -182,15 +185,17 @@ export const schema: JsonSchema = {
     CounterPayload: obj({ reply_to: posSeq, terms: ref("NegotiationTerms") }, ["reply_to", "terms"]),
     AcceptPayload: obj({ reply_to: posSeq }, ["reply_to"]),
     RejectPayload: obj({ reply_to: posSeq, reason: { type: "string" } }, ["reply_to"]),
+    EscalatePayload: obj({ with: ref("AgentRef"), keys: arr(ref("SymbolKey")), reason: str }, ["with", "reason"]),
     MessagePayload: obj(
       { to: ref("AgentRef"), text: str, intent: enumOf("steer", "negotiate", "info") },
       ["to", "text"],
     ),
     ControlPayload: obj(
       {
-        action: enumOf("pause", "resume", "approve", "undo"),
-        target: obj({ agent: str, change: str, seq: posSeq, op_id: str }),
+        action: enumOf("pause", "resume", "approve", "undo", "merge"),
+        target: obj({ agent: str, change: str, seq: posSeq, op_id: str, changes: arr(str, { minItems: 2, maxItems: 2 }) }),
         reason: { type: "string" },
+        cause: posSeq,
       },
       ["action", "target"],
     ),
@@ -280,7 +285,7 @@ export const schema: JsonSchema = {
         heartbeat_interval_ms: { type: "integer", minimum: 1 },
         session_ttl_ms: { type: "integer", minimum: 1 },
         claim_ttl_ms: { type: "integer", minimum: 1 },
-        policy: obj({ arbitration: enumOf("wound-wait", "wait-die") }, ["arbitration"]),
+        policy: ref("RepoPolicy"),
         limits: obj(
           {
             max_diff_bytes: { type: "integer", minimum: 1 },
@@ -350,6 +355,9 @@ export const schema: JsonSchema = {
         allow: { type: "boolean" },
         reason: { type: "string" },
         open_errors: arr(ref("Diagnostic")),
+        negotiations: arr(
+          obj({ seq: posSeq, due: enumOf("reply", "fulfil"), record: ref("EventRecord"), keys: arr(ref("SymbolKey")) }, ["seq", "due", "record", "keys"]),
+        ),
       },
       ["gate", "allow", "open_errors"],
     ),
@@ -362,7 +370,7 @@ export const schema: JsonSchema = {
         active_changes: seq,
         open_conflicts: seq,
         last_event_at: ref("Timestamp"),
-        policy: obj({ arbitration: enumOf("wound-wait", "wait-die") }, ["arbitration"]),
+        policy: ref("RepoPolicy"),
       },
       ["repo", "head_seq", "active_agents", "active_changes", "open_conflicts", "policy"],
     ),
@@ -409,6 +417,15 @@ export const schema: JsonSchema = {
           "action",
           "agent",
         ]),
+        obj(
+          {
+            type: { const: "action" },
+            action: { const: "merge" },
+            changes: arr(str, { minItems: 2, maxItems: 2 }),
+            reason: { type: "string" },
+          },
+          ["type", "action", "changes"],
+        ),
         obj(
           {
             type: { const: "action" },

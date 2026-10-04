@@ -1,0 +1,146 @@
+agent-a commit: auth: sessions expire (T-1)
+
+Change-Id: Ic5ce7a63db02cd98c28962c1f73471ca8e4a8095
+Task-Id: T-1
+Agent-Id: claude-a
+agent-b commit: weft: commit refused — 1 open error(s):
+[weft error] stale_assumption src/auth/session.ts:8:17: You use src/auth/session.ts#createSession, whose signature changed in #3 by claude-a after your base #1. (caused by claude-a · task T-1 · event #3). Suggestion: Read the new src/auth/session.ts#createSession (event #3) and update this call site, or negotiate with claude-a.
+  ↳ event #3 by claude-a changed src/auth/session.ts (their change is not in your checkout yet):
+    @@ -1,19 +1,32 @@
+     import { randomBytes } from "node:crypto";
+     
+    -export type Session = { token: string; userId: string; createdAt: number };
+    +export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };
+     
+    +export type SessionOptions = { ttlMs: number };
+    +
+     const sessions = new Map<string, Session>();
+     
+     /** Start a session for a user and return it (the token is the bearer credential). */
+    -export function createSession(userId: string): Session {
+    -  const session: Session = { token: randomBytes(24).toString("base64url"), userId, createdAt: Date.now() };
+    +export function createSession(userId: string, opts: SessionOptions): Session {
+    +  const createdAt = Date.now();
+    +  const session: Session = {
+    +    token: randomBytes(24).toString("base64url"),
+    +    userId,
+    +    createdAt,
+    +    expiresAt: createdAt + opts.ttlMs,
+    +  };
+       sessions.set(session.token, session);
+       return session;
+     }
+     
+    -/** The live session for a token, or undefined. */
+    +/** The live session for a token, or undefined (expired sessions are forgotten). */
+     export function getSession(token: string): Session | undefined {
+    -  return sessions.get(token);
+    +  const session = sessions.get(token);
+    … (9 more lines)
+  ↳ Your options: retreat (rework without that code) | wait (until claude-a lands or releases it) | negotiate: `/Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/agent-b/.weft/bin/weft negotiate propose overload "<what claude-a should keep working for you>" --wait 240` (terms: overload | transfer | share | sequence | merge_tasks | other; it is delivered to claude-a and you get the reply) | escalate: `/Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/agent-b/.weft/bin/weft negotiate escalate "<why>"` (the coordinator merges your two tasks).
+
+--- agent-a alone: tsc exit 0, tests exit 0
+--- agent-b alone (A's change not merged yet): tsc exit 0, tests exit 0
+
+--- land agent-a: {"ok":true,"sha":"fee2fe5190ef319096ff563e275f1212a20ab55a","seq":10,"status":"accepted"}; land agent-b: {"ok":true,"sha":"fee2fe5190ef319096ff563e275f1212a20ab55a","seq":11,"status":"accepted"}
+*   fee2fe5 Merge branch 'agent-a'
+|\  
+| * 70486a5 auth: sessions expire (T-1)
+|/  
+* 28b29f7 target-app: initial
+--- main after both landings: tsc exit 0
+
+--- main: node --test exit 0
+✔ login with valid credentials returns a token that works for /api/me (44.696709ms)
+✔ login rejects a wrong password and missing fields (43.761708ms)
+✔ logout revokes the token (41.476208ms)
+✔ pages render and unknown routes 404 (21.093041ms)
+✔ createSession issues a unique token bound to the user (0.46925ms)
+✔ revokeSession ends the session (0.085291ms)
+✔ getSession forgets a session once it expires (0.236209ms)
+ℹ tests 7
+ℹ suites 0
+ℹ pass 7
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 210.028166
+--- main:src/auth/session.ts
+import { randomBytes } from "node:crypto";
+
+export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };
+
+export type SessionOptions = { ttlMs: number };
+
+const sessions = new Map<string, Session>();
+
+/** Start a session for a user and return it (the token is the bearer credential). */
+export function createSession(userId: string, opts: SessionOptions): Session {
+  const createdAt = Date.now();
+  const session: Session = {
+    token: randomBytes(24).toString("base64url"),
+    userId,
+    createdAt,
+    expiresAt: createdAt + opts.ttlMs,
+  };
+  sessions.set(session.token, session);
+  return session;
+}
+
+/** The live session for a token, or undefined (expired sessions are forgotten). */
+export function getSession(token: string): Session | undefined {
+  const session = sessions.get(token);
+  if (session && Date.now() >= session.expiresAt) {
+    sessions.delete(token);
+    return undefined;
+  }
+  return session;
+}
+
+export function revokeSession(token: string): boolean {
+  return sessions.delete(token);
+}
+
+/** Test helper: forget every session. */
+export function resetSessions(): void {
+  sessions.clear();
+}
+
+--- main:src/api/account.ts
+import { getUser, publicUser } from "../auth/users.ts";
+import { revokeSession } from "../auth/session.ts";
+import { field, html, json, sessionOf, type Route } from "./router.ts";
+import { accountPage } from "../ui/pages.ts";
+
+export const accountRoutes: Route[] = [
+  {
+    method: "GET",
+    path: "/api/me",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? json(200, publicUser(user)) : json(401, { error: "not signed in" });
+    },
+  },
+  {
+    method: "GET",
+    path: "/account",
+    handler: (req) => {
+      const session = sessionOf(req);
+      const user = session && getUser(session.userId);
+      return user ? html(200, accountPage(publicUser(user))) : html(401, "<p>Please sign in.</p>");
+    },
+  },
+  {
+    method: "POST",
+    path: "/api/logout",
+    handler: (req) => {
+      const session = sessionOf(req);
+      if (!session) return json(401, { error: "not signed in" });
+      revokeSession(session.token);
+      return json(200, { ok: field(req.body, "reason") ?? true });
+    },
+  },
+];
+

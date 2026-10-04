@@ -1,0 +1,10 @@
+weft: installed Claude Code adapter in /Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/agent-a
+  coordinator http://127.0.0.1:8799 repo demo-b11-20261004-080327-r1 agent claude-a task T-1 change Ic5ce7a63db02cd98c28962c1f73471ca8e4a8095
+  hooks: /Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/agent-a/.claude/settings.local.json
+  git hooks: /Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/origin/.git/worktrees/agent-a/hooks/commit-msg, pre-commit
+  agent cli: /Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/agent-a/.weft/bin/weft
+weft: installed Claude Code adapter in /Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/agent-b
+  coordinator http://127.0.0.1:8799 repo demo-b11-20261004-080327-r1 agent claude-b task T-2 change Idf8f150c53f729f4bdafb4374f167d668e8fe612
+  hooks: /Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/agent-b/.claude/settings.local.json
+  git hooks: /Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/origin/.git/worktrees/agent-b/hooks/commit-msg, pre-commit
+  agent cli: /Users/john/.hermes/cache/scratch/weft-b11-20261004-080327-r1/agent-b/.weft/bin/weft

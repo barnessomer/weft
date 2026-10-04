@@ -1,0 +1,308 @@
+{
+  "name": "escalation-human",
+  "description": "§7.6 (escalation human): an escalation is recorded and delivered but does not merge; a human merge action does (senior lead first), after which the R2 error between the two changes is forgiven and no longer raised.",
+  "covers": [
+    "7.6",
+    "9.6"
+  ],
+  "repo": "demo",
+  "start": "2026-10-05T14:00:00.000Z",
+  "escalation": "human",
+  "steps": [
+    {
+      "op": "hello",
+      "as": "A",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "claude-a",
+          "harness": "claude-code"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-1"
+        },
+        "change": "I-a"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s1",
+        "head_seq": 1,
+        "delivered_through": 1
+      }
+    },
+    {
+      "op": "hello",
+      "as": "B",
+      "hello": {
+        "type": "hello",
+        "protocol": "wcp/0.1",
+        "agent": {
+          "id": "codex-b",
+          "harness": "codex"
+        },
+        "capabilities": {
+          "level": 3,
+          "observe": "sync",
+          "inject": "immediate",
+          "deny_edit": true,
+          "refuse_stop": true,
+          "commit_gate": "tool_interception"
+        },
+        "task": {
+          "id": "T-2"
+        },
+        "change": "I-b"
+      },
+      "expect": {
+        "type": "welcome",
+        "session": "s2",
+        "head_seq": 2,
+        "delivered_through": 2
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 2,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#refreshToken"
+          ]
+        }
+      },
+      "expect": {
+        "seq": 3
+      }
+    },
+    {
+      "op": "submit",
+      "as": "A",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 1,
+          "writes": [
+            {
+              "key": "src/auth/session.ts#refreshToken",
+              "kind": "signature"
+            }
+          ]
+        }
+      },
+      "expect": {
+        "seq": 4
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "check",
+        "event": {
+          "kind": "edit",
+          "base_seq": 3,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#refreshToken"
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "reject",
+        "seq": 5
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "negotiate.escalate",
+          "base_seq": 5,
+          "payload": {
+            "with": {
+              "change": "I-a"
+            },
+            "reason": "one feature, two cards"
+          }
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 6,
+        "head_seq": 6,
+        "inbox": [
+          {
+            "id": 1,
+            "seq": 4,
+            "diagnostic": {
+              "code": "contract_changed"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "drain",
+      "as": "A",
+      "expect": {
+        "items": [
+          {
+            "seq": 6,
+            "kind": "negotiation",
+            "record": {
+              "kind": "negotiate.escalate"
+            }
+          }
+        ]
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": false,
+        "open_errors": [
+          {
+            "code": "stale_assumption"
+          }
+        ]
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "merge",
+        "changes": [
+          "I-a",
+          "I-b"
+        ],
+        "reason": "same feature"
+      },
+      "expect": {
+        "seq": 7,
+        "record": {
+          "kind": "control",
+          "actor": {
+            "type": "human",
+            "id": "john"
+          },
+          "payload": {
+            "action": "merge",
+            "target": {
+              "changes": [
+                "I-b",
+                "I-a"
+              ]
+            },
+            "reason": "same feature"
+          },
+          "summary": "john merged the tasks of I-b + I-a"
+        }
+      }
+    },
+    {
+      "op": "gate",
+      "as": "B",
+      "gate": "stop",
+      "expect": {
+        "allow": true,
+        "open_errors": []
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "merge",
+        "changes": [
+          "I-b",
+          "I-a"
+        ]
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "invalid_reference"
+        }
+      }
+    },
+    {
+      "op": "action",
+      "human": "john",
+      "action": {
+        "type": "action",
+        "action": "merge",
+        "changes": [
+          "I-b",
+          "I-zzz"
+        ]
+      },
+      "expect": {
+        "type": "error",
+        "error": {
+          "code": "invalid_reference"
+        }
+      }
+    },
+    {
+      "op": "submit",
+      "as": "B",
+      "submit": {
+        "type": "submit",
+        "mode": "commit",
+        "event": {
+          "kind": "edit",
+          "base_seq": 5,
+          "writes": [
+            {
+              "key": "src/api/client.ts#fetchWithAuth",
+              "kind": "body"
+            }
+          ],
+          "reads": [
+            "src/auth/session.ts#refreshToken"
+          ]
+        }
+      },
+      "expect": {
+        "verdict": "accept",
+        "seq": 8,
+        "diagnostics": []
+      }
+    }
+  ]
+}
