@@ -573,6 +573,13 @@ export class SqlCoordinator {
     return a !== undefined && a !== null && b !== undefined && b !== null && this.group(a) === this.group(b);
   }
 
+  /** Alternatives (spec §7.7): distinct changes of the same task (best-of-N candidates). */
+  private alternatives(a: string | undefined | null, b: string | undefined | null): boolean {
+    if (a === undefined || a === null || b === undefined || b === null || a === b) return false;
+    const ta = this.getChange(a)?.task;
+    return ta !== undefined && ta !== null && ta === this.getChange(b)?.task;
+  }
+
   private members(lead: string): ChangeRow[] {
     return all<ChangeRow>(this.sql, `SELECT * FROM changes WHERE COALESCE(merged_into, id) = ? ORDER BY ord`, lead);
   }
@@ -663,20 +670,26 @@ export class SqlCoordinator {
 
   private activeClaims(key: SymbolKey, exceptChange: string): Claim[] {
     const now = this.now();
-    return this.claimsOnKey(key).filter((c) => !this.sameGroup(c.change, exceptChange) && !c.shared.includes(exceptChange) && c.expires_at > now);
+    return this.claimsOnKey(key).filter(
+      (c) => !this.sameGroup(c.change, exceptChange) && !this.alternatives(c.change, exceptChange) && !c.shared.includes(exceptChange) && c.expires_at > now,
+    );
   }
 
   /** Latest record in W (spec §6.1) writing `key`, restricted by a predicate on the write. */
   private latestW(key: SymbolKey, base: Seq, change: string | undefined, where: string): { r: EventRecord; w: Write } | undefined {
     const hit = one<{ seq: number; wkind: WriteKind }>(
       this.sql,
-      // W excludes the submitter's whole merged group (spec §6.1, §7.6).
+      // W excludes the submitter's whole merged group (spec §6.1, §7.6) and the in-flight
+      // edits of its alternatives, i.e. other changes of the same task (§7.7).
       `SELECT seq, wkind FROM event_writes WHERE key = ? AND seq > ?
-         AND (change_id IS NULL OR change_id NOT IN (SELECT id FROM changes WHERE COALESCE(merged_into, id) = ?)) AND ${where}
+         AND (change_id IS NULL OR change_id NOT IN (SELECT id FROM changes WHERE COALESCE(merged_into, id) = ?))
+         AND NOT (committed = 0 AND change_id IS NOT NULL AND change_id IS NOT ? AND change_id IN (SELECT id FROM changes WHERE task = ?)) AND ${where}
        ORDER BY seq DESC LIMIT 1`,
       key,
       base,
       change === undefined ? null : this.group(change),
+      change ?? null,
+      change === undefined ? null : (this.getChange(change)?.task ?? null),
     );
     if (!hit) return undefined;
     return { r: this.record(hit.seq)!, w: { key, kind: hit.wkind } };
@@ -1063,6 +1076,9 @@ export class SqlCoordinator {
       }
       case "land": {
         run(this.sql, `DELETE FROM claims WHERE change_id IS ?`, rec.change ?? null);
+        // ... and its alternatives' claims (§7.7): they lost.
+        const task = this.getChange(rec.change ?? undefined)?.task;
+        if (task !== undefined && task !== null) run(this.sql, `DELETE FROM claims WHERE change_id IN (SELECT id FROM changes WHERE task = ? AND id IS NOT ?)`, task, rec.change ?? null);
         if (change) run(this.sql, `UPDATE changes SET landed = 1 WHERE id = ?`, change.id);
         if (change) change.landed = 1;
         for (const cs of this.sessionsOf({ change: rec.change! })) this.openClear(cs.id);
@@ -1125,6 +1141,7 @@ export class SqlCoordinator {
     if (rec.kind === "edit" || rec.kind === "land" || rec.kind === "revert") {
       for (const c of all<ChangeRow>(this.sql, `SELECT * FROM changes ORDER BY ord`)) {
         if (c.id === rec.change || c.landed) continue;
+        if (rec.kind === "edit" && this.alternatives(c.id, rec.change)) continue;
         const targets = this.sessionsOf({ change: c.id });
         if (!targets.length) continue;
         if (rec.kind !== "edit") {

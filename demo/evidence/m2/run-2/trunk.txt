@@ -1,0 +1,104 @@
+head 510f0b1ed354f643b8136d1d335cfc44fb57e6aa
+510f0b1 Signup endpoint (claude-t2)
+6004651 Session expiry (opencode-t1)
+39a81bd Session refresh (claude-t3)
+14f482e Kiwi on the pricing page (claude-t6)
+add2f1a Free shipping over $50 (claude-t5)
+b4ac1be Bulk discount (claude-t4)
+ea90682 demo: M2 seed (run 2)
+d2f5a4f demo: M2 seed (run 1)
+bdf3fa5 pricing: add kiwi at $4/kg
+f804de0 Revert change If9f9c36253ef58879c7d802221005ac3263d1393
+8efc97b quote: support ?unit=g
+b09fcdb demo: storefront + .weft/preview.json (B10 live seed)
+a52cfff Revert change I843b8a9f3ac27dea06ff96c020ee74a0a7a12cda
+4fca7ab quote: support ?unit=g
+85380e8 demo: deploy the shop as Worker weft-demo (quote API, tail consumer)
+--- tsc
+
+--- node --test
+✔ login with valid credentials returns a token that works for /api/me (389.504125ms)
+✔ login rejects a wrong password and missing fields (215.442125ms)
+✔ logout revokes the token (289.458083ms)
+✔ pages render and unknown routes 404 (73.376292ms)
+✔ calcTotal gives no discount under 10 units (8.552875ms)
+✔ calcTotal takes 10% off at 10 or more units (0.118375ms)
+✔ refreshSession replaces the session with a new one for the same user (3.590375ms)
+✔ refreshSession returns undefined for an unknown token (0.185125ms)
+✔ a revoked token cannot be refreshed twice (0.15825ms)
+✔ createSession issues a unique token bound to the user (3.291542ms)
+✔ revokeSession ends the session (0.255875ms)
+✔ session expires once past expiresAt (0.147042ms)
+✔ shipping is free when the cart total is $50 or more (0.510458ms)
+✔ shipping is unchanged below $50 (0.09ms)
+✔ calcTotal sums price x qty (0.514958ms)
+✔ shippingFee is flat for a non-empty cart (0.087209ms)
+✔ every catalog price is positive (0.105208ms)
+✔ signup creates the user and returns a working session token (108.264959ms)
+✔ signup user can log in afterwards (194.112209ms)
+✔ signup maps UserError to 400 (237.573583ms)
+✔ signup rejects missing fields with 400 (0.482292ms)
+ℹ tests 21
+ℹ suites 0
+ℹ pass 21
+ℹ fail 0
+ℹ cancelled 0
+ℹ skipped 0
+ℹ todo 0
+ℹ duration_ms 1261.285083
+
+--- src/auth/session.ts
+import { randomBytes } from "node:crypto";
+
+export type SessionOptions = { ttlMs: number };
+
+export type Session = { token: string; userId: string; createdAt: number; expiresAt: number };
+
+export const DEFAULT_SESSION_TTL_MS = 60 * 60 * 1000;
+
+const sessions = new Map<string, Session>();
+
+/** Start a session for a user and return it (the token is the bearer credential). */
+export function createSession(userId: string, opts?: SessionOptions): Session {
+  const options = opts ?? { ttlMs: DEFAULT_SESSION_TTL_MS };
+  const createdAt = Date.now();
+  const session: Session = {
+    token: randomBytes(24).toString("base64url"),
+    userId,
+    createdAt,
+    expiresAt: createdAt + options.ttlMs,
+  };
+  sessions.set(session.token, session);
+  return session;
+}
+
+/** The live session for a token, or undefined. */
+export function getSession(token: string): Session | undefined {
+  const session = sessions.get(token);
+  if (!session) return undefined;
+  if (Date.now() >= session.expiresAt) {
+    sessions.delete(token);
+    return undefined;
+  }
+  return session;
+}
+
+export function revokeSession(token: string): boolean {
+  return sessions.delete(token);
+}
+
+/** Test helper: forget every session. */
+export function resetSessions(): void {
+  sessions.clear();
+}
+
+--- src/pricing.ts
+export type Item = { sku: string; price: number; qty: number };
+
+/** calcTotal: sum of price × quantity over the cart. shippingFee: shipping for the cart, in dollars. */
+export function calcTotal(items: Item[]): number {
+  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);
+  const units = items.reduce((n, item) => n + item.qty, 0);
+  return units >= 10 ? subtotal * 0.9 : subtotal;
+}
+export function shippingFee(items: Item[]): number { return calcTotal(items) >= 50 ? 0 : items.length ? 5 : 0; }

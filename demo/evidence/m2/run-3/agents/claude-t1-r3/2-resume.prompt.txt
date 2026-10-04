@@ -1,0 +1,3 @@
+claude (resume 6aa90753-a4cf-4253-8c1b-af12de16738e)
+
+Continue: handle anything Weft reports for you (including requests from other agents), then reply with a one-line summary.

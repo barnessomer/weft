@@ -1,0 +1,3837 @@
+{
+  "run": 3,
+  "started_at": "2026-10-04T12:42:29.563Z",
+  "gateway": "https://weft-gateway-preview.elier.ai",
+  "workflows": "https://weft-workflows-preview.elier.ai",
+  "repo": "weft-demo",
+  "marks": {
+    "seeded": 6.6,
+    "agents_ready": 139.1,
+    "planners_joined": 186.2,
+    "t1_signature_accepted": 197.8,
+    "plans_done": 206.6,
+    "t2_t3_done": 658.1,
+    "t1_done": 663.7,
+    "all_agents_done": 939.8,
+    "evidence_done": 2140.5,
+    "landed": 2265.2,
+    "trunk_checked": 2271.2,
+    "auto_revert_done": 2891.5
+  },
+  "steps": [
+    {
+      "name": "preflight",
+      "at_s": 1.4,
+      "gateway": 200,
+      "claude": "logged in",
+      "codex": "Logged in using ChatGPT",
+      "opencode_model": "opencode/big-pickle"
+    },
+    {
+      "name": "trunk seeded",
+      "at_s": 6.5,
+      "before": "510f0b1ed354f643b8136d1d335cfc44fb57e6aa",
+      "base": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf",
+      "seed_tests_exit": 0
+    },
+    {
+      "name": "tasks + candidates",
+      "at_s": 105.7,
+      "tasks": [
+        {
+          "task": "m2-mutt9hoi-t1",
+          "title": "Session expiry",
+          "risk": "medium"
+        },
+        {
+          "task": "m2-mutt9hoi-t2",
+          "title": "Signup endpoint",
+          "risk": "low"
+        },
+        {
+          "task": "m2-mutt9hoi-t3",
+          "title": "Session refresh",
+          "risk": "low"
+        },
+        {
+          "task": "m2-mutt9hoi-t4",
+          "title": "Bulk discount",
+          "risk": "low"
+        },
+        {
+          "task": "m2-mutt9hoi-t5",
+          "title": "Free shipping over $50",
+          "risk": "low"
+        },
+        {
+          "task": "m2-mutt9hoi-t6",
+          "title": "Kiwi on the pricing page",
+          "risk": "medium"
+        }
+      ],
+      "candidates": [
+        {
+          "agent": "claude-t1-r3",
+          "change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t1-1"
+        },
+        {
+          "agent": "codex-t1-r3",
+          "change": "Ifef462754ad55d022c3fc055f225b82dca76e8c6",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t1-2"
+        },
+        {
+          "agent": "opencode-t1-r3",
+          "change": "I0634eb6f1e85b89d3c042f857f3e5a28e7aeffcd",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t1-3"
+        },
+        {
+          "agent": "claude-t2-r3",
+          "change": "Ia5cf2363fb3bde668a8581020674c0f19fd86efd",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t2-1"
+        },
+        {
+          "agent": "codex-t2-r3",
+          "change": "Id9584229f2f6fb5786453841b6bc716dac3b1188",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t2-2"
+        },
+        {
+          "agent": "opencode-t2-r3",
+          "change": "I4e80b195866efa55a42305060c79f5e476edebd0",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t2-3"
+        },
+        {
+          "agent": "claude-t3-r3",
+          "change": "I36f76d172e440934676814c5795252b71cf6ac16",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t3-1"
+        },
+        {
+          "agent": "codex-t3-r3",
+          "change": "Ifc25ae2879a6d3e02927890cd22e8fa1a2bdb987",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t3-2"
+        },
+        {
+          "agent": "opencode-t3-r3",
+          "change": "Idc101a68598de2c835f023f8f00e0060f3d7f2e2",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t3-3"
+        },
+        {
+          "agent": "claude-t4-r3",
+          "change": "I5ed3a443f98e4b0d9fa3ed120afa72019e71185a",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t4-1"
+        },
+        {
+          "agent": "codex-t4-r3",
+          "change": "Ib78e3c33008d2262a1d2112165a74ce1e997cd47",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t4-2"
+        },
+        {
+          "agent": "opencode-t4-r3",
+          "change": "I5ce6ae49afec166d6b07975a0eb3034e6acccc3b",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t4-3"
+        },
+        {
+          "agent": "claude-t5-r3",
+          "change": "I3a0a1e79580e15390d56149c00c3c1f3da4b3a68",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t5-1"
+        },
+        {
+          "agent": "codex-t5-r3",
+          "change": "I8d083088ffb0083aa77d70c5de887e4f8e26c178",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t5-2"
+        },
+        {
+          "agent": "opencode-t5-r3",
+          "change": "Ibd9129d662f6776124c644ca723f4830bd339130",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t5-3"
+        },
+        {
+          "agent": "claude-t6-r3",
+          "change": "I4c686adc123d7fe2ed802dd6f9cc79defab7b305",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t6-1"
+        },
+        {
+          "agent": "codex-t6-r3",
+          "change": "Ia9bec4c549493c7e4226935739abfd8617bb41f6",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t6-2"
+        },
+        {
+          "agent": "opencode-t6-r3",
+          "change": "Iaa2bc983cbda3fc3c2c06e78e669c9a8957ba3a4",
+          "fork": "weft-weft-demo-m2-mutt9hoi-t6-3"
+        }
+      ]
+    },
+    {
+      "name": "pushed claude-t6-r3",
+      "at_s": 159.8,
+      "sha": "e351fad0b61106dae54093dfaf91f5e1997c4e6e"
+    },
+    {
+      "name": "pushed claude-t5-r3",
+      "at_s": 165.1,
+      "sha": "737a0508d988fbefb042a4a96b511f2e6382b133"
+    },
+    {
+      "name": "pushed claude-t4-r3",
+      "at_s": 168,
+      "sha": "a2e26730319e96b3f0e886af91d6c105c97b69f0"
+    },
+    {
+      "name": "t1 signature change",
+      "at_s": 197.8,
+      "seq": 354
+    },
+    {
+      "name": "resume t1 owner for a proposal",
+      "at_s": 220.2,
+      "owner": "claude-t1-r3",
+      "proposal_seq": 371,
+      "from": "claude-t3-r3"
+    },
+    {
+      "name": "pushed codex-t6-r3",
+      "at_s": 239.9,
+      "sha": "50726250477c4577fe48bd5bcf3f199d9f37da80"
+    },
+    {
+      "name": "pushed codex-t5-r3",
+      "at_s": 241.6,
+      "sha": "bf04848e4a2bc68270041a7a8d284adbfa020ca7"
+    },
+    {
+      "name": "pushed codex-t4-r3",
+      "at_s": 245.1,
+      "sha": "c9492d013e6373c4e8ff8e481deecdb53975cc34"
+    },
+    {
+      "name": "resume t1 owner for a proposal",
+      "at_s": 252.8,
+      "owner": "claude-t1-r3",
+      "proposal_seq": 395,
+      "from": "codex-t2-r3"
+    },
+    {
+      "name": "pushed claude-t3-r3",
+      "at_s": 266.1,
+      "sha": "8d31827e19b4d6f2924b30553e4bdeea8fa09397"
+    },
+    {
+      "name": "pushed codex-t3-r3",
+      "at_s": 267.7,
+      "sha": "ccf78fb0d68c5f77399c629335d9437a9b3050f1"
+    },
+    {
+      "name": "pushed claude-t2-r3",
+      "at_s": 284.2,
+      "sha": "bb5f04976f159705617e7d041e585ace49547e89"
+    },
+    {
+      "name": "pushed codex-t2-r3",
+      "at_s": 312.5,
+      "sha": "dde36476c6c48866e564b4e9ef96459728a6337e"
+    },
+    {
+      "name": "pushed opencode-t6-r3",
+      "at_s": 316.7,
+      "sha": "2d38ba1fdff2b8b240cb63f94668c65b76d1a1c2"
+    },
+    {
+      "name": "pushed opencode-t4-r3",
+      "at_s": 380.7,
+      "sha": "0e8dbf900d57593f913f28651df64198eff67c48"
+    },
+    {
+      "name": "pushed opencode-t2-r3",
+      "at_s": 406,
+      "sha": "dd077ac6729ddfdbcba36b425de37ebf4e755180"
+    },
+    {
+      "name": "pushed opencode-t3-r3",
+      "at_s": 658.1,
+      "sha": "d65dd6c53d0e34ae9a31a5c47155b0231f02ca06"
+    },
+    {
+      "name": "pushed claude-t1-r3",
+      "at_s": 659.9,
+      "sha": "6675c2d5685386c476470debc0400e8ef4347d65"
+    },
+    {
+      "name": "pushed codex-t1-r3",
+      "at_s": 661.8,
+      "sha": "70c945b4f5422d0844878f733514a21c33a31a90"
+    },
+    {
+      "name": "pushed opencode-t1-r3",
+      "at_s": 663.7,
+      "sha": "970f4d976bda483bf26e45fc4ad42fc28ab5f812"
+    },
+    {
+      "name": "pushed opencode-t5-r3",
+      "at_s": 939.8,
+      "sha": "beacf1c9d0173ac30f15a82d1e9c2fd0ac7d4578"
+    },
+    {
+      "name": "select started",
+      "at_s": 2161,
+      "t1": {
+        "workflow": "bestofn-weft-demo-m2-mutt9hoi-t1",
+        "n": 3,
+        "risk": "medium",
+        "started_at_s": 2142.6,
+        "approved": {
+          "by": "john (human token, as the web UI's Approve)",
+          "change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+          "agent": "claude-t1-r3",
+          "why": "honours the accepted overload agreement",
+          "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t1",
+          "at_s": 2172.1
+        },
+        "status": "complete",
+        "winner": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+        "winner_agent": "claude-t1-r3",
+        "result": "landing",
+        "approved_by": "john",
+        "ranking": [
+          {
+            "agent": "codex-t1-r3",
+            "score": 1173,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 36",
+              "review pass 100",
+              "risk high"
+            ]
+          },
+          {
+            "agent": "opencode-t1-r3",
+            "score": 1172,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 40",
+              "review pass 100",
+              "risk high"
+            ]
+          },
+          {
+            "agent": "claude-t1-r3",
+            "score": 1169,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 56",
+              "review pass 100",
+              "risk high"
+            ]
+          }
+        ],
+        "selected_at_s": 2176.6,
+        "land": {
+          "workflow_status": "complete",
+          "status": "landed",
+          "op_id": "op-929bec042642ed9e2155eee4",
+          "seq": 479,
+          "before": "3a97a1d41679a403f99718c0f265f335fa98c3db",
+          "after": "e13a9d99bd3382fadd7a766c5a8fe18276135902",
+          "layer": "git",
+          "attempts": 1,
+          "queue_id": 23
+        },
+        "landed_at_s": 2265.2
+      },
+      "t2": {
+        "workflow": "bestofn-weft-demo-m2-mutt9hoi-t2",
+        "n": 3,
+        "risk": "low",
+        "started_at_s": 2145.9,
+        "approved": {
+          "by": "john (human token, as the web UI's Approve)",
+          "change": "I4e80b195866efa55a42305060c79f5e476edebd0",
+          "agent": "opencode-t2-r3",
+          "why": "highest-ranked eligible",
+          "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t2",
+          "at_s": 2172.4
+        },
+        "status": "complete",
+        "winner": "I4e80b195866efa55a42305060c79f5e476edebd0",
+        "winner_agent": "opencode-t2-r3",
+        "result": "landing",
+        "approved_by": "john",
+        "ranking": [
+          {
+            "agent": "opencode-t2-r3",
+            "score": 1168,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 62",
+              "review pass 100",
+              "risk medium"
+            ]
+          },
+          {
+            "agent": "codex-t2-r3",
+            "score": 1159,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 104",
+              "review pass 100",
+              "risk medium"
+            ]
+          },
+          {
+            "agent": "claude-t2-r3",
+            "score": -1,
+            "eligible": false,
+            "layer": "none",
+            "reasons": [
+              "tests fail",
+              "rebase: none",
+              "churn 68"
+            ]
+          }
+        ],
+        "selected_at_s": 2177,
+        "land": {
+          "workflow_status": "complete",
+          "status": "landed",
+          "op_id": "op-b650b4f3cb96e17aec903961",
+          "seq": 478,
+          "before": "08b1cbce8bc09696ec9356a8c789bf3bde58e143",
+          "after": "3a97a1d41679a403f99718c0f265f335fa98c3db",
+          "layer": "git",
+          "attempts": 1,
+          "queue_id": 22
+        },
+        "landed_at_s": 2244.1
+      },
+      "t3": {
+        "workflow": "bestofn-weft-demo-m2-mutt9hoi-t3",
+        "n": 3,
+        "risk": "low",
+        "started_at_s": 2149.3,
+        "approved": {
+          "by": "john (human token, as the web UI's Approve)",
+          "change": "I36f76d172e440934676814c5795252b71cf6ac16",
+          "agent": "claude-t3-r3",
+          "why": "highest-ranked eligible",
+          "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t3",
+          "at_s": 2172.6
+        },
+        "status": "complete",
+        "winner": "I36f76d172e440934676814c5795252b71cf6ac16",
+        "winner_agent": "claude-t3-r3",
+        "result": "landing",
+        "approved_by": "john",
+        "ranking": [
+          {
+            "agent": "claude-t3-r3",
+            "score": 1174,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 32",
+              "review pass 100",
+              "risk high"
+            ]
+          },
+          {
+            "agent": "codex-t3-r3",
+            "score": 1174,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 30",
+              "review pass 100",
+              "risk high"
+            ]
+          },
+          {
+            "agent": "opencode-t3-r3",
+            "score": 1172,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 40",
+              "review pass 100",
+              "risk high"
+            ]
+          }
+        ],
+        "selected_at_s": 2177.2,
+        "land": {
+          "workflow_status": "complete",
+          "status": "landed",
+          "op_id": "op-d546a337f9f4fee2baa65cb2",
+          "seq": 477,
+          "before": "c368d636c17a315ddccbda4d6eb932176acd4d82",
+          "after": "08b1cbce8bc09696ec9356a8c789bf3bde58e143",
+          "layer": "git",
+          "attempts": 1,
+          "queue_id": 21
+        },
+        "landed_at_s": 2223.1
+      },
+      "t4": {
+        "workflow": "bestofn-weft-demo-m2-mutt9hoi-t4",
+        "n": 3,
+        "risk": "low",
+        "started_at_s": 2152.6,
+        "status": "complete",
+        "winner": "I5ed3a443f98e4b0d9fa3ed120afa72019e71185a",
+        "winner_agent": "claude-t4-r3",
+        "result": "landing",
+        "approved_by": null,
+        "ranking": [
+          {
+            "agent": "claude-t4-r3",
+            "score": 1177,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 17",
+              "review pass 100",
+              "risk low"
+            ]
+          },
+          {
+            "agent": "codex-t4-r3",
+            "score": 1175,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 25",
+              "review pass 100",
+              "risk medium"
+            ]
+          },
+          {
+            "agent": "opencode-t4-r3",
+            "score": 1175,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 25",
+              "review pass 100",
+              "risk low"
+            ]
+          }
+        ],
+        "selected_at_s": 2161.8,
+        "land": {
+          "workflow_status": "complete",
+          "status": "landed",
+          "op_id": "op-1e03b4f1e4f49e5a5556f1c5",
+          "seq": 470,
+          "before": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf",
+          "after": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+          "layer": "none",
+          "attempts": 1,
+          "queue_id": 18
+        },
+        "landed_at_s": 2171.7
+      },
+      "t5": {
+        "workflow": "bestofn-weft-demo-m2-mutt9hoi-t5",
+        "n": 3,
+        "risk": "low",
+        "started_at_s": 2155.8,
+        "status": "complete",
+        "winner": "I3a0a1e79580e15390d56149c00c3c1f3da4b3a68",
+        "winner_agent": "claude-t5-r3",
+        "result": "landing",
+        "approved_by": null,
+        "ranking": [
+          {
+            "agent": "claude-t5-r3",
+            "score": 1177,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 15",
+              "review pass 100",
+              "risk low"
+            ]
+          },
+          {
+            "agent": "codex-t5-r3",
+            "score": 1177,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 15",
+              "review pass 100",
+              "risk low"
+            ]
+          },
+          {
+            "agent": "opencode-t5-r3",
+            "score": 1173,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 35",
+              "review pass 100",
+              "risk low"
+            ]
+          }
+        ],
+        "selected_at_s": 2161.8,
+        "land": {
+          "workflow_status": "complete",
+          "status": "landed",
+          "op_id": "op-f5bc3ba5042bffe96041ea81",
+          "seq": 475,
+          "before": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+          "after": "fdb8febb3d98a8bf4997c3796232b9880b855761",
+          "layer": "mergiraf",
+          "attempts": 1,
+          "queue_id": 19
+        },
+        "landed_at_s": 2184.9
+      },
+      "t6": {
+        "workflow": "bestofn-weft-demo-m2-mutt9hoi-t6",
+        "n": 3,
+        "risk": "medium",
+        "started_at_s": 2159,
+        "approved": {
+          "by": "john (human token, as the web UI's Approve)",
+          "change": "I4c686adc123d7fe2ed802dd6f9cc79defab7b305",
+          "agent": "claude-t6-r3",
+          "why": "highest-ranked eligible",
+          "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t6",
+          "at_s": 2172.2
+        },
+        "status": "complete",
+        "winner": "I4c686adc123d7fe2ed802dd6f9cc79defab7b305",
+        "winner_agent": "claude-t6-r3",
+        "result": "landing",
+        "approved_by": "john",
+        "ranking": [
+          {
+            "agent": "claude-t6-r3",
+            "score": 1180,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 2",
+              "review pass 100",
+              "risk low"
+            ]
+          },
+          {
+            "agent": "codex-t6-r3",
+            "score": 1180,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 2",
+              "review pass 100",
+              "risk low"
+            ]
+          },
+          {
+            "agent": "opencode-t6-r3",
+            "score": 1180,
+            "eligible": true,
+            "layer": "none",
+            "reasons": [
+              "tests pass",
+              "rebase: none",
+              "churn 2",
+              "review pass 100",
+              "risk low"
+            ]
+          }
+        ],
+        "selected_at_s": 2176.7,
+        "land": {
+          "workflow_status": "complete",
+          "status": "landed",
+          "op_id": "op-a907042f83b6317e0e9e1f2e",
+          "seq": 476,
+          "before": "fdb8febb3d98a8bf4997c3796232b9880b855761",
+          "after": "c368d636c17a315ddccbda4d6eb932176acd4d82",
+          "layer": "git",
+          "attempts": 1,
+          "queue_id": 20
+        },
+        "landed_at_s": 2199.3
+      }
+    },
+    {
+      "name": "selection t4",
+      "at_s": 2171.7,
+      "status": "complete",
+      "result": "landing",
+      "winner": "claude-t4-r3",
+      "approved_by": null,
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-1e03b4f1e4f49e5a5556f1c5",
+        "seq": 470,
+        "before": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf",
+        "after": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+        "layer": "none",
+        "attempts": 1,
+        "queue_id": 18
+      }
+    },
+    {
+      "name": "human approved t1",
+      "at_s": 2172.1,
+      "by": "john (human token, as the web UI's Approve)",
+      "change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+      "agent": "claude-t1-r3",
+      "why": "honours the accepted overload agreement",
+      "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t1"
+    },
+    {
+      "name": "human approved t6",
+      "at_s": 2172.2,
+      "by": "john (human token, as the web UI's Approve)",
+      "change": "I4c686adc123d7fe2ed802dd6f9cc79defab7b305",
+      "agent": "claude-t6-r3",
+      "why": "highest-ranked eligible",
+      "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t6"
+    },
+    {
+      "name": "human approved t2",
+      "at_s": 2172.4,
+      "by": "john (human token, as the web UI's Approve)",
+      "change": "I4e80b195866efa55a42305060c79f5e476edebd0",
+      "agent": "opencode-t2-r3",
+      "why": "highest-ranked eligible",
+      "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t2"
+    },
+    {
+      "name": "human approved t3",
+      "at_s": 2172.6,
+      "by": "john (human token, as the web UI's Approve)",
+      "change": "I36f76d172e440934676814c5795252b71cf6ac16",
+      "agent": "claude-t3-r3",
+      "why": "highest-ranked eligible",
+      "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t3"
+    },
+    {
+      "name": "selection t5",
+      "at_s": 2184.9,
+      "status": "complete",
+      "result": "landing",
+      "winner": "claude-t5-r3",
+      "approved_by": null,
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-f5bc3ba5042bffe96041ea81",
+        "seq": 475,
+        "before": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+        "after": "fdb8febb3d98a8bf4997c3796232b9880b855761",
+        "layer": "mergiraf",
+        "attempts": 1,
+        "queue_id": 19
+      }
+    },
+    {
+      "name": "selection t6",
+      "at_s": 2199.3,
+      "status": "complete",
+      "result": "landing",
+      "winner": "claude-t6-r3",
+      "approved_by": "john",
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-a907042f83b6317e0e9e1f2e",
+        "seq": 476,
+        "before": "fdb8febb3d98a8bf4997c3796232b9880b855761",
+        "after": "c368d636c17a315ddccbda4d6eb932176acd4d82",
+        "layer": "git",
+        "attempts": 1,
+        "queue_id": 20
+      }
+    },
+    {
+      "name": "selection t3",
+      "at_s": 2223.1,
+      "status": "complete",
+      "result": "landing",
+      "winner": "claude-t3-r3",
+      "approved_by": "john",
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-d546a337f9f4fee2baa65cb2",
+        "seq": 477,
+        "before": "c368d636c17a315ddccbda4d6eb932176acd4d82",
+        "after": "08b1cbce8bc09696ec9356a8c789bf3bde58e143",
+        "layer": "git",
+        "attempts": 1,
+        "queue_id": 21
+      }
+    },
+    {
+      "name": "selection t2",
+      "at_s": 2244.1,
+      "status": "complete",
+      "result": "landing",
+      "winner": "opencode-t2-r3",
+      "approved_by": "john",
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-b650b4f3cb96e17aec903961",
+        "seq": 478,
+        "before": "08b1cbce8bc09696ec9356a8c789bf3bde58e143",
+        "after": "3a97a1d41679a403f99718c0f265f335fa98c3db",
+        "layer": "git",
+        "attempts": 1,
+        "queue_id": 22
+      }
+    },
+    {
+      "name": "selection t1",
+      "at_s": 2265.2,
+      "status": "complete",
+      "result": "landing",
+      "winner": "claude-t1-r3",
+      "approved_by": "john",
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-929bec042642ed9e2155eee4",
+        "seq": 479,
+        "before": "3a97a1d41679a403f99718c0f265f335fa98c3db",
+        "after": "e13a9d99bd3382fadd7a766c5a8fe18276135902",
+        "layer": "git",
+        "attempts": 1,
+        "queue_id": 23
+      }
+    }
+  ],
+  "first_seq": 306,
+  "evidence": {
+    "codex-t2-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 12,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t2-2/dde36476c6c48866e564b4e9ef96459728a6337e/ezMOoip5JOYQzmfu-yUijA/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "dde36476c6c48866e564b4e9ef96459728a6337e",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "medium"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so the change is accepted."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "claude-t5-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 11,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t5-1/737a0508d988fbefb042a4a96b511f2e6382b133/z9aYQuZ1ucpu30fWDHbFOA/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "737a0508d988fbefb042a4a96b511f2e6382b133",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "low"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff appears to be correct, so it passes the review."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "claude-t6-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 9,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t6-1/e351fad0b61106dae54093dfaf91f5e1997c4e6e/pEMIOQUWXeFeIG1y7IGb3w/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "e351fad0b61106dae54093dfaf91f5e1997c4e6e",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0.001432
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0.001432,
+                "pixels": 1466,
+                "uri": "https://weft-previews-preview.elier.ai/e/3_Yn11EeMxrZm1UX6pDeEg/screens/weft-demo/I4c686adc123d7fe2ed802dd6f9cc79defab7b305/e351fad0b611/pricing.html.diff.png"
+              }
+            ],
+            "max_ratio": 0.001432,
+            "changed": true,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "low"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "opencode-t4-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 12,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t4-3/0e8dbf900d57593f913f28651df64198eff67c48/puXEVkfWanuYLalAzJYRiQ/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "0e8dbf900d57593f913f28651df64198eff67c48",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "low"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "codex-t6-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 9,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t6-2/50726250477c4577fe48bd5bcf3f199d9f37da80/FwCHxyhIyuWimpDHzM05Ag/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "50726250477c4577fe48bd5bcf3f199d9f37da80",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0.001432
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0.001432,
+                "pixels": 1466,
+                "uri": "https://weft-previews-preview.elier.ai/e/mzZxNX0UVmglndHBtlipcw/screens/weft-demo/Ia9bec4c549493c7e4226935739abfd8617bb41f6/50726250477c/pricing.html.diff.png"
+              }
+            ],
+            "max_ratio": 0.001432,
+            "changed": true,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "low"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "claude-t3-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 11,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t3-1/8d31827e19b4d6f2924b30553e4bdeea8fa09397/nP58366AVcLoZwpZxzLpVg/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "8d31827e19b4d6f2924b30553e4bdeea8fa09397",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "high"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The change implements session refresh functionality as expected."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "opencode-t1-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 10,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t1-3/970f4d976bda483bf26e45fc4ad42fc28ab5f812/uIDtAsED8uYJtMsY5Foh2g/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "970f4d976bda483bf26e45fc4ad42fc28ab5f812",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "high"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "codex-t4-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 11,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t4-2/c9492d013e6373c4e8ff8e481deecdb53975cc34/st0sgB4GSddEOePMwga_0w/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "c9492d013e6373c4e8ff8e481deecdb53975cc34",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "medium"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change implements a 10% discount for 10 or more units, leaves the shipping fee unchanged, and passes all tests, so it passes the acceptance criteria."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "codex-t3-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 11,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t3-2/ccf78fb0d68c5f77399c629335d9437a9b3050f1/mIOCwlbWgZgcWxHrgJ-1RQ/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "ccf78fb0d68c5f77399c629335d9437a9b3050f1",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "high"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes the automated review."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "opencode-t6-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 9,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t6-3/2d38ba1fdff2b8b240cb63f94668c65b76d1a1c2/JTJx1X52Vp4Wc_J5xuj7Fw/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "2d38ba1fdff2b8b240cb63f94668c65b76d1a1c2",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0.001432
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0.001432,
+                "pixels": 1466,
+                "uri": "https://weft-previews-preview.elier.ai/e/KCZX_sNezw0u_kXb5mZfVA/screens/weft-demo/Iaa2bc983cbda3fc3c2c06e78e669c9a8957ba3a4/2d38ba1fdff2/pricing.html.diff.png"
+              }
+            ],
+            "max_ratio": 0.001432,
+            "changed": true,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "low"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "opencode-t2-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 12,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t2-3/dd077ac6729ddfdbcba36b425de37ebf4e755180/n6VsHIap5-qxmtuE1uy_mA/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "dd077ac6729ddfdbcba36b425de37ebf4e755180",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "medium"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes the automated review."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "codex-t1-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 10,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t1-2/70c945b4f5422d0844878f733514a21c33a31a90/l0INvNZVQ5L8WqmHfVbTqg/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "70c945b4f5422d0844878f733514a21c33a31a90",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "high"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "codex-t5-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 11,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t5-2/bf04848e4a2bc68270041a7a8d284adbfa020ca7/gYIBCpMoTLcbcGn6pbolNg/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "bf04848e4a2bc68270041a7a8d284adbfa020ca7",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "low"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff appears to be correct, so it passes."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "claude-t4-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 11,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t4-1/a2e26730319e96b3f0e886af91d6c105c97b69f0/Yn7b88KILSbrFc722XEnkg/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "low"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "claude-t1-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 11,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t1-1/6675c2d5685386c476470debc0400e8ef4347d65/dPxJeYgdQYAXycEekuD3Zw/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "6675c2d5685386c476470debc0400e8ef4347d65",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "high"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "opencode-t3-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 13,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t3-3/d65dd6c53d0e34ae9a31a5c47155b0231f02ca06/pvyUMFuaVaKg4RHCxV2VVQ/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "d65dd6c53d0e34ae9a31a5c47155b0231f02ca06",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "high"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The candidate change meets all acceptance criteria and the diff looks correct, so it passes the automated review."
+          }
+        }
+      ],
+      "waited_s": 1
+    },
+    "opencode-t5-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "pass",
+          "data": {
+            "status": "pass",
+            "summary": {
+              "pass": 12,
+              "fail": 0
+            }
+          }
+        },
+        {
+          "kind": "preview",
+          "status": "pass",
+          "data": {
+            "url": "https://weft-previews-preview.elier.ai/p/weft-weft-demo-m2-mutt9hoi-t5-3/beacf1c9d0173ac30f15a82d1e9c2fd0ac7d4578/DMoZybhL5xQcnzZ9_F4O7A/",
+            "trunk_url": "https://weft-previews-preview.elier.ai/p/weft-demo/9cf108f01b97f15c28d38fee02d59d05e08c8dcf/K5LADHSW5y2zpJAQnfyLOw/",
+            "routes": [
+              "/",
+              "/pricing.html"
+            ],
+            "provider": "weft-previews (Artifacts)",
+            "sha": "beacf1c9d0173ac30f15a82d1e9c2fd0ac7d4578",
+            "onto": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "screenshot",
+          "status": "pass",
+          "data": {
+            "route": "/pricing.html",
+            "ratio": 0
+          }
+        },
+        {
+          "kind": "visual_diff",
+          "status": "info",
+          "data": {
+            "routes": [
+              {
+                "route": "/",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              },
+              {
+                "route": "/pricing.html",
+                "ratio": 0,
+                "pixels": 0,
+                "uri": null
+              }
+            ],
+            "max_ratio": 0,
+            "changed": false,
+            "baseline": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf"
+          }
+        },
+        {
+          "kind": "risk",
+          "status": "info",
+          "data": {
+            "risk": "low"
+          }
+        },
+        {
+          "kind": "review",
+          "status": "pass",
+          "data": {
+            "verdict": "pass",
+            "score": 100,
+            "summary": "The change implements free shipping over $50 without modifying the calcTotal function and all tests pass."
+          }
+        }
+      ],
+      "waited_s": 39
+    },
+    "claude-t2-r3": {
+      "revision": {
+        "status": "processed",
+        "layer": "none"
+      },
+      "rows": [
+        {
+          "kind": "rebase",
+          "status": "pass",
+          "data": {
+            "status": "up_to_date",
+            "layer": "none"
+          }
+        },
+        {
+          "kind": "test",
+          "status": "fail",
+          "data": {
+            "status": "fail",
+            "summary": {
+              "pass": 5,
+              "fail": 2
+            }
+          }
+        }
+      ],
+      "waited_s": 1201
+    }
+  },
+  "negotiation": [
+    {
+      "seq": 347,
+      "from": "codex-t6-r3",
+      "to": "opencode-t6",
+      "to_change": null,
+      "terms": {
+        "kind": "share",
+        "text": "My task adds kiwi: 4 to PRICES and a Kiwi .00 row to public/pricing.html; home page must remain unchanged. Please confirm these additions can coexist with your edits to the same files."
+      },
+      "answer": null
+    },
+    {
+      "seq": 351,
+      "from": "codex-t5-r3",
+      "to": "opencode-t5",
+      "to_change": null,
+      "terms": {
+        "kind": "share",
+        "text": "My assigned task changes only shippingFee to return 0 when calcTotal(items) >= 50, preserving existing behavior below $50; adds test/shipping.test.ts. Edit is applied and all 11 tests pass. Please confirm compatible sharing or release your shippingFee claim."
+      },
+      "answer": null
+    },
+    {
+      "seq": 357,
+      "from": "codex-t4-r3",
+      "to": "opencode-t4",
+      "to_change": null,
+      "terms": {
+        "kind": "share",
+        "text": "Bulk-discount task changes only calcTotal to apply 10% off when sum of qty >= 10. Tests pass. Please confirm compatible shared ownership or release your calcTotal claim."
+      },
+      "answer": null
+    },
+    {
+      "seq": 366,
+      "from": "opencode-t4-r3",
+      "to": "opencode-t4",
+      "to_change": null,
+      "terms": {
+        "kind": "sequence",
+        "text": "Both tasks touch src/pricing.ts#calcTotal. I am adding a 10% bulk discount when total qty >= 10, and I have already applied that edit. Proposal: I keep my calcTotal change stable; opencode-t4 rebases/re-applies its calcTotal change on top and preserves the discount branch. If opencode-t4 must land first, reply and I will hold and re-apply after. I will not touch shippingFee or any other function."
+      },
+      "answer": null
+    },
+    {
+      "seq": 371,
+      "from": "claude-t3-r3",
+      "to": "claude-t1-r3",
+      "to_change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+      "terms": {
+        "kind": "overload",
+        "text": "Please keep createSession(userId) working as an overload (opts optional, defaulting to the platform's default TTL). src/auth/refresh.ts (task m2-mutt9hoi-t3) must call createSession(session.userId) with no options per product rule: refreshed sessions use the default lifetime."
+      },
+      "answer": {
+        "seq": 385,
+        "kind": "negotiate.accept",
+        "by": "claude-t1-r3"
+      }
+    },
+    {
+      "seq": 374,
+      "from": "opencode-t6-r3",
+      "to": "opencode-t6",
+      "to_change": null,
+      "terms": {
+        "kind": "share",
+        "text": "Our changes are byte-identical: src/catalog.ts gets 'kiwi: 4' in PRICES and public/pricing.html gets a <tr><td>Kiwi</td><td class=\"price\">$4.00</td></tr> row after Pear. This is the same diff claude-t6 landed in 14f482e (blobs 2dd98cd / 309dfe5), so whichever of us lands, the merged tree is identical - no semantic conflict. Suggest sharing: I keep src/catalog.ts#PRICES, you take public/pricing.html, or the reverse. I've run node --test (9/9 pass) and left public/index.html untouched."
+      },
+      "answer": null
+    },
+    {
+      "seq": 378,
+      "from": "opencode-t3-r3",
+      "to": "claude-t1-r3",
+      "to_change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+      "terms": {
+        "kind": "overload",
+        "text": "Please keep createSession(userId) working with NO options argument, as an overload alongside createSession(userId, opts) — i.e. make opts optional and have the one-arg form use the platform's DEFAULT session lifetime (your DEFAULT_TTL_MS). My refreshSession (src/auth/refresh.ts) and the existing login (src/api/routes.ts) must call createSession with the user id only, because refreshed sessions must use the platform default lifetime and must not choose session options themselves. So: export function createSession(userId: string, opts?: SessionOptions): Session with opts defaulting to the platform default ttl."
+      },
+      "answer": {
+        "seq": 386,
+        "kind": "negotiate.counter",
+        "by": "claude-t1-r3"
+      }
+    },
+    {
+      "seq": 384,
+      "from": "claude-t2-r3",
+      "to": "claude-t1-r3",
+      "to_change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+      "terms": {
+        "kind": "other",
+        "text": "I'm adding POST /api/signup in src/api/account.ts; it starts a session like login does, so it will call createSession(user.id, { ttlMs }) with your new required SessionOptions. What ttlMs does login pass? If you export a shared constant from src/auth/session.ts (e.g. DEFAULT_SESSION_TTL_MS) I'll import it; otherwise I'll use a local 24h constant."
+      },
+      "answer": {
+        "seq": 390,
+        "kind": "negotiate.counter",
+        "by": "claude-t1-r3"
+      }
+    },
+    {
+      "seq": 395,
+      "from": "codex-t2-r3",
+      "to": "claude-t1-r3",
+      "to_change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+      "terms": {
+        "kind": "other",
+        "text": "I will adapt signup to createSession(user.id, { ttlMs: ... }). What exact ttlMs does your updated login use so signup matches it?"
+      },
+      "answer": {
+        "seq": 402,
+        "kind": "negotiate.counter",
+        "by": "claude-t1-r3"
+      }
+    },
+    {
+      "seq": 396,
+      "from": "codex-t2-r3",
+      "to": "opencode-t2",
+      "to_change": null,
+      "terms": {
+        "kind": "share",
+        "text": "I am adding POST /api/signup to accountRoutes for task m2-mutt9hoi-t2. Weft reports your accountRoutes claim from task m2-muts51hi-t2. Can you release that claim or confirm shared edits are allowed?"
+      },
+      "answer": null
+    },
+    {
+      "seq": 419,
+      "from": "opencode-t3-r3",
+      "to": "opencode-t3",
+      "to_change": null,
+      "terms": {
+        "kind": "other",
+        "text": "Your claim (change I617810dc4917027dd9e1a5180c7740df87e1736e, task m2-muts51hi-t3) takes precedence on src/auth/refresh.ts#refreshSession, but that exact file+symbol is the sole deliverable of MY task m2-mutt9hoi-t3 ('Session refresh'): create src/auth/refresh.ts exporting refreshSession(token: string): Session | undefined, which getSession -> revokeSession -> createSession(sameUserId) (user id only, platform default lifetime). Looks like our two tasks may be duplicates. Please release your claim on src/auth/refresh.ts#refreshSession so I can create it, OR if your task genuinely needs that symbol, tell me and I'll escalate to the coordinator for a merge_tasks decision rather than have us both write it."
+      },
+      "answer": null
+    },
+    {
+      "seq": 442,
+      "from": "opencode-t5-r3",
+      "to": "opencode-t5",
+      "to_change": null,
+      "terms": {
+        "kind": "share",
+        "text": "Same task; mine landed and green. Keep whichever lands first."
+      },
+      "answer": null
+    }
+  ],
+  "selections": {
+    "t1": {
+      "workflow": "bestofn-weft-demo-m2-mutt9hoi-t1",
+      "n": 3,
+      "risk": "medium",
+      "started_at_s": 2142.6,
+      "approved": {
+        "by": "john (human token, as the web UI's Approve)",
+        "change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+        "agent": "claude-t1-r3",
+        "why": "honours the accepted overload agreement",
+        "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t1",
+        "at_s": 2172.1
+      },
+      "status": "complete",
+      "winner": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+      "winner_agent": "claude-t1-r3",
+      "result": "landing",
+      "approved_by": "john",
+      "ranking": [
+        {
+          "agent": "codex-t1-r3",
+          "score": 1173,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 36",
+            "review pass 100",
+            "risk high"
+          ]
+        },
+        {
+          "agent": "opencode-t1-r3",
+          "score": 1172,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 40",
+            "review pass 100",
+            "risk high"
+          ]
+        },
+        {
+          "agent": "claude-t1-r3",
+          "score": 1169,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 56",
+            "review pass 100",
+            "risk high"
+          ]
+        }
+      ],
+      "selected_at_s": 2176.6,
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-929bec042642ed9e2155eee4",
+        "seq": 479,
+        "before": "3a97a1d41679a403f99718c0f265f335fa98c3db",
+        "after": "e13a9d99bd3382fadd7a766c5a8fe18276135902",
+        "layer": "git",
+        "attempts": 1,
+        "queue_id": 23
+      },
+      "landed_at_s": 2265.2
+    },
+    "t2": {
+      "workflow": "bestofn-weft-demo-m2-mutt9hoi-t2",
+      "n": 3,
+      "risk": "low",
+      "started_at_s": 2145.9,
+      "approved": {
+        "by": "john (human token, as the web UI's Approve)",
+        "change": "I4e80b195866efa55a42305060c79f5e476edebd0",
+        "agent": "opencode-t2-r3",
+        "why": "highest-ranked eligible",
+        "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t2",
+        "at_s": 2172.4
+      },
+      "status": "complete",
+      "winner": "I4e80b195866efa55a42305060c79f5e476edebd0",
+      "winner_agent": "opencode-t2-r3",
+      "result": "landing",
+      "approved_by": "john",
+      "ranking": [
+        {
+          "agent": "opencode-t2-r3",
+          "score": 1168,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 62",
+            "review pass 100",
+            "risk medium"
+          ]
+        },
+        {
+          "agent": "codex-t2-r3",
+          "score": 1159,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 104",
+            "review pass 100",
+            "risk medium"
+          ]
+        },
+        {
+          "agent": "claude-t2-r3",
+          "score": -1,
+          "eligible": false,
+          "layer": "none",
+          "reasons": [
+            "tests fail",
+            "rebase: none",
+            "churn 68"
+          ]
+        }
+      ],
+      "selected_at_s": 2177,
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-b650b4f3cb96e17aec903961",
+        "seq": 478,
+        "before": "08b1cbce8bc09696ec9356a8c789bf3bde58e143",
+        "after": "3a97a1d41679a403f99718c0f265f335fa98c3db",
+        "layer": "git",
+        "attempts": 1,
+        "queue_id": 22
+      },
+      "landed_at_s": 2244.1
+    },
+    "t3": {
+      "workflow": "bestofn-weft-demo-m2-mutt9hoi-t3",
+      "n": 3,
+      "risk": "low",
+      "started_at_s": 2149.3,
+      "approved": {
+        "by": "john (human token, as the web UI's Approve)",
+        "change": "I36f76d172e440934676814c5795252b71cf6ac16",
+        "agent": "claude-t3-r3",
+        "why": "highest-ranked eligible",
+        "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t3",
+        "at_s": 2172.6
+      },
+      "status": "complete",
+      "winner": "I36f76d172e440934676814c5795252b71cf6ac16",
+      "winner_agent": "claude-t3-r3",
+      "result": "landing",
+      "approved_by": "john",
+      "ranking": [
+        {
+          "agent": "claude-t3-r3",
+          "score": 1174,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 32",
+            "review pass 100",
+            "risk high"
+          ]
+        },
+        {
+          "agent": "codex-t3-r3",
+          "score": 1174,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 30",
+            "review pass 100",
+            "risk high"
+          ]
+        },
+        {
+          "agent": "opencode-t3-r3",
+          "score": 1172,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 40",
+            "review pass 100",
+            "risk high"
+          ]
+        }
+      ],
+      "selected_at_s": 2177.2,
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-d546a337f9f4fee2baa65cb2",
+        "seq": 477,
+        "before": "c368d636c17a315ddccbda4d6eb932176acd4d82",
+        "after": "08b1cbce8bc09696ec9356a8c789bf3bde58e143",
+        "layer": "git",
+        "attempts": 1,
+        "queue_id": 21
+      },
+      "landed_at_s": 2223.1
+    },
+    "t4": {
+      "workflow": "bestofn-weft-demo-m2-mutt9hoi-t4",
+      "n": 3,
+      "risk": "low",
+      "started_at_s": 2152.6,
+      "status": "complete",
+      "winner": "I5ed3a443f98e4b0d9fa3ed120afa72019e71185a",
+      "winner_agent": "claude-t4-r3",
+      "result": "landing",
+      "approved_by": null,
+      "ranking": [
+        {
+          "agent": "claude-t4-r3",
+          "score": 1177,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 17",
+            "review pass 100",
+            "risk low"
+          ]
+        },
+        {
+          "agent": "codex-t4-r3",
+          "score": 1175,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 25",
+            "review pass 100",
+            "risk medium"
+          ]
+        },
+        {
+          "agent": "opencode-t4-r3",
+          "score": 1175,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 25",
+            "review pass 100",
+            "risk low"
+          ]
+        }
+      ],
+      "selected_at_s": 2161.8,
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-1e03b4f1e4f49e5a5556f1c5",
+        "seq": 470,
+        "before": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf",
+        "after": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+        "layer": "none",
+        "attempts": 1,
+        "queue_id": 18
+      },
+      "landed_at_s": 2171.7
+    },
+    "t5": {
+      "workflow": "bestofn-weft-demo-m2-mutt9hoi-t5",
+      "n": 3,
+      "risk": "low",
+      "started_at_s": 2155.8,
+      "status": "complete",
+      "winner": "I3a0a1e79580e15390d56149c00c3c1f3da4b3a68",
+      "winner_agent": "claude-t5-r3",
+      "result": "landing",
+      "approved_by": null,
+      "ranking": [
+        {
+          "agent": "claude-t5-r3",
+          "score": 1177,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 15",
+            "review pass 100",
+            "risk low"
+          ]
+        },
+        {
+          "agent": "codex-t5-r3",
+          "score": 1177,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 15",
+            "review pass 100",
+            "risk low"
+          ]
+        },
+        {
+          "agent": "opencode-t5-r3",
+          "score": 1173,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 35",
+            "review pass 100",
+            "risk low"
+          ]
+        }
+      ],
+      "selected_at_s": 2161.8,
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-f5bc3ba5042bffe96041ea81",
+        "seq": 475,
+        "before": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+        "after": "fdb8febb3d98a8bf4997c3796232b9880b855761",
+        "layer": "mergiraf",
+        "attempts": 1,
+        "queue_id": 19
+      },
+      "landed_at_s": 2184.9
+    },
+    "t6": {
+      "workflow": "bestofn-weft-demo-m2-mutt9hoi-t6",
+      "n": 3,
+      "risk": "medium",
+      "started_at_s": 2159,
+      "approved": {
+        "by": "john (human token, as the web UI's Approve)",
+        "change": "I4c686adc123d7fe2ed802dd6f9cc79defab7b305",
+        "agent": "claude-t6-r3",
+        "why": "highest-ranked eligible",
+        "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t6",
+        "at_s": 2172.2
+      },
+      "status": "complete",
+      "winner": "I4c686adc123d7fe2ed802dd6f9cc79defab7b305",
+      "winner_agent": "claude-t6-r3",
+      "result": "landing",
+      "approved_by": "john",
+      "ranking": [
+        {
+          "agent": "claude-t6-r3",
+          "score": 1180,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 2",
+            "review pass 100",
+            "risk low"
+          ]
+        },
+        {
+          "agent": "codex-t6-r3",
+          "score": 1180,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 2",
+            "review pass 100",
+            "risk low"
+          ]
+        },
+        {
+          "agent": "opencode-t6-r3",
+          "score": 1180,
+          "eligible": true,
+          "layer": "none",
+          "reasons": [
+            "tests pass",
+            "rebase: none",
+            "churn 2",
+            "review pass 100",
+            "risk low"
+          ]
+        }
+      ],
+      "selected_at_s": 2176.7,
+      "land": {
+        "workflow_status": "complete",
+        "status": "landed",
+        "op_id": "op-a907042f83b6317e0e9e1f2e",
+        "seq": 476,
+        "before": "fdb8febb3d98a8bf4997c3796232b9880b855761",
+        "after": "c368d636c17a315ddccbda4d6eb932176acd4d82",
+        "layer": "git",
+        "attempts": 1,
+        "queue_id": 20
+      },
+      "landed_at_s": 2199.3
+    }
+  },
+  "trunk": {
+    "head": "e13a9d99bd3382fadd7a766c5a8fe18276135902",
+    "log": [
+      "e13a9d9 Session expiry (claude-t1-r3)",
+      "3a97a1d Signup endpoint (opencode-t2-r3)",
+      "08b1cbc Session refresh (claude-t3-r3)",
+      "c368d63 Kiwi on the pricing page (claude-t6-r3)",
+      "fdb8feb Free shipping over $50 (claude-t5-r3)",
+      "a2e2673 Bulk discount (claude-t4-r3)",
+      "9cf108f demo: M2 seed (run 3)",
+      "510f0b1 Signup endpoint (claude-t2)",
+      "6004651 Session expiry (opencode-t1)",
+      "39a81bd Session refresh (claude-t3)",
+      "14f482e Kiwi on the pricing page (claude-t6)",
+      "add2f1a Free shipping over $50 (claude-t5)",
+      "b4ac1be Bulk discount (claude-t4)",
+      "ea90682 demo: M2 seed (run 2)",
+      "d2f5a4f demo: M2 seed (run 1)"
+    ],
+    "tsc": {
+      "exit": 0,
+      "out": [
+        ""
+      ]
+    },
+    "test": {
+      "exit": 0,
+      "summary": [
+        "ℹ tests 20",
+        "ℹ pass 20",
+        "ℹ fail 0"
+      ]
+    },
+    "files": {
+      "src/auth/session.ts": "import { randomBytes } from \"node:crypto\";\n\nexport type SessionOptions = { ttlMs: number };\n\n/** A bearer session; expiresAt is createdAt + ttlMs (DEFAULT_SESSION_OPTIONS when created without options). */\nexport type Session = { token: string; userId: string; createdAt: number; expiresAt: number };\n\n/** Default session lifetime, used when no options are given (e.g. refreshed sessions). */\nexport const DEFAULT_SESSION_OPTIONS: SessionOptions = { ttlMs: 60 * 60 * 1000 };\n\nconst sessions = new Map<string, Session>();\n\n/** Start a session for a user and return it (the token is the bearer credential). */\nexport function createSession(userId: string, opts?: SessionOptions): Session {\n  const { ttlMs } = opts ?? DEFAULT_SESSION_OPTIONS;\n  const createdAt = Date.now();\n  const session: Session = {\n    token: randomBytes(24).toString(\"base64url\"),\n    userId,\n    createdAt,\n    expiresAt: createdAt + ttlMs,\n  };\n  sessions.set(session.token, session);\n  return session;\n}\n\n/** The live session for a token, or undefined (expired sessions are forgotten). */\nexport function getSession(token: string): Session | undefined {\n  const session = sessions.get(token);\n  if (session && Date.now() >= session.expiresAt) {\n    sessions.delete(token);\n    return undefined;\n  }\n  return session;\n}\n\nexport function revokeSession(token: string): boolean {\n  return sessions.delete(token);\n}\n\n/** Test helper: forget every session. */\nexport function resetSessions(): void {\n  sessions.clear();\n}\n",
+      "src/auth/refresh.ts": "import { createSession, getSession, revokeSession, type Session } from \"./session.ts\";\n\n/** Swap a live session for a fresh one for the same user; undefined if the token isn't live. */\nexport function refreshSession(token: string): Session | undefined {\n  const session = getSession(token);\n  if (!session) return undefined;\n  revokeSession(token);\n  return createSession(session.userId);\n}\n",
+      "src/pricing.ts": "export type Item = { sku: string; price: number; qty: number };\n\n/** calcTotal: sum of price × quantity over the cart. shippingFee: shipping for the cart, in dollars. */\nexport function calcTotal(items: Item[]): number {\n  const subtotal = items.reduce((sum, item) => sum + item.price * item.qty, 0);\n  const units = items.reduce((n, item) => n + item.qty, 0);\n  return units >= 10 ? subtotal * 0.9 : subtotal;\n}\nexport function shippingFee(items: Item[]): number { return calcTotal(items) >= 50 ? 0 : items.length ? 5 : 0; }\n",
+      "public/pricing.html#kiwi": true
+    }
+  },
+  "auto_revert": {
+    "exit": 1,
+    "verdict": null,
+    "duration_s": null,
+    "timings": null
+  },
+  "agents": [
+    {
+      "agent": "claude-t1-r3",
+      "harness": "claude",
+      "task": "t1",
+      "change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 24250
+        },
+        {
+          "name": "resume",
+          "code": 0,
+          "ms": 31082
+        },
+        {
+          "name": "resume",
+          "code": 0,
+          "ms": 112652
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "6675c2d5685386c476470debc0400e8ef4347d65",
+        "at_s": 659.9,
+        "trailers": "Change-Id: Ibca2d3ac1b11269188982359a1fc968017e2d09f\nTask-Id: m2-mutt9hoi-t1\nAgent-Id: claude-t1-r3"
+      }
+    },
+    {
+      "agent": "codex-t1-r3",
+      "harness": "codex",
+      "task": "t1",
+      "change": "Ifef462754ad55d022c3fc055f225b82dca76e8c6",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 75486
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "70c945b4f5422d0844878f733514a21c33a31a90",
+        "at_s": 661.8,
+        "trailers": "Change-Id: Ifef462754ad55d022c3fc055f225b82dca76e8c6\nTask-Id: m2-mutt9hoi-t1\nAgent-Id: codex-t1-r3"
+      }
+    },
+    {
+      "agent": "opencode-t1-r3",
+      "harness": "opencode",
+      "task": "t1",
+      "change": "I0634eb6f1e85b89d3c042f857f3e5a28e7aeffcd",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 68302
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "970f4d976bda483bf26e45fc4ad42fc28ab5f812",
+        "at_s": 663.7,
+        "trailers": "Change-Id: I0634eb6f1e85b89d3c042f857f3e5a28e7aeffcd\nTask-Id: m2-mutt9hoi-t1\nAgent-Id: opencode-t1-r3"
+      }
+    },
+    {
+      "agent": "claude-t2-r3",
+      "harness": "claude",
+      "task": "t2",
+      "change": "Ia5cf2363fb3bde668a8581020674c0f19fd86efd",
+      "turns": [
+        {
+          "name": "plan",
+          "code": 0,
+          "ms": 28831
+        },
+        {
+          "name": "implement",
+          "code": 0,
+          "ms": 75874
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "bb5f04976f159705617e7d041e585ace49547e89",
+        "at_s": 284.2,
+        "trailers": "Change-Id: Ia5cf2363fb3bde668a8581020674c0f19fd86efd\nTask-Id: m2-mutt9hoi-t2\nAgent-Id: claude-t2-r3"
+      }
+    },
+    {
+      "agent": "codex-t2-r3",
+      "harness": "codex",
+      "task": "t2",
+      "change": "Id9584229f2f6fb5786453841b6bc716dac3b1188",
+      "turns": [
+        {
+          "name": "plan",
+          "code": 0,
+          "ms": 67447
+        },
+        {
+          "name": "implement",
+          "code": 0,
+          "ms": 104224
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "dde36476c6c48866e564b4e9ef96459728a6337e",
+        "at_s": 312.5,
+        "trailers": "Change-Id: Id9584229f2f6fb5786453841b6bc716dac3b1188\nTask-Id: m2-mutt9hoi-t2\nAgent-Id: codex-t2-r3"
+      }
+    },
+    {
+      "agent": "opencode-t2-r3",
+      "harness": "opencode",
+      "task": "t2",
+      "change": "I4e80b195866efa55a42305060c79f5e476edebd0",
+      "turns": [
+        {
+          "name": "plan",
+          "code": 0,
+          "ms": 21498
+        },
+        {
+          "name": "implement",
+          "code": 0,
+          "ms": 175276
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "dd077ac6729ddfdbcba36b425de37ebf4e755180",
+        "at_s": 406,
+        "trailers": "Change-Id: I4e80b195866efa55a42305060c79f5e476edebd0\nTask-Id: m2-mutt9hoi-t2\nAgent-Id: opencode-t2-r3"
+      }
+    },
+    {
+      "agent": "claude-t3-r3",
+      "harness": "claude",
+      "task": "t3",
+      "change": "I36f76d172e440934676814c5795252b71cf6ac16",
+      "turns": [
+        {
+          "name": "plan",
+          "code": 0,
+          "ms": 21612
+        },
+        {
+          "name": "implement",
+          "code": 0,
+          "ms": 57821
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "8d31827e19b4d6f2924b30553e4bdeea8fa09397",
+        "at_s": 266,
+        "trailers": "Change-Id: I36f76d172e440934676814c5795252b71cf6ac16\nTask-Id: m2-mutt9hoi-t3\nAgent-Id: claude-t3-r3"
+      }
+    },
+    {
+      "agent": "codex-t3-r3",
+      "harness": "codex",
+      "task": "t3",
+      "change": "Ifc25ae2879a6d3e02927890cd22e8fa1a2bdb987",
+      "turns": [
+        {
+          "name": "plan",
+          "code": 0,
+          "ms": 45715
+        },
+        {
+          "name": "implement",
+          "code": 0,
+          "ms": 59432
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "ccf78fb0d68c5f77399c629335d9437a9b3050f1",
+        "at_s": 267.7,
+        "trailers": "Change-Id: Ifc25ae2879a6d3e02927890cd22e8fa1a2bdb987\nTask-Id: m2-mutt9hoi-t3\nAgent-Id: codex-t3-r3"
+      }
+    },
+    {
+      "agent": "opencode-t3-r3",
+      "harness": "opencode",
+      "task": "t3",
+      "change": "Idc101a68598de2c835f023f8f00e0060f3d7f2e2",
+      "turns": [
+        {
+          "name": "plan",
+          "code": 0,
+          "ms": 22398
+        },
+        {
+          "name": "implement",
+          "code": 0,
+          "ms": 426638
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "d65dd6c53d0e34ae9a31a5c47155b0231f02ca06",
+        "at_s": 658.1,
+        "trailers": "Change-Id: Idc101a68598de2c835f023f8f00e0060f3d7f2e2\nTask-Id: m2-mutt9hoi-t3\nAgent-Id: opencode-t3-r3"
+      }
+    },
+    {
+      "agent": "claude-t4-r3",
+      "harness": "claude",
+      "task": "t4",
+      "change": "I5ed3a443f98e4b0d9fa3ed120afa72019e71185a",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 27053
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+        "at_s": 168,
+        "trailers": "Change-Id: I5ed3a443f98e4b0d9fa3ed120afa72019e71185a\nTask-Id: m2-mutt9hoi-t4\nAgent-Id: claude-t4-r3"
+      }
+    },
+    {
+      "agent": "codex-t4-r3",
+      "harness": "codex",
+      "task": "t4",
+      "change": "Ib78e3c33008d2262a1d2112165a74ce1e997cd47",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 104191
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "c9492d013e6373c4e8ff8e481deecdb53975cc34",
+        "at_s": 245,
+        "trailers": "Change-Id: Ib78e3c33008d2262a1d2112165a74ce1e997cd47\nTask-Id: m2-mutt9hoi-t4\nAgent-Id: codex-t4-r3"
+      }
+    },
+    {
+      "agent": "opencode-t4-r3",
+      "harness": "opencode",
+      "task": "t4",
+      "change": "I5ce6ae49afec166d6b07975a0eb3034e6acccc3b",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 199620
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "0e8dbf900d57593f913f28651df64198eff67c48",
+        "at_s": 380.7,
+        "trailers": "Change-Id: I5ce6ae49afec166d6b07975a0eb3034e6acccc3b\nTask-Id: m2-mutt9hoi-t4\nAgent-Id: opencode-t4-r3"
+      }
+    },
+    {
+      "agent": "claude-t5-r3",
+      "harness": "claude",
+      "task": "t5",
+      "change": "I3a0a1e79580e15390d56149c00c3c1f3da4b3a68",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 23993
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "737a0508d988fbefb042a4a96b511f2e6382b133",
+        "at_s": 165,
+        "trailers": "Change-Id: I3a0a1e79580e15390d56149c00c3c1f3da4b3a68\nTask-Id: m2-mutt9hoi-t5\nAgent-Id: claude-t5-r3"
+      }
+    },
+    {
+      "agent": "codex-t5-r3",
+      "harness": "codex",
+      "task": "t5",
+      "change": "I8d083088ffb0083aa77d70c5de887e4f8e26c178",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 100778
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "bf04848e4a2bc68270041a7a8d284adbfa020ca7",
+        "at_s": 241.6,
+        "trailers": "Change-Id: I8d083088ffb0083aa77d70c5de887e4f8e26c178\nTask-Id: m2-mutt9hoi-t5\nAgent-Id: codex-t5-r3"
+      }
+    },
+    {
+      "agent": "opencode-t5-r3",
+      "harness": "opencode",
+      "task": "t5",
+      "change": "Ibd9129d662f6776124c644ca723f4830bd339130",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 447682
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "beacf1c9d0173ac30f15a82d1e9c2fd0ac7d4578",
+        "at_s": 939.7,
+        "trailers": "Change-Id: Ibd9129d662f6776124c644ca723f4830bd339130\nTask-Id: m2-mutt9hoi-t5\nAgent-Id: opencode-t5-r3"
+      }
+    },
+    {
+      "agent": "claude-t6-r3",
+      "harness": "claude",
+      "task": "t6",
+      "change": "I4c686adc123d7fe2ed802dd6f9cc79defab7b305",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 18562
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "e351fad0b61106dae54093dfaf91f5e1997c4e6e",
+        "at_s": 159.8,
+        "trailers": "Change-Id: I4c686adc123d7fe2ed802dd6f9cc79defab7b305\nTask-Id: m2-mutt9hoi-t6\nAgent-Id: claude-t6-r3"
+      }
+    },
+    {
+      "agent": "codex-t6-r3",
+      "harness": "codex",
+      "task": "t6",
+      "change": "Ia9bec4c549493c7e4226935739abfd8617bb41f6",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 98893
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "50726250477c4577fe48bd5bcf3f199d9f37da80",
+        "at_s": 239.9,
+        "trailers": "Change-Id: Ia9bec4c549493c7e4226935739abfd8617bb41f6\nTask-Id: m2-mutt9hoi-t6\nAgent-Id: codex-t6-r3"
+      }
+    },
+    {
+      "agent": "opencode-t6-r3",
+      "harness": "opencode",
+      "task": "t6",
+      "change": "Iaa2bc983cbda3fc3c2c06e78e669c9a8957ba3a4",
+      "turns": [
+        {
+          "name": "work",
+          "code": 0,
+          "ms": 135864
+        }
+      ],
+      "push": {
+        "ok": true,
+        "sha": "2d38ba1fdff2b8b240cb63f94668c65b76d1a1c2",
+        "at_s": 316.7,
+        "trailers": "Change-Id: Iaa2bc983cbda3fc3c2c06e78e669c9a8957ba3a4\nTask-Id: m2-mutt9hoi-t6\nAgent-Id: opencode-t6-r3"
+      }
+    }
+  ],
+  "criteria": {
+    "agents_live": {
+      "ok": true,
+      "detail": {
+        "agents": 18,
+        "pushed": 18,
+        "harness_failures": []
+      }
+    },
+    "collision_squiggle_reroute": {
+      "ok": true,
+      "detail": {
+        "t1_signature_seq": 354,
+        "t2": [
+          {
+            "agent": "claude-t2-r3",
+            "rejected_seq": 370,
+            "caused_by": 354,
+            "deny_in_transcript": true,
+            "accepted_edits_after": 2
+          },
+          {
+            "agent": "codex-t2-r3",
+            "rejected_seq": 375,
+            "caused_by": 354,
+            "deny_in_transcript": true,
+            "accepted_edits_after": 2
+          },
+          {
+            "agent": "opencode-t2-r3",
+            "rejected_seq": 369,
+            "caused_by": 354,
+            "deny_in_transcript": true,
+            "accepted_edits_after": 2
+          }
+        ]
+      }
+    },
+    "structural_merge": {
+      "ok": true,
+      "detail": {
+        "layers": [
+          "none",
+          "mergiraf"
+        ],
+        "t4": {
+          "workflow_status": "complete",
+          "status": "landed",
+          "op_id": "op-1e03b4f1e4f49e5a5556f1c5",
+          "seq": 470,
+          "before": "9cf108f01b97f15c28d38fee02d59d05e08c8dcf",
+          "after": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+          "layer": "none",
+          "attempts": 1,
+          "queue_id": 18
+        },
+        "t5": {
+          "workflow_status": "complete",
+          "status": "landed",
+          "op_id": "op-f5bc3ba5042bffe96041ea81",
+          "seq": 475,
+          "before": "a2e26730319e96b3f0e886af91d6c105c97b69f0",
+          "after": "fdb8febb3d98a8bf4997c3796232b9880b855761",
+          "layer": "mergiraf",
+          "attempts": 1,
+          "queue_id": 19
+        }
+      }
+    },
+    "negotiation_both_land": {
+      "ok": true,
+      "detail": {
+        "t3": [
+          {
+            "agent": "claude-t3-r3",
+            "rejected_seq": 365,
+            "caused_by": 354,
+            "deny_in_transcript": true,
+            "accepted_edits_after": 2
+          },
+          {
+            "agent": "codex-t3-r3",
+            "rejected_seq": null,
+            "caused_by": null,
+            "deny_in_transcript": false,
+            "accepted_edits_after": 0
+          },
+          {
+            "agent": "opencode-t3-r3",
+            "rejected_seq": 363,
+            "caused_by": 354,
+            "deny_in_transcript": true,
+            "accepted_edits_after": 2
+          }
+        ],
+        "proposals": [
+          {
+            "seq": 347,
+            "from": "codex-t6-r3",
+            "to": "opencode-t6",
+            "to_change": null,
+            "terms": {
+              "kind": "share",
+              "text": "My task adds kiwi: 4 to PRICES and a Kiwi .00 row to public/pricing.html; home page must remain unchanged. Please confirm these additions can coexist with your edits to the same files."
+            },
+            "answer": null
+          },
+          {
+            "seq": 351,
+            "from": "codex-t5-r3",
+            "to": "opencode-t5",
+            "to_change": null,
+            "terms": {
+              "kind": "share",
+              "text": "My assigned task changes only shippingFee to return 0 when calcTotal(items) >= 50, preserving existing behavior below $50; adds test/shipping.test.ts. Edit is applied and all 11 tests pass. Please confirm compatible sharing or release your shippingFee claim."
+            },
+            "answer": null
+          },
+          {
+            "seq": 357,
+            "from": "codex-t4-r3",
+            "to": "opencode-t4",
+            "to_change": null,
+            "terms": {
+              "kind": "share",
+              "text": "Bulk-discount task changes only calcTotal to apply 10% off when sum of qty >= 10. Tests pass. Please confirm compatible shared ownership or release your calcTotal claim."
+            },
+            "answer": null
+          },
+          {
+            "seq": 366,
+            "from": "opencode-t4-r3",
+            "to": "opencode-t4",
+            "to_change": null,
+            "terms": {
+              "kind": "sequence",
+              "text": "Both tasks touch src/pricing.ts#calcTotal. I am adding a 10% bulk discount when total qty >= 10, and I have already applied that edit. Proposal: I keep my calcTotal change stable; opencode-t4 rebases/re-applies its calcTotal change on top and preserves the discount branch. If opencode-t4 must land first, reply and I will hold and re-apply after. I will not touch shippingFee or any other function."
+            },
+            "answer": null
+          },
+          {
+            "seq": 371,
+            "from": "claude-t3-r3",
+            "to": "claude-t1-r3",
+            "to_change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+            "terms": {
+              "kind": "overload",
+              "text": "Please keep createSession(userId) working as an overload (opts optional, defaulting to the platform's default TTL). src/auth/refresh.ts (task m2-mutt9hoi-t3) must call createSession(session.userId) with no options per product rule: refreshed sessions use the default lifetime."
+            },
+            "answer": {
+              "seq": 385,
+              "kind": "negotiate.accept",
+              "by": "claude-t1-r3"
+            }
+          },
+          {
+            "seq": 374,
+            "from": "opencode-t6-r3",
+            "to": "opencode-t6",
+            "to_change": null,
+            "terms": {
+              "kind": "share",
+              "text": "Our changes are byte-identical: src/catalog.ts gets 'kiwi: 4' in PRICES and public/pricing.html gets a <tr><td>Kiwi</td><td class=\"price\">$4.00</td></tr> row after Pear. This is the same diff claude-t6 landed in 14f482e (blobs 2dd98cd / 309dfe5), so whichever of us lands, the merged tree is identical - no semantic conflict. Suggest sharing: I keep src/catalog.ts#PRICES, you take public/pricing.html, or the reverse. I've run node --test (9/9 pass) and left public/index.html untouched."
+            },
+            "answer": null
+          },
+          {
+            "seq": 378,
+            "from": "opencode-t3-r3",
+            "to": "claude-t1-r3",
+            "to_change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+            "terms": {
+              "kind": "overload",
+              "text": "Please keep createSession(userId) working with NO options argument, as an overload alongside createSession(userId, opts) — i.e. make opts optional and have the one-arg form use the platform's DEFAULT session lifetime (your DEFAULT_TTL_MS). My refreshSession (src/auth/refresh.ts) and the existing login (src/api/routes.ts) must call createSession with the user id only, because refreshed sessions must use the platform default lifetime and must not choose session options themselves. So: export function createSession(userId: string, opts?: SessionOptions): Session with opts defaulting to the platform default ttl."
+            },
+            "answer": {
+              "seq": 386,
+              "kind": "negotiate.counter",
+              "by": "claude-t1-r3"
+            }
+          },
+          {
+            "seq": 384,
+            "from": "claude-t2-r3",
+            "to": "claude-t1-r3",
+            "to_change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+            "terms": {
+              "kind": "other",
+              "text": "I'm adding POST /api/signup in src/api/account.ts; it starts a session like login does, so it will call createSession(user.id, { ttlMs }) with your new required SessionOptions. What ttlMs does login pass? If you export a shared constant from src/auth/session.ts (e.g. DEFAULT_SESSION_TTL_MS) I'll import it; otherwise I'll use a local 24h constant."
+            },
+            "answer": {
+              "seq": 390,
+              "kind": "negotiate.counter",
+              "by": "claude-t1-r3"
+            }
+          },
+          {
+            "seq": 395,
+            "from": "codex-t2-r3",
+            "to": "claude-t1-r3",
+            "to_change": "Ibca2d3ac1b11269188982359a1fc968017e2d09f",
+            "terms": {
+              "kind": "other",
+              "text": "I will adapt signup to createSession(user.id, { ttlMs: ... }). What exact ttlMs does your updated login use so signup matches it?"
+            },
+            "answer": {
+              "seq": 402,
+              "kind": "negotiate.counter",
+              "by": "claude-t1-r3"
+            }
+          },
+          {
+            "seq": 396,
+            "from": "codex-t2-r3",
+            "to": "opencode-t2",
+            "to_change": null,
+            "terms": {
+              "kind": "share",
+              "text": "I am adding POST /api/signup to accountRoutes for task m2-mutt9hoi-t2. Weft reports your accountRoutes claim from task m2-muts51hi-t2. Can you release that claim or confirm shared edits are allowed?"
+            },
+            "answer": null
+          },
+          {
+            "seq": 419,
+            "from": "opencode-t3-r3",
+            "to": "opencode-t3",
+            "to_change": null,
+            "terms": {
+              "kind": "other",
+              "text": "Your claim (change I617810dc4917027dd9e1a5180c7740df87e1736e, task m2-muts51hi-t3) takes precedence on src/auth/refresh.ts#refreshSession, but that exact file+symbol is the sole deliverable of MY task m2-mutt9hoi-t3 ('Session refresh'): create src/auth/refresh.ts exporting refreshSession(token: string): Session | undefined, which getSession -> revokeSession -> createSession(sameUserId) (user id only, platform default lifetime). Looks like our two tasks may be duplicates. Please release your claim on src/auth/refresh.ts#refreshSession so I can create it, OR if your task genuinely needs that symbol, tell me and I'll escalate to the coordinator for a merge_tasks decision rather than have us both write it."
+            },
+            "answer": null
+          },
+          {
+            "seq": 442,
+            "from": "opencode-t5-r3",
+            "to": "opencode-t5",
+            "to_change": null,
+            "terms": {
+              "kind": "share",
+              "text": "Same task; mine landed and green. Keep whichever lands first."
+            },
+            "answer": null
+          }
+        ],
+        "t1_winner": "claude-t1-r3",
+        "overload_on_trunk": true
+      }
+    },
+    "comparison_and_human_approval": {
+      "ok": true,
+      "detail": {
+        "t6_with_screenshots": [
+          "claude-t6-r3",
+          "codex-t6-r3",
+          "opencode-t6-r3"
+        ],
+        "approved_by": "john",
+        "approved": {
+          "by": "john (human token, as the web UI's Approve)",
+          "change": "I4c686adc123d7fe2ed802dd6f9cc79defab7b305",
+          "agent": "claude-t6-r3",
+          "why": "highest-ranked eligible",
+          "forwarded_to": "bestofn-weft-demo-m2-mutt9hoi-t6",
+          "at_s": 2172.2
+        },
+        "winner": "claude-t6-r3"
+      }
+    },
+    "trunk_green": {
+      "ok": true,
+      "detail": {
+        "tsc": 0,
+        "test": 0
+      }
+    },
+    "auto_revert": {
+      "ok": false,
+      "detail": {
+        "exit": 1,
+        "verdict": null,
+        "duration_s": null,
+        "timings": null
+      }
+    }
+  },
+  "pass": false,
+  "finished_at": "2026-10-04T13:30:49.060Z",
+  "duration_s": 2899.5
+}

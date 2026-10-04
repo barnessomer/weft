@@ -1,0 +1,47 @@
+[m2 run-5 +0.6s] preflight {"gateway":200,"claude":"logged in","codex":"Logged in using ChatGPT","opencode_model":"opencode/big-pickle"}
+[m2 run-5 +5.5s] trunk seeded {"before":"134e013bf81e79666df55a397281ec50940e37da","base":"8a5d21d670708d1d7e9b3f2e67654f126b66f30e","seed_tests_exit":0}
+[m2 run-5 +5.8s] mark seeded
+[m2 run-5 +105.6s] tasks + candidates {"tasks":[{"task":"m2-mutwfm7d-t1","title":"Session expiry","risk":"medium"},{"task":"m2-mutwfm7d-t2","title":"Signup endpoint","risk":"low"},{"task":"m2-mutwfm7d-t3","title":"Session refresh","risk":"low"},{"task":"m2-mutwfm7d-t4","title":"Bulk discount","risk":"low"},{"task":"m2-mutwfm7d-t5","title":"Free shipping over $50","risk":"low"},{"task":"m2-mutwfm7d-t6","title":"Kiwi on the pricing page","risk":"medium"}],"candidates":[{"agent":"claude-t1-r5","change":"I3d4f43f2c658bfc2648839e99d4554f943117ac9","fork":"weft-weft-demo-m2-mutwfm7d-t1-1"},{"agent":"codex-t1-r5","change":"I9912c7116b7a4acfb3ff16dd8c32adb2f89e1dfc","fork":"weft-weft-demo-m2-mutwfm7d-t1-2"},{"agent":"opencode-t1-r5","change":"I8775310dd850016fa0f2af2755c9db50751f0db3","fork":"weft-weft-demo-m2-mutwfm7d-t1-3"},{"agent":"claude-t2-r5","change":"I5300fa00d3820b8ea2794acb90f2f9e42c3bea6b","fork":"weft-weft-demo-m2-mutwfm7d-t2-1"},{"agent":"codex-t2-r5","change":"I6e1209533b57d9fb97248569d604d5220c33fead","fork":"weft-weft-demo-m2-mutwfm7d-t2-2"},{"agent":"opencode-t2-r5","change":"Icda38777049b25aac99b246d830dbd8257de4e97","fork":"weft-weft-demo-m2-mutwfm7d-t2-3"},{"agent":"claude-t3-r5","change":"Ifb0d19f88d124b2fd38ee5b733077a5a14cf59cb","fork":"weft-weft-demo-m2-mutwfm7d-t3-1"},{"agent":"codex-t3-r5","change":"I64792f02331ca9c31497967c9f701e334132d1a3","fork":"weft-weft-demo-m2-mutwfm7d-t3-2"},{"agent":"opencode-t3-r5","change":"I8cc5b38ec7aaea763fe72a47eec108d770d92acf","fork":"weft-weft-demo-m2-mutwfm7d-t3-3"},{"agent":"claude-t4-r5","change":"I771b3ff1f519f1a33b393acd28319d33376c8678","fork":"weft-weft-demo-m2-mutwfm7d-t4-1"},{"agent":"codex-t4-r5","change":"I5367ef2d69cfc9b003fec5099e92c9c89d347c83","fork":"weft-weft-demo-m2-mutwfm7d-t4-2"},{"agent":"opencode-t4-r5","change":"I4324d32fe7971ab85175b71951e769093aea4a20","fork":"weft-weft-demo-m2-mutwfm7d-t4-3"},{"agent":"claude-t5-r5","change":"Id982c77b5601bd9ae8c119f29e757b1724ae4c61","fork":"weft-weft-demo-m2-mutwfm7d-t5-1"},{"agent":"codex-t5-r5","change":"Ie937305839d5bcee8521b4b1056d9ccb0a7a3535","fork":"weft-weft-demo-m2-mutwfm7d-t5-2"},{"agent":"opencode-t5-r5","change":"I731d357a8db7438017608a0f7059f80d5101744d","fork":"weft-weft-demo-m2-mutwfm7d-t5-3"},{"agent":"claude-t6-r5","change":"I7cde3cb6330db2196a194943fb20a85310d5871d","fork":"weft-weft-demo-m2-mutwfm7d-t6-1"},{"agent":"codex-t6-r5","change":"Id0e897088d9d467f76e87a56ead4b2e26e4ab8b9","fork":"weft-weft-demo-m2-mutwfm7d-t6-2"},{"agent":"opencode-t6-r5","change":"Iee5f925a7da6e511654899f0efd50c04f6b2bade","fork":"weft-weft-demo-m2-mutwfm7d-t6-3"}]}
+[m2 run-5 +138s] mark agents_ready
+[m2 run-5 +151.4s] mark planners_joined
+[m2 run-5 +162.2s] pushed claude-t5-r5 {"sha":"a2571aad0dd3350babf5dbb4903773f6bac9afe7"}
+[m2 run-5 +163.9s] pushed claude-t6-r5 {"sha":"e2af466b5c5db799fa2428827fd8705785e94f30"}
+[m2 run-5 +166.2s] mark t1_signature_accepted
+[m2 run-5 +166.2s] t1 signature change {"seq":726}
+[m2 run-5 +169.3s] pushed claude-t4-r5 {"sha":"cf349fe87ce225affbb0e4331964250ccf5a7133"}
+[m2 run-5 +234.5s] pushed codex-t5-r5 {"sha":"077c4f643a1c7883fbe00a7bb3c39e2d16f10ddb"}
+[m2 run-5 +241.4s] pushed codex-t6-r5 {"sha":"1834399c1d25763ccfb1a924bd1f0db7f6a48b60"}
+[m2 run-5 +255.8s] pushed codex-t4-r5 {"sha":"c20543e33b5f1e993279ecec9b378ef57e13b2c1"}
+[m2 run-5 +261.8s] mark plans_done
+[m2 run-5 +276.1s] resume t1 owner for a proposal {"owner":"codex-t1-r5","proposal_seq":784,"from":"claude-t3-r5"}
+[m2 run-5 +303s] pushed opencode-t6-r5 {"sha":"d84a9d412bff1a2940a405f36c95fec3f16e57d9"}
+[m2 run-5 +319.4s] pushed claude-t3-r5 {"sha":"4bd1662091b81d50ad55def67c6fa72c6070b952"}
+[m2 run-5 +353.5s] pushed claude-t2-r5 {"sha":"65f4ec742a82b12839a9a6faed5bc807b3ef436e"}
+[m2 run-5 +396.6s] resume t1 owner for a proposal {"owner":"codex-t1-r5","proposal_seq":833,"from":"codex-t2-r5"}
+[m2 run-5 +404.6s] pushed codex-t3-r5 {"sha":"15fdb5acc9c601a8c11a2266c71c2fbafdbfd1b6"}
+[m2 run-5 +473.2s] pushed codex-t2-r5 {"sha":"ea2d7679ae4babebcd42a6416310aafe89e46bae"}
+[m2 run-5 +483.4s] pushed opencode-t4-r5 {"sha":"52330805be034727d347edcfb3deedd8f6226743"}
+[m2 run-5 +519.5s] pushed opencode-t5-r5 {"sha":"a8c0edd9c4bfc5bc7c622bb1dcdb7e4cf91faf2d"}
+[m2 run-5 +657.4s] pushed opencode-t3-r5 {"sha":"cc5112eea329ae9d0e55f2fd3ac69408c4778170"}
+[m2 run-5 +785s] pushed opencode-t2-r5 {"sha":"aadfe62816d5b2572990cebe1db7823418504e77"}
+[m2 run-5 +785s] mark t2_t3_done
+[m2 run-5 +876.3s] pushed claude-t1-r5 {"sha":"26671f6dc7bee8217977e78f350c09382ab89071"}
+[m2 run-5 +878.3s] pushed codex-t1-r5 {"sha":"dd6c27d7595e60332c619d93a9ef34b169f515e6"}
+[m2 run-5 +880.6s] pushed opencode-t1-r5 {"sha":"f874dd86d64ba4626f355104b6b4e563eb7fbdbf"}
+[m2 run-5 +880.6s] mark t1_done
+[m2 run-5 +880.6s] mark all_agents_done
+[m2 run-5 +919s] mark evidence_done
+[m2 run-5 +938.9s] select started {"t1":{"workflow":"bestofn-weft-demo-m2-mutwfm7d-t1","n":3,"risk":"medium","started_at_s":920.7},"t2":{"workflow":"bestofn-weft-demo-m2-mutwfm7d-t2","n":3,"risk":"low","started_at_s":923.9},"t3":{"workflow":"bestofn-weft-demo-m2-mutwfm7d-t3","n":3,"risk":"low","started_at_s":927.1},"t4":{"workflow":"bestofn-weft-demo-m2-mutwfm7d-t4","n":3,"risk":"low","started_at_s":930.3},"t5":{"workflow":"bestofn-weft-demo-m2-mutwfm7d-t5","n":3,"risk":"low","started_at_s":933.6},"t6":{"workflow":"bestofn-weft-demo-m2-mutwfm7d-t6","n":3,"risk":"medium","started_at_s":936.9}}
+[m2 run-5 +945s] selection t2 {"status":"complete","result":"landing","winner":"claude-t2-r5","approved_by":null,"land":{"workflow_status":"complete","status":"landed","op_id":"op-f211291229517c0ac78f1298","seq":866,"before":"8a5d21d670708d1d7e9b3f2e67654f126b66f30e","after":"65f4ec742a82b12839a9a6faed5bc807b3ef436e","layer":"none","attempts":1,"queue_id":32}}
+[m2 run-5 +949.6s] human approved t3 {"by":"john (human token, as the web UI's Approve)","change":"Ifb0d19f88d124b2fd38ee5b733077a5a14cf59cb","agent":"claude-t3-r5","why":"highest-ranked eligible","forwarded_to":"bestofn-weft-demo-m2-mutwfm7d-t3","at_s":949.6}
+[m2 run-5 +949.9s] human approved t1 {"by":"john (human token, as the web UI's Approve)","change":"I9912c7116b7a4acfb3ff16dd8c32adb2f89e1dfc","agent":"codex-t1-r5","why":"honours the accepted overload agreement","forwarded_to":"bestofn-weft-demo-m2-mutwfm7d-t1","at_s":949.9}
+[m2 run-5 +950.2s] human approved t6 {"by":"john (human token, as the web UI's Approve)","change":"I7cde3cb6330db2196a194943fb20a85310d5871d","agent":"claude-t6-r5","why":"highest-ranked eligible","forwarded_to":"bestofn-weft-demo-m2-mutwfm7d-t6","at_s":950.2}
+[m2 run-5 +963.3s] selection t4 {"status":"complete","result":"landing","winner":"claude-t4-r5","approved_by":null,"land":{"workflow_status":"complete","status":"landed","op_id":"op-98d1ca0794fdad7d411c97ed","seq":871,"before":"65f4ec742a82b12839a9a6faed5bc807b3ef436e","after":"8649742734a0ce398f7ee4ab434723e55579dde0","layer":"git","attempts":1,"queue_id":33}}
+[m2 run-5 +985.4s] selection t5 {"status":"complete","result":"landing","winner":"claude-t5-r5","approved_by":null,"land":{"workflow_status":"complete","status":"landed","op_id":"op-1e0e732fdda77638f0a2a56c","seq":872,"before":"8649742734a0ce398f7ee4ab434723e55579dde0","after":"a945ec3443aeb174e481b5bd69939767e7efed19","layer":"mergiraf","attempts":1,"queue_id":34}}
+[m2 run-5 +994.2s] selection t3 {"status":"complete","result":"landing","winner":"claude-t3-r5","approved_by":"john","land":{"workflow_status":"complete","status":"landed","op_id":"op-9ef21ef3d307778d5b50e0d2","seq":873,"before":"a945ec3443aeb174e481b5bd69939767e7efed19","after":"c7af55585bb9b0ae5eb5bf3a88669539e2b1718e","layer":"git","attempts":1,"queue_id":35}}
+[m2 run-5 +1016.1s] selection t1 {"status":"complete","result":"landing","winner":"codex-t1-r5","approved_by":"john","land":{"workflow_status":"complete","status":"landed","op_id":"op-79d5a0da5ce4068cb61ef412","seq":874,"before":"c7af55585bb9b0ae5eb5bf3a88669539e2b1718e","after":"67b730e5915e18ce123f9f5eb6be2d4786b766ea","layer":"git","attempts":1,"queue_id":36}}
+[m2 run-5 +1036.8s] selection t6 {"status":"complete","result":"landing","winner":"claude-t6-r5","approved_by":"john","land":{"workflow_status":"complete","status":"landed","op_id":"op-c77aa83d41b6e719b854eaf9","seq":875,"before":"67b730e5915e18ce123f9f5eb6be2d4786b766ea","after":"242bad6ed5925836752148a561068cc4a48caeec","layer":"git","attempts":1,"queue_id":37}}
+[m2 run-5 +1036.8s] mark landed
+[m2 run-5 +1040.1s] mark trunk_checked
+[m2 run-5 +1307.5s] mark auto_revert_done
+[m2 run-5 +1327.2s] PASS {"agents_live":true,"collision_squiggle_reroute":true,"structural_merge":true,"negotiation_both_land":true,"comparison_and_human_approval":true,"trunk_green":true,"auto_revert":true}
