@@ -14,3 +14,7 @@ Append-only. One dated entry per heartbeat that changed something.
 ## 2026-10-03 23:00 — scope add (John)
 - I1: Hérmes iOS "Changes" feed of the combined change log (observer role added to P1/B2). B16: Hermes adapter so Weft coordinates its own build. Principle 9 "the editor disappears" added to design. Both gate M2.
 - 2026-10-03 (Hermes, for John): Cloudflare account upgraded to Workers Paid ($5/mo, card on file). Verified: /artifacts/namespaces → success (0 namespaces), /containers/applications → success. S1 blocker cleared; real Artifacts/Containers usable now.
+
+## 2026-10-03 23:25 — S2 landed
+- S2 (arq) hit iteration budget 90/90, then re-dispatches bounced off the ChatGPT/Codex usage limit (resets 10-04 03:03; arq + backend share it). Worker output was complete but uncommitted → PM added a verified-vs-documented table, committed, landed; gate green. Claude Code L0–L3 verified live; Codex L0 verified, L1–L3 left to B5 to re-probe.
+- Decision: no reassignment of Codex-profile cards — next ones (B4/B5) gate on B2 and quota resets before then. P1 (default/Claude) now ready and dispatched. Day 0 on track.
