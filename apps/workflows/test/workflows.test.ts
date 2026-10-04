@@ -323,6 +323,7 @@ describe("helpers", () => {
       { change: "B", n: 2, agent: null, head: "b", revision: { status: "processed" } as never, rebase: { status: "pass", data: { layer: "resolver" } }, test: { status: "pass", data: {} }, cost: null },
     ]);
     expect(r[0]!.change).toBe("B");
+    expect(r[0]!.layer).toBe("resolver");
     expect(r[1]!.eligible).toBe(false);
   });
   it("bounce text quotes the conflict", () => {

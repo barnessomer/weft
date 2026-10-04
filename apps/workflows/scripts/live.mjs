@@ -215,6 +215,14 @@ async function main() {
     res[k] = { agent: c.agent, change: c.change, sha: shas[k], revision: p.rev.status, layer: rb?.layer ?? null, rebase: rb?.status, resolver: rb?.resolver ?? (rb?.commits ?? []).find((x) => x.layer === "resolver") ?? null, conflicts: rb?.conflicts ?? null, tests: t ? { status: t.status, summary: t.summary } : null, run: rb?.run ?? null, timings: rb?.timings ?? null };
   }
   step("B processed (3 × ProcessRevision)", { wall_s: (Date.now() - pushedB) / 1000, ...res });
+  // What the resolver agent wrote (the fork's refs/heads/weft/rebased), vs. trunk after A.
+  for (const [k, c] of [["b3", b3]]) {
+    if (res[k].layer !== "resolver") continue;
+    const d = mkdtempSync(join(tmpdir(), "weft-b8-resolved-"));
+    git(["init", "-q", d]);
+    git(["fetch", "-q", c.fork.remote, "refs/heads/weft/rebased"], { cwd: d, token: c.token.plaintext });
+    step(`${k} resolver output (src/catalog.ts on weft/rebased)`, { agent: c.agent, catalog: git(["show", "FETCH_HEAD:src/catalog.ts"], { cwd: d }).split("\n").slice(0, 9) });
+  }
 
   // inbox of the broken candidate: the bounce
   const inbox = await api("POST", `/v1/repos/${REPO}/sessions/${b2.session}/inbox`, agentTokens[b2.agent], { type: "inbox.drain" }, 200).catch((e) => ({ error: e.message }));
@@ -259,7 +267,7 @@ async function main() {
   const trunkLog = git(["log", "--format=%h %an %s", `${base}..HEAD`], { cwd: fin }).split("\n");
   const ops = (await api("GET", `/v1/repos/${REPO}/system/ops`, SYS, undefined, 200)).ops;
   const events = (await api("GET", `/v1/repos/${REPO}/events?kind=land,revert,message,checkpoint&after=0&limit=500`, SYS, undefined, 200)).events.filter((e) => [a1, b1, b2, b3].some((c) => c.change === e.change));
-  const tasks = (await api("GET", `/v1/repos/${REPO}/tasks`, SYS, undefined, 200)).tasks.filter((t) => t.id === taskA || t.id === taskB).map((t) => ({ id: t.id, status: t.status, candidates: t.candidates.map((c) => [c.agent, c.status]) }));
+  const tasks = (await api("GET", `/v1/repos/${REPO}/tasks`, SYS, undefined, 200)).tasks.filter((t) => [taskA, taskB].includes(t.task ?? t.id)).map((t) => ({ id: t.task ?? t.id, status: t.status, candidates: t.candidates.map((c) => [c.agent, c.status]) }));
   step("final", { trunk_head: git(["rev-parse", "HEAD"], { cwd: fin }), trunk_log: trunkLog, catalog: read(fin, "src/catalog.ts").split("\n").slice(1, 6), ops: ops.filter((o) => [opA, landB.output?.op_id, rv.output?.op_id].includes(o.op_id)), events: events.map((e) => ({ seq: e.seq, kind: e.kind, actor: e.actor?.id, summary: e.summary })), tasks });
 
   // cleanup: per-fork subscriptions (forks + evidence stay for the demo)

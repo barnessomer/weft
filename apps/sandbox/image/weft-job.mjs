@@ -258,7 +258,7 @@ class Job {
                 content:
                   "You resolve git merge conflicts. You get one file containing conflict markers (diff3 style: <<<<<<< ours, ||||||| base, ======= , >>>>>>> theirs). 'ours' is the current trunk, 'theirs' is the change being replayed onto it. Produce the complete resolved file that keeps the intent of BOTH sides. Output ONLY the file content, no explanations, no markdown fences.",
               },
-              { role: "user", content: `Change being replayed:\n${subject}\n\n${ctx?.intent ? `Task: ${ctx.intent}\n\n` : ""}File: ${f}\n\n${text}` },
+              { role: "user", content: `Change being replayed:\n${subject}\n\n${ctx?.intent ? `Task: ${ctx.intent}\n\n` : ""}${explainHunks(text)}File: ${f}\n\n${text}` },
             ],
           };
           const resp = await fetch(url, { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(body) });
@@ -271,9 +271,13 @@ class Job {
           if (!content.trim()) return { ok: false, info: { ...info, error: `empty resolution for ${f}` } };
           if (!content.endsWith("\n") && text.endsWith("\n")) content += "\n";
           // Guard against truncated/garbled answers: the result must be about as long as the smaller side.
-          const sides = await Promise.all([":2:", ":3:"].map(async (st) => (await this.git(["show", `${st}${f}`])).stdout.length));
-          const floor = Math.floor(Math.min(...sides.filter((n) => n > 0), text.length) * 0.5);
+          const sides = await Promise.all([":2:", ":3:"].map(async (st) => (await this.git(["show", `${st}${f}`])).stdout));
+          const floor = Math.floor(Math.min(...sides.map((x) => x.length).filter((n) => n > 0), text.length) * 0.5);
           if (content.length < floor) return { ok: false, info: { ...info, error: `resolution for ${f} is suspiciously short (${content.length} < ${floor} bytes)` } };
+          // One-sided answers silently drop the other side's edit (trunk's or the change's): fail closed.
+          const norm = (x) => x.replace(/\s+$/g, "");
+          if (norm(content) === norm(sides[0])) return { ok: false, info: { ...info, error: `resolution for ${f} drops the change's edit (identical to trunk)` } };
+          if (norm(content) === norm(sides[1])) return { ok: false, info: { ...info, error: `resolution for ${f} drops trunk's edit (identical to the change)` } };
           await writeFile(join(this.dir, f), content);
         }
       } else return { ok: false, info: { ...info, error: `unknown resolver ${r.kind}` } };
@@ -360,6 +364,20 @@ class Job {
     }
     return { ok: false, reason: "rejected", ref, expected, detail: detail || `git push exited ${r.code}` };
   }
+}
+
+/** Plain-language summary of each diff3 hunk (base -> trunk, base -> change) for the resolver prompt. */
+export function explainHunks(text) {
+  const out = [];
+  const re = /^<{7}[^\n]*\n([\s\S]*?)^\|{7}[^\n]*\n([\s\S]*?)^={7}\n([\s\S]*?)^>{7}[^\n]*$/gm;
+  let m;
+  let i = 0;
+  while ((m = re.exec(text)) && i < 10) {
+    i++;
+    const [, ours, base, theirs] = m;
+    out.push(`Conflict ${i}:\n- base:\n${base.trimEnd()}\n- trunk changed it to:\n${ours.trimEnd()}\n- the change changed it to:\n${theirs.trimEnd()}\nApply BOTH edits to the base (for example combine a new value from one side with a new form from the other).`);
+  }
+  return out.length ? `${out.join("\n\n")}\n\n` : "";
 }
 
 export function stripFences(s) {

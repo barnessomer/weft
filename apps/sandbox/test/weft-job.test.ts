@@ -158,6 +158,12 @@ describe("weft-job rebase (layered merge)", () => {
         seen.push({ model: body.model, user: body.messages[1].content });
         const u: string = body.messages[1].content;
         const file = u.slice(u.indexOf("\n\n", u.indexOf("File: ")) + 2);
+        if (body.model === "@cf/test/one-sided") {
+          // answer = the change's side only (drops trunk's apple: 3)
+          const theirs = file.replace(/<<<<<<<[^]*?=======\n([^]*?)>>>>>>>[^\n]*\n/, "$1");
+          res.setHeader("content-type", "application/json");
+          return res.end(JSON.stringify({ response: theirs }));
+        }
         const resolved = (body.model === "@cf/test/truncating" ? file.slice(0, 20) : file).replace(/<<<<<<<[^]*?>>>>>>>[^\n]*\n/, "  apple: 3 * 2,\n");
         res.setHeader("content-type", "application/json");
         res.end(JSON.stringify({ response: "```ts\n" + resolved.trimEnd() + "\n```", usage: { total_tokens: 42 } }));
@@ -180,6 +186,12 @@ describe("weft-job rebase (layered merge)", () => {
       const bad = await runJob({ job: "rebase", trunk: { remote: w.trunk }, fork: { remote: f, sha: head }, resolver: { kind: "llm", url, model: "@cf/test/truncating" } }, { log: () => {} });
       expect(bad.status).toBe("conflict");
       expect(bad.resolver.error).toMatch(/suspiciously short/);
+      const one = await runJob({ job: "rebase", trunk: { remote: w.trunk }, fork: { remote: f, sha: head }, resolver: { kind: "llm", url, model: "@cf/test/one-sided" } }, { log: () => {} });
+      expect(one.status).toBe("conflict");
+      expect(one.resolver.error).toMatch(/drops trunk's edit/);
+      // the prompt explains each hunk (base -> trunk, base -> change)
+      expect(seen[0]!.user).toContain("- trunk changed it to:\n  apple: 3,");
+      expect(seen[0]!.user).toContain("- the change changed it to:\n  apple: 1 * 2,");
     } finally {
       srv.close();
     }

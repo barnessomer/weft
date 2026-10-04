@@ -70,7 +70,7 @@ export const short = (s?: string | null) => (s ? s.slice(0, 12) : "(empty)");
 
 const LAYER_SCORE: Record<string, number> = { none: 120, reused: 110, git: 100, mergiraf: 80, resolver: 40 };
 
-export type Ranked = { change: string; n: number; agent: string | null; score: number; reasons: string[]; eligible: boolean };
+export type Ranked = { change: string; n: number; agent: string | null; score: number; reasons: string[]; eligible: boolean; layer: string };
 
 /**
  * Rank processed candidates. Higher is better. Tests dominate (a failing candidate is never
@@ -108,7 +108,7 @@ export function rank(cands: Candidate[]): Ranked[] {
       score -= Math.min(100, Math.round(cost * 20));
       reasons.push(`cost $${cost.toFixed(2)}`);
     }
-    return { change: c.change, n: c.n, agent: c.agent, score: eligible ? score : -1, reasons, eligible };
+    return { change: c.change, n: c.n, agent: c.agent, score: eligible ? score : -1, reasons, eligible, layer };
   });
   return out.sort((a, b) => b.score - a.score || a.n - b.n);
 }

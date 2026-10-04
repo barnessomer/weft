@@ -193,3 +193,45 @@ curl -s $S/v1/runs/<run>/logs/agent.stdout.log -H "authorization: Bearer $T"
 curl -sX POST $S/v1/runs/<run>/destroy -H "authorization: Bearer $T"     # free the instance
 cd apps/sandbox && node scripts/live.mjs e2e      # live proof (creates + deletes a throwaway trunk/fork)
 ```
+
+## Workflows (B8)
+
+Preview: `https://weft-workflows-preview.redacted-subdomain.workers.dev` (`/v1/health` public).
+Code + API: `apps/workflows/README.md`. Live evidence: `demo/evidence/b8-workflows-live/run.json`.
+
+- Resources: Worker `weft-workflows-preview` with Workflows `weft-process-revision-preview`,
+  `weft-land-change-preview`, `weft-revert-operation-preview`, `weft-best-of-n-preview`; bindings to
+  D1 `weft-preview`, Artifacts `weft-preview`, `weft-sandbox-preview#SandboxRunner`,
+  `weft-gateway-preview`. The gateway preview binds the same four Workflows (`script_name`).
+  Prod (`weft-workflows`, `weft-*` workflow names) is configured but NOT deployed.
+- D1 migration `apps/gateway/migrations/0002_workflows.sql` (applied to `weft-preview`).
+- Secrets: `WEFT_SYSTEM_TOKEN` (gateway token `weft-workflows`, scopes system+observe, all repos;
+  `~/.config/weft/preview-workflows-system-token`) and `WEFT_WORKFLOWS_TOKEN` (operator API;
+  `~/.config/weft/preview-workflows-token`), both mode 600.
+- Deploy order when bindings change: sandbox (image has `/opt/weft/weft-job.mjs`) → workflows → gateway.
+
+```sh
+cd apps/gateway && unset CLOUDFLARE_API_TOKEN && pnpm exec wrangler d1 migrations apply weft-preview --env preview --remote
+cd ../sandbox && node scripts/stage.mjs && pnpm exec wrangler deploy --env preview --var AI_GATEWAY_ID:default
+cd ../workflows && pnpm exec wrangler deploy --env preview
+cd ../gateway && pnpm exec wrangler deploy --env preview
+node apps/workflows/scripts/live.mjs        # ~3 min: all four workflows on weft-demo
+
+ADMIN=$(cat ~/.config/weft/preview-admin-token); U=https://weft-gateway-preview.redacted-subdomain.workers.dev
+# per-repo workflow config (tests, resolver, layers, allow_hosts)
+curl -sX POST $U/v1/admin/artifacts/repos -H "authorization: Bearer $ADMIN" \
+  -d '{"repo":"weft-demo","trunk":"weft-demo","config":{"tests":{"command":["node","--test"]},"resolver":{"kind":"llm"}}}'
+# land / select / revert (system or human token)
+curl -sX POST $U/v1/repos/weft-demo/changes/$CHANGE/land -H "authorization: Bearer $TOKEN"
+curl -sX POST $U/v1/repos/weft-demo/tasks/$TASK/select -H "authorization: Bearer $TOKEN" -d '{"n":3,"risk":"high"}'
+curl -sX POST $U/v1/repos/weft-demo/system/revert -H "authorization: Bearer $SYS" -d '{"op_id":"op-…","reason":"5xx spike","evidence":{"text":"…stack…"}}'
+# workflow status / step history
+W=https://weft-workflows-preview.redacted-subdomain.workers.dev; WT=$(cat ~/.config/weft/preview-workflows-token)
+curl -s $W/v1/workflows/land/<instance> -H "authorization: Bearer $WT"
+cd apps/workflows && pnpm exec wrangler workflows instances describe weft-land-change-preview <instance>
+```
+
+- A step that keeps failing (e.g. the gateway rejects a draft) retries with backoff, then the
+  instance errors; `instances describe` shows the error per attempt. Git side effects are idempotent
+  (CAS push; revert finds its `Weft-Reverts-Op:` trailer; op ids are deterministic), so re-creating
+  the workflow for the same change/op is safe.

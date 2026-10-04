@@ -364,10 +364,11 @@ export async function bestOfN(p: BestOfNParams, step: StepLike, deps: Deps, inst
   const eligible = ranking.filter((r) => r.eligible);
   if (!eligible.length) return { status: "no_candidates", ranking, waited: i };
 
-  // 3. Risk tier: low lands the top candidate; medium/high wait for a human approve.
+  // 3. Risk tier: low lands the top candidate; medium/high wait for a human approve. A top
+  //    candidate that only rebased through the resolver agent (an LLM merged code) always does.
   let winner = eligible[0]!.change;
   let approvedBy: string | undefined;
-  if (needsApproval(t0.risk)) {
+  if (needsApproval(t0.risk) || eligible[0]!.layer === "resolver") {
     let ev: { payload: { change?: string; by?: string; reject?: boolean } };
     try {
       ev = await step.waitForEvent<{ change?: string; by?: string; reject?: boolean }>("approval", { type: "approve", timeout: `${p.approval_timeout_s ?? 86_400} seconds` });
