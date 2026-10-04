@@ -1,23 +1,23 @@
-// `weft-adapter-claude` CLI (bundled to dist/weft-claude.mjs).
+// `weft-adapter-codex` CLI (bundled to dist/weft-codex.mjs).
 //
-//   install        configure a checkout: .weft/claude.json (+ token file), .claude/settings.json
+//   install        configure a checkout: .weft/codex.json (+ token file), .codex/settings.json
 //                  hooks, git commit-msg (Change-Id/Task-Id/Agent-Id trailers) + pre-commit gate
-//   hook           Claude Code hook entry: JSON on stdin -> JSON on stdout (always exit 0)
+//   hook           Codex hook entry: JSON on stdin -> JSON on stdout (always exit 0)
 //   commit-msg F   git commit-msg hook
 //   pre-commit     git pre-commit hook (last gate: refuses while the session has open errors)
 //   heartbeat-loop keep a WCP session alive between hooks (spawned detached by SessionStart)
 //   status         print config (never the token) and session state
 import { spawn, execFileSync } from "node:child_process";
-import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
+import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, realpathSync, writeFileSync, readdirSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { HttpTransport, type Transport } from "./client";
 import { CONFIG_REL, currentSession, loadConfig, readState, stateDir, type AdapterConfig, type Loaded } from "./config";
-import { ClaudeAdapter, type HookInput } from "./hooks";
+import { CodexAdapter, type HookInput } from "./hooks";
 
 const SELF = fileURLToPath(import.meta.url);
-const HOOK_MARK = "weft-claude";
+const HOOK_MARK = "weft-codex";
 
 async function readStdin(): Promise<string> {
   let text = "";
@@ -25,16 +25,16 @@ async function readStdin(): Promise<string> {
   return text;
 }
 
-function adapterFor(loaded: Loaded, calls?: Call[]): ClaudeAdapter {
+function adapterFor(loaded: Loaded, calls?: Call[]): CodexAdapter {
   const http = new HttpTransport(loaded.config.url, loaded.token, loaded.config.repo, loaded.config.timeoutMs ?? 8000);
   const transport = calls ? timed(http, calls) : http;
-  return new ClaudeAdapter(loaded, {
+  return new CodexAdapter(loaded, {
     transport,
     analyze: async (changes, root, prefix) => (await import("./analysis")).analyzeChanges(changes, root, prefix),
     diff: async (rel, before, after) => (await import("./analysis")).unifiedDiff(rel, before, after),
-    startHeartbeat: (claudeSession) => {
+    startHeartbeat: (codexSession) => {
       try {
-        spawn(process.execPath, [SELF, "heartbeat-loop", claudeSession, "--root", loaded.root], { detached: true, stdio: "ignore" }).unref();
+        spawn(process.execPath, [SELF, "heartbeat-loop", codexSession, "--root", loaded.root], { detached: true, stdio: "ignore" }).unref();
       } catch {
         /* heartbeat is best-effort; sessions re-hello on expiry */
       }
@@ -76,7 +76,7 @@ async function hook(): Promise<void> {
   const handleStart = performance.now();
   try {
     input = JSON.parse(await readStdin()) as HookInput;
-    loaded = loadConfig(input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
+    loaded = loadConfig(input.cwd ?? process.cwd());
     if (loaded) out = await adapterFor(loaded, calls).handle(input);
   } catch {
     out = undefined; // fail open: malformed input or a bug must not block the harness
@@ -140,39 +140,57 @@ export function gitHooksDir(root: string): string {
   return dir;
 }
 
+/** Main worktree of a linked worktree (parent of the common `.git` dir), if any. */
+export function mainWorktree(root: string): string | undefined {
+  try {
+    const common = resolve(root, git(root, ["rev-parse", "--git-common-dir"]));
+    if (!common.endsWith(`${sep}.git`)) return undefined; // bare repo: no main worktree
+    const main = dirname(common);
+    return realpathSync(main) === realpathSync(root) ? undefined : main;
+  } catch {
+    return undefined;
+  }
+}
+
 function shellQuote(s: string): string {
   return /^[A-Za-z0-9_\/.:@%+=,-]+$/.test(s) ? s : `'${s.replace(/'/g, `'\\''`)}'`;
 }
 
 type HookEntry = { matcher?: string; hooks: Array<{ type: string; command: string; timeout?: number }> };
 
-/** Merge Weft hooks into a Claude settings object, replacing any previous Weft entries. */
+/**
+ * Merge Weft hooks into Codex's `.codex/hooks.json` (the file Codex discovers in the
+ * project layer), replacing previous Weft entries and keeping foreign ones.
+ */
 export function mergeSettings(settings: Record<string, unknown>, command: string): Record<string, unknown> {
   const hooks = { ...((settings.hooks as Record<string, HookEntry[]>) ?? {}) };
-  const ours = (matcher?: string): HookEntry => ({ ...(matcher !== undefined ? { matcher } : {}), hooks: [{ type: "command", command, timeout: 30 }] });
-  const want: Record<string, HookEntry> = {
-    SessionStart: ours(),
-    UserPromptSubmit: ours(),
-    PreToolUse: ours("Edit|Write|MultiEdit|Bash"),
-    PostToolUse: ours("*"),
-    Stop: ours(),
-    SessionEnd: ours(),
+  const ours = (matcher?: string, timeout = 30): HookEntry => ({ ...(matcher !== undefined ? { matcher } : {}), hooks: [{ type: "command", command, timeout }] });
+  // SessionStart must be hooked: it says hello and pins base_seq to what the conversation has
+  // actually seen. Without it the first hello happens at the first edit with base = head, so
+  // R2 never fires for a signature change the agent read before (found in M1).
+  const want: Record<string, HookEntry[]> = {
+    SessionStart: [ours()],
+    UserPromptSubmit: [ours()],
+    PreToolUse: [ours("apply_patch"), ours("Bash")],
+    PostToolUse: [ours("apply_patch"), ours("Bash")],
+    Stop: [ours()],
+    SessionEnd: [ours(undefined, 3)],
   };
-  for (const [event, entry] of Object.entries(want)) {
+  for (const [event, entries] of Object.entries(want)) {
     const kept = (hooks[event] ?? [])
       .map((e) => ({ ...e, hooks: e.hooks.filter((h) => !h.command.includes(HOOK_MARK)) }))
       .filter((e) => e.hooks.length);
-    hooks[event] = [...kept, entry];
+    hooks[event] = [...kept, ...entries];
   }
   return { ...settings, hooks };
 }
 
 const COMMIT_MSG = (node: string) => `#!/bin/sh
-# weft-claude: add Change-Id / Task-Id / Agent-Id trailers (installed by weft-adapter-claude)
+# weft-codex: add Change-Id / Task-Id / Agent-Id trailers (installed by weft-adapter-codex)
 exec ${shellQuote(node)} ${shellQuote(SELF)} commit-msg "$1"
 `;
 const PRE_COMMIT = (node: string) => `#!/bin/sh
-# weft-claude: last gate — refuse the commit while this checkout's Weft session has open errors
+# weft-codex: last gate — refuse the commit while this checkout's Weft session has open errors
 exec ${shellQuote(node)} ${shellQuote(SELF)} pre-commit
 `;
 
@@ -209,16 +227,27 @@ async function install(args: string[]): Promise<void> {
   const exclude = resolve(root, git(root, ["rev-parse", "--git-path", "info/exclude"]));
   mkdirSync(dirname(exclude), { recursive: true });
   const ex = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
-  const want = [".weft/", ".claude/settings.local.json"].filter((l) => !ex.split("\n").includes(l));
+  const want = [".weft/", ...(args.includes("--shared") ? [] : [".codex/hooks.json"])].filter((l) => !ex.split("\n").includes(l));
   if (want.length) writeFileSync(exclude, `${ex}${ex && !ex.endsWith("\n") ? "\n" : ""}${want.join("\n")}\n`);
 
-  // Claude Code hooks. Default: .claude/settings.local.json (machine-specific absolute paths,
-  // never committed); --shared writes the committed .claude/settings.json instead.
+  // Codex hooks: `.codex/hooks.json` in the checkout (Codex's project hook layer; run Codex
+  // with `--dangerously-bypass-hook-trust` or trust the hooks once). The file holds
+  // machine-specific absolute paths, so it is git-excluded unless --shared.
   const command = `${shellQuote(process.execPath)} ${shellQuote(SELF)} hook`;
-  const settingsPath = join(root, ".claude", args.includes("--shared") ? "settings.json" : "settings.local.json");
-  mkdirSync(dirname(settingsPath), { recursive: true });
-  const settings = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, "utf8")) as Record<string, unknown>) : {};
-  writeFileSync(settingsPath, JSON.stringify(mergeSettings(settings, command), null, 2) + "\n");
+  const settingsPath = join(root, ".codex", "hooks.json");
+  const hookFiles = [settingsPath];
+  // Codex resolves the project config layer of a linked git worktree at the MAIN worktree
+  // (verified with codex-cli 0.154: a SessionStart hook in <main>/.codex/hooks.json fires for
+  // a session in a linked worktree, the worktree's own .codex/hooks.json does not). Install
+  // there too. The command is checkout-agnostic: each hook finds its checkout's .weft config
+  // from the hook's cwd and does nothing in checkouts without one.
+  const main = mainWorktree(root);
+  if (main && main !== root) hookFiles.push(join(main, ".codex", "hooks.json"));
+  for (const file of hookFiles) {
+    mkdirSync(dirname(file), { recursive: true });
+    const settings = existsSync(file) ? (JSON.parse(readFileSync(file, "utf8")) as Record<string, unknown>) : {};
+    writeFileSync(file, JSON.stringify(mergeSettings(settings, command), null, 2) + "\n");
+  }
 
   // git hooks (respect core.hooksPath; per-worktree hooks for linked worktrees)
   const hooksDir = gitHooksDir(root);
@@ -234,9 +263,9 @@ async function install(args: string[]): Promise<void> {
   }
   const hasToken = existsSync(resolve(root, config.tokenFile!)) || !!process.env.WEFT_TOKEN;
   process.stdout.write(
-    `weft: installed Claude Code adapter in ${root}\n` +
+    `weft: installed Codex adapter in ${root}\n` +
       `  coordinator ${config.url} repo ${config.repo} agent ${config.agent} task ${config.task.id} change ${config.change}\n` +
-      `  hooks: ${settingsPath}\n  git hooks: ${hooksDir}/commit-msg, pre-commit\n` +
+      `  hooks: ${hookFiles.join(", ")}\n  git hooks: ${hooksDir}/commit-msg, pre-commit\n` +
       (hasToken ? "" : `  NOTE: no token yet — write it to ${config.tokenFile} (mode 600) or export WEFT_TOKEN\n`),
   );
 }
@@ -265,7 +294,7 @@ async function preCommit(): Promise<number> {
   return 1;
 }
 
-async function heartbeatLoop(claudeSession: string, rootArg?: string): Promise<void> {
+async function heartbeatLoop(codexSession: string, rootArg?: string): Promise<void> {
   const loaded = loadConfig(rootArg ?? process.cwd());
   if (!loaded) return;
   const adapter = adapterFor(loaded);
@@ -273,14 +302,14 @@ async function heartbeatLoop(claudeSession: string, rootArg?: string): Promise<v
   const idleLimitMs = 30 * 60_000;
   for (;;) {
     await new Promise((r) => setTimeout(r, intervalMs));
-    if (!(await adapter.beat(claudeSession, idleLimitMs).catch(() => false))) return;
+    if (!(await adapter.beat(codexSession, idleLimitMs).catch(() => false))) return;
   }
 }
 
 function status(): void {
   const loaded = loadConfig(process.cwd());
   if (!loaded) {
-    process.stdout.write("weft: not configured here (no .weft/claude.json or no token)\n");
+    process.stdout.write("weft: not configured here (no .weft/codex.json or no token)\n");
     return;
   }
   const { config, root } = loaded;
@@ -288,7 +317,7 @@ function status(): void {
   try {
     for (const f of readdirSync(stateDir(root)).filter((x) => x.endsWith(".json"))) {
       const st = readState(root, f.replace(/\.json$/, ""));
-      process.stdout.write(`session ${st.claudeSession}: wcp ${st.wcpSession ?? "-"} base #${st.base} acked ${st.acked}${st.rebaseFloor ? ` floor #${st.rebaseFloor.seq}` : ""}\n`);
+      process.stdout.write(`session ${st.codexSession}: wcp ${st.wcpSession ?? "-"} base #${st.base} acked ${st.acked}${st.rebaseFloor ? ` floor #${st.rebaseFloor.seq}` : ""}\n`);
     }
   } catch {
     /* no state yet */
@@ -312,13 +341,13 @@ async function main(): Promise<void> {
     case "status":
       return status();
     default:
-      process.stderr.write("usage: weft-adapter-claude install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise] [--shared]\n       weft-adapter-claude hook|commit-msg FILE|pre-commit|status\n");
+      process.stderr.write("usage: weft-adapter-codex install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise] [--shared]\n       weft-adapter-codex hook|commit-msg FILE|pre-commit|status\n");
       process.exitCode = cmd ? 2 : 0;
   }
 }
 
 const entry = process.argv[1] ? resolve(process.argv[1]) : "";
-if (entry === SELF || /weft-adapter-claude(\.mjs)?$/.test(entry)) {
+if (entry === SELF || /weft-adapter-codex(\.mjs)?$/.test(entry)) {
   main().catch((err) => {
     process.stderr.write(`weft: ${err instanceof Error ? err.message : String(err)}\n`);
     process.exitCode = process.argv[2] === "hook" ? 0 : 1;

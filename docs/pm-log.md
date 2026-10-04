@@ -35,3 +35,14 @@ Append-only. One dated entry per heartbeat that changed something.
 - B5/B15 "stranded in ready" = Codex quota wall (rate_limited requeues, no failure count); resets 03:03 — no action. B8 (critical path) + B14 running.
 - Open for later: AI Gateway `weft` not created (wrangler OAuth can't); preview uses `default` — acceptable for demo, not a blocker.
 - Day 1: on track; M1 waits on B5 only.
+
+## 2026-10-04 03:35 — B8 + B5 landed; B10/B13/B14 unblocked
+- Landed wt/b8 (workflows: ProcessRevision/LandChange/RevertOperation/BestOfN, live evidence run.json) and wt/b5 (Codex apply_patch L3 adapter). Gate green on main (workflows 19, sandbox 37, gateway 58, sequencer 43, codex 3, …). One claude-code adapter test failed once under full-gate load, then passed 3/3 in isolation and on a gate rerun. It's flaky, so watch it. weft_land posted #330/#331, pushed, preview /v1/health 200.
+- Decisions: B14 was waiting on B8's claim on artifacts.ts. The claim is released, so B14 is re-promoted (dispatcher guarded it once as blocker_auth; it will retry). B13 now owns deploying the `weft-demo` target Worker itself, because auto-revert is never cut. For B10: previews come from `wrangler versions upload` instead of Workers Builds, it creates the R2 `weft-evidence` bucket and Browser binding itself, and it uses AI Gateway `default`.
+- M1 is running on wt/m1 (the base is B5). Day 1, well ahead of plan (M1 is due 10-07).
+
+## 2026-10-04 04:40 — M1 landed (accepted at 2/2)
+- M1 accepted with 2 valid runs, not 3. Both PASS (demo/evidence/m1/run-1, run-2): Codex apply_patch was denied at edit time with stale_assumption quoting Claude's diff, it switched approach, the merge was clean and tests were green. Runs 3–4 were aborted by the Codex model quota (until 08:04) and the OpenRouter daily budget, not by Weft. Rationale: the criterion is shown twice and waiting costs 4h on the critical path. The optional 3rd run is card M1b (t_e8e618da).
+- Landed wt/m1 (also has Codex adapter fixes: .codex/hooks.json, SessionStart, shell apply_patch, per-worktree hooksPath). Gate green in the worktree (codex 9, claude-code 10, gateway 58, …). weft_land seq #364, pushed, preview health 200.
+- B10 and B13 moved backend→default (Claude) because of the Codex quota wall. B13 is never cut. B14 and B15 stay on Codex since they are the first cuts. B15 has real uncommitted work in its worktree, so leave it.
+- Day 1: M1 landed 3 days early.

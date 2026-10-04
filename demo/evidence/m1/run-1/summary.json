@@ -1,0 +1,214 @@
+{
+  "run": 1,
+  "repo": "demo-m1-20261004-064201-r1",
+  "url": "https://weft-gateway-preview.redacted-subdomain.workers.dev",
+  "pass": true,
+  "criteria": {
+    "b_got_edit_time_diagnostic_from_a": true,
+    "b_changed_approach": true,
+    "both_finished": true,
+    "merged_cleanly": true,
+    "tests_green": true
+  },
+  "a_signature_seq": 3,
+  "b_rejected_seq": 9,
+  "b_accepted_after": [
+    10
+  ],
+  "a_running_when_b2_started": false,
+  "timeline_ms": {
+    "b_joined": 5926,
+    "a_started": 5930,
+    "a_signature_accepted": 21136,
+    "b1_done": 42915,
+    "b2_started": 42915,
+    "b2_done": 118961,
+    "a_done": 118961
+  },
+  "durations_ms": {
+    "a": 28015,
+    "b1": 42915,
+    "b2": 76045
+  },
+  "hooks": {
+    "a": {
+      "SessionStart": {
+        "n": 1,
+        "total_ms_p50": 790,
+        "total_ms_max": 790,
+        "coordinator_call_ms_p50": 387,
+        "calls": 2
+      },
+      "UserPromptSubmit": {
+        "n": 1,
+        "total_ms_p50": 421,
+        "total_ms_max": 421,
+        "coordinator_call_ms_p50": 403,
+        "calls": 1
+      },
+      "PostToolUse:Read": {
+        "n": 3,
+        "total_ms_p50": 23,
+        "total_ms_max": 312,
+        "coordinator_call_ms_p50": 291,
+        "calls": 1
+      },
+      "PreToolUse:Edit": {
+        "n": 2,
+        "total_ms_p50": 558,
+        "total_ms_max": 558,
+        "coordinator_call_ms_p50": 413,
+        "calls": 2
+      },
+      "PostToolUse:Edit": {
+        "n": 2,
+        "total_ms_p50": 589,
+        "total_ms_max": 589,
+        "coordinator_call_ms_p50": 446,
+        "calls": 2
+      },
+      "PreToolUse:Write": {
+        "n": 1,
+        "total_ms_p50": 557,
+        "total_ms_max": 557,
+        "coordinator_call_ms_p50": 392,
+        "calls": 1
+      },
+      "PostToolUse:Write": {
+        "n": 1,
+        "total_ms_p50": 441,
+        "total_ms_max": 441,
+        "coordinator_call_ms_p50": 293,
+        "calls": 1
+      },
+      "PreToolUse:Bash": {
+        "n": 1,
+        "total_ms_p50": 25,
+        "total_ms_max": 25,
+        "coordinator_call_ms_p50": null,
+        "calls": 0
+      },
+      "PostToolUse:Bash": {
+        "n": 1,
+        "total_ms_p50": 311,
+        "total_ms_max": 311,
+        "coordinator_call_ms_p50": 283,
+        "calls": 1
+      },
+      "PostToolUse:Grep": {
+        "n": 1,
+        "total_ms_p50": 305,
+        "total_ms_max": 305,
+        "coordinator_call_ms_p50": 282,
+        "calls": 1
+      },
+      "Stop": {
+        "n": 1,
+        "total_ms_p50": 303,
+        "total_ms_max": 303,
+        "coordinator_call_ms_p50": 283,
+        "calls": 1
+      },
+      "SessionEnd": {
+        "n": 1,
+        "total_ms_p50": 490,
+        "total_ms_max": 490,
+        "coordinator_call_ms_p50": 281,
+        "calls": 2
+      },
+      "_all": {
+        "n": 16,
+        "total_ms_p50": 435,
+        "total_ms_p95": 790,
+        "coordinator_call_ms_p50": 293,
+        "coordinator_call_ms_p95": 446
+      }
+    },
+    "b": {
+      "SessionStart": {
+        "n": 2,
+        "total_ms_p50": 878,
+        "total_ms_max": 878,
+        "coordinator_call_ms_p50": 441,
+        "calls": 4
+      },
+      "UserPromptSubmit": {
+        "n": 2,
+        "total_ms_p50": 432,
+        "total_ms_max": 432,
+        "coordinator_call_ms_p50": 411,
+        "calls": 2
+      },
+      "PreToolUse:Bash": {
+        "n": 7,
+        "total_ms_p50": 33,
+        "total_ms_max": 753,
+        "coordinator_call_ms_p50": 413,
+        "calls": 4
+      },
+      "PostToolUse:Bash": {
+        "n": 5,
+        "total_ms_p50": 428,
+        "total_ms_max": 452,
+        "coordinator_call_ms_p50": 425,
+        "calls": 4
+      },
+      "Stop": {
+        "n": 2,
+        "total_ms_p50": 418,
+        "total_ms_max": 418,
+        "coordinator_call_ms_p50": 396,
+        "calls": 2
+      },
+      "SessionEnd": {
+        "n": 2,
+        "total_ms_p50": 605,
+        "total_ms_max": 605,
+        "coordinator_call_ms_p50": 405,
+        "calls": 4
+      },
+      "_all": {
+        "n": 20,
+        "total_ms_p50": 432,
+        "total_ms_p95": 878,
+        "coordinator_call_ms_p50": 405,
+        "coordinator_call_ms_p95": 443
+      }
+    }
+  },
+  "injected": {
+    "a_weft_chars": 544,
+    "b_weft_chars": 3166,
+    "b_deny_chars": 2078,
+    "est_tokens": {
+      "a": 136,
+      "b": 792,
+      "b_deny": 520
+    }
+  },
+  "model_tokens": {
+    "a": 131077,
+    "b": 977133,
+    "a_cost_usd": 0.19140939999999998
+  },
+  "checks": {
+    "a": {
+      "tsc": 0,
+      "test": 0
+    },
+    "b": {
+      "tsc": 2,
+      "test": 0
+    },
+    "merged": {
+      "tsc": 0,
+      "test": 0
+    }
+  },
+  "harnesses": {
+    "a": "claude-code (claude -p)",
+    "b": "codex exec (provider openrouter, model openai/gpt-6-sol)"
+  },
+  "b_thread": "01a105a5-eef6-7cd2-a171-99c296b0303c",
+  "work": "/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-m1-20261004-064201-r1"
+}

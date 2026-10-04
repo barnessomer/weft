@@ -1,0 +1,12 @@
+{
+  "name": "weft-target-app",
+  "private": true,
+  "type": "module",
+  "description": "Weft M1 demo target: a small auth/session service (users, sessions, JSON API routes, HTML UI) that two agents edit concurrently.",
+  "scripts": {
+    "start": "node src/server.ts",
+    "test": "node --test \"test/**/*.test.ts\"",
+    "typecheck": "tsc -p ."
+  },
+  "engines": { "node": ">=22.18" }
+}

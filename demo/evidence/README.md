@@ -1,3 +1,5 @@
+> M1 (Claude Code + Codex, one coordinator): see `m1-report.md` and `m1/`.
+
 # Evidence: two real Claude Code sessions vs one Weft coordinator
 
 Produced by `node demo/claude-collision.mjs [stop-gate]` on 2026-10-04 (Claude Code 2.1.289,
