@@ -24,8 +24,17 @@ export class Store {
     return { ...t, cfg };
   }
 
-  async task(repo: string, id: string): Promise<{ id: string; title: string | null; status: string; risk: Risk } | null> {
-    return this.db.prepare(`SELECT id, title, status, risk FROM tasks WHERE repo = ? AND id = ?`).bind(repo, id).first();
+  async task(repo: string, id: string): Promise<{ id: string; title: string | null; status: string; risk: Risk; criteria: string[] } | null> {
+    const t = await this.db.prepare(`SELECT id, title, status, risk, acceptance FROM tasks WHERE repo = ? AND id = ?`).bind(repo, id).first<{ id: string; title: string | null; status: string; risk: Risk; acceptance: string | null }>();
+    if (!t) return null;
+    let criteria: string[] = [];
+    try {
+      const v = t.acceptance ? (JSON.parse(t.acceptance) as unknown) : [];
+      criteria = Array.isArray(v) ? v.filter((x): x is string => typeof x === "string") : [];
+    } catch {
+      criteria = [];
+    }
+    return { id: t.id, title: t.title, status: t.status, risk: t.risk, criteria };
   }
 
   async revision(change: string, sha: string): Promise<RevisionRow | null> {
@@ -54,11 +63,11 @@ export class Store {
       .run();
   }
 
-  async evidenceFor(change: string, sha?: string): Promise<Array<{ id: number; sha: string; kind: string; status: string; data: string | null; created_at: number }>> {
+  async evidenceFor(change: string, sha?: string): Promise<EvidenceRow[]> {
     const q = sha
-      ? this.db.prepare(`SELECT id, sha, kind, status, data, created_at FROM evidence WHERE change_id = ? AND sha = ? ORDER BY id`).bind(change, sha)
-      : this.db.prepare(`SELECT id, sha, kind, status, data, created_at FROM evidence WHERE change_id = ? ORDER BY id`).bind(change);
-    return (await q.all<{ id: number; sha: string; kind: string; status: string; data: string | null; created_at: number }>()).results;
+      ? this.db.prepare(`SELECT id, sha, kind, status, uri, data, created_at FROM evidence WHERE change_id = ? AND sha = ? ORDER BY id`).bind(change, sha)
+      : this.db.prepare(`SELECT id, sha, kind, status, uri, data, created_at FROM evidence WHERE change_id = ? ORDER BY id`).bind(change);
+    return (await q.all<EvidenceRow>()).results;
   }
 
   async setChangeStatus(id: string, status: string): Promise<void> {
@@ -86,7 +95,7 @@ export class Store {
         const e = [...ev].reverse().find((x) => x.kind === kind);
         return e ? { status: e.status, data: e.data ? (JSON.parse(e.data) as Record<string, unknown>) : {} } : null;
       };
-      out.push({ change: c.id, n: c.n, agent: c.agent, head: c.head_sha, revision: rev, rebase: last("rebase"), test: last("test"), cost: last("cost") });
+      out.push({ change: c.id, n: c.n, agent: c.agent, head: c.head_sha, revision: rev, rebase: last("rebase"), test: last("test"), cost: last("cost"), review: last("review"), risk: last("risk") });
     }
     return out;
   }
@@ -113,6 +122,8 @@ export class Store {
 
 export type LandingRow = { op_id: string; repo: string; kind: string; change_id: string | null; task: string | null; before_sha: string; after_sha: string; seq: number | null; status: string; layer: string | null; reverts_op_id: string | null };
 
+export type EvidenceRow = { id: number; sha: string; kind: string; status: string; uri: string | null; data: string | null; created_at: number };
+
 export type Candidate = {
   change: string;
   n: number;
@@ -122,6 +133,9 @@ export type Candidate = {
   rebase: { status: string; data: Record<string, unknown> } | null;
   test: { status: string; data: Record<string, unknown> } | null;
   cost: { status: string; data: Record<string, unknown> } | null;
+  /** B10 review agent verdict + score, and the classified risk tier (optional in older callers). */
+  review?: { status: string; data: Record<string, unknown> } | null;
+  risk?: { status: string; data: Record<string, unknown> } | null;
 };
 
 /** Revision status after a ProcessRevision job. */

@@ -21,6 +21,7 @@ import { withRepo, type ArtifactsLike } from "@weft/artifacts";
 import type { EventDraft, EventRecord } from "@weft/protocol";
 import { bestOfN, landChange, processRevision, revertOperation } from "./core/workflows";
 import { ids } from "./core/ids";
+import { evidenceCaps, type EvidenceEnv } from "./evidence-cf";
 import type { BestOfNParams, CoordinatorClient, Deps, JobRequest, JobResult, JobRunner, LandChangeParams, OpRow, ProcessRevisionParams, QueueEntry, RevertOperationParams, StepLike } from "./core/types";
 
 export { ids };
@@ -33,7 +34,7 @@ interface SandboxRpc {
 }
 type SandboxStatus = { run: string; state: string; result?: { outcome?: { weft_job?: JobResult }; reason?: string; detail?: string; state?: string }; timings?: { cold_start_ms?: number }; error?: string };
 
-export interface Env {
+export interface Env extends Omit<EvidenceEnv, "ARTIFACTS"> {
   WEFT_DB: D1Database;
   ARTIFACTS: ArtifactsLike;
   SANDBOX: SandboxRpc;
@@ -138,11 +139,13 @@ class SandboxJobs implements JobRunner {
 }
 
 function deps(env: Env): Deps {
+  const evidence = evidenceCaps(env);
   return {
     db: env.WEFT_DB as unknown as Deps["db"],
     coord: (repo) => new HttpCoordinator(env, repo),
     jobs: new SandboxJobs(env),
     now: () => Date.now(),
+    ...(evidence ? { evidence } : {}),
     launch: {
       async land(p) {
         const id = ids.land(p.change, Date.now());

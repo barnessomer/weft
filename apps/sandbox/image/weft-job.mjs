@@ -330,6 +330,19 @@ class Job {
     return { files, insertions: ins, deletions: del };
   }
 
+  /** B10: unified diff (capped) + changed files, for the risk classifier and the review agent. */
+  async patch(from, to, max = 48_000) {
+    if (!from || from === ZERO_SHA || !to) return { patch: "", files: [], truncated: false };
+    const d = await this.git(["diff", "--no-color", "--no-ext-diff", "-U3", from, to]);
+    const ns = await this.git(["diff", "--name-status", "--no-renames", from, to]);
+    const files = ns.stdout.split("\n").filter(Boolean).slice(0, 500).map((l) => {
+      const [status, ...rest] = l.split("\t");
+      return { status, path: rest.join("\t") };
+    });
+    const text = redact(d.stdout, this.secrets);
+    return { patch: text.slice(0, max), files, truncated: text.length > max };
+  }
+
   async tests(sha) {
     const t = this.spec.tests;
     if (!t || !t.command || (Array.isArray(t.command) && !t.command.length)) return { status: "skipped", reason: "no test command configured" };
@@ -409,6 +422,12 @@ async function rebaseJob(job) {
   const out = { job: "rebase", ...rb, superseded: tip !== null && tip !== head ? tip : undefined };
   if (rb.status === "conflict") return out;
   out.diffstat = await job.diffstat(onto, rb.rebased);
+  if (s.patch !== false) {
+    const pt = await job.patch(onto, rb.rebased);
+    out.patch = pt.patch;
+    out.files = pt.files;
+    if (pt.truncated) out.patch_truncated = true;
+  }
   out.tests = await job.tests(rb.rebased);
   job.note("tested", { status: out.tests.status });
   if (s.push_rebased && rb.rebased !== head) {

@@ -10,7 +10,7 @@
 //                    it (waitForEvent) -> LandChange for the winner
 
 import { bounceText, landOpId, needsApproval, rank, revertOpId, runJob, short, type Ranked } from "./common";
-import { collectVisualEvidence } from "./evidence";
+import { collectEvidence, maxRisk, testsSummary, xEvidenceFromRows, type XEvidence } from "./evidence";
 import { revisionStatus, Store } from "./store";
 import type { BestOfNParams, ChangeRow, Deps, JobRequest, JobResult, LandChangeParams, ProcessRevisionParams, RepoConfig, RevertOperationParams, StepLike } from "./types";
 
@@ -20,6 +20,8 @@ type Ctx = {
   cfg: RepoConfig;
   title: string | null;
   risk: "low" | "medium" | "high";
+  /** B10: the task's acceptance criteria (review agent). */
+  criteria?: string[];
 };
 
 async function loadCtx(store: Store, repo: string, changeId: string): Promise<Ctx | { skip: string }> {
@@ -28,7 +30,7 @@ async function loadCtx(store: Store, repo: string, changeId: string): Promise<Ct
   const trunk = await store.trunk(repo);
   if (!trunk) return { skip: `repo ${repo} has no Artifacts trunk` };
   const task = await store.task(repo, change.task);
-  return { change, trunk: { name: trunk.trunk, remote: trunk.remote, branch: trunk.default_branch }, cfg: trunk.cfg, title: task?.title ?? null, risk: task?.risk ?? "medium" };
+  return { change, trunk: { name: trunk.trunk, remote: trunk.remote, branch: trunk.default_branch }, cfg: trunk.cfg, title: task?.title ?? null, risk: task?.risk ?? "medium", criteria: task?.criteria ?? [] };
 }
 
 function jobFor(ctx: Ctx, job: "rebase" | "land", sha: string, extra: Record<string, unknown>, access: { trunk: "read" | "write"; fork: "read" | "write" }): JobRequest {
@@ -75,6 +77,17 @@ function rebaseEvidence(r: JobResult) {
 function testEvidence(r: JobResult) {
   const t = r.tests!;
   return { status: t.status === "pass" ? ("pass" as const) : t.status === "fail" ? ("fail" as const) : ("info" as const), data: { ...t, onto: r.onto ?? null, sha: r.rebased ?? null } };
+}
+
+function evidenceHint(ctx: Ctx, x: XEvidence): string {
+  const bits = [
+    x.tests ? `tests ${x.tests.passed}/${x.tests.total}` : null,
+    x.preview_url ? "preview" : null,
+    x.screenshots.length ? `${x.screenshots.length} screenshot${x.screenshots.length === 1 ? "" : "s"}` : null,
+    x.review ? `review ${x.review.verdict}${typeof x.review.score === "number" ? ` ${x.review.score}` : ""}` : null,
+    x.risk ? `risk ${x.risk}` : null,
+  ].filter(Boolean);
+  return `evidence ${ctx.change.agent ?? short(ctx.change.id)}: ${bits.join(", ") || "recorded"}`;
 }
 
 async function bounce(deps: Deps, ctx: Ctx, text: string, hint: string): Promise<number | null> {
@@ -125,10 +138,29 @@ export async function processRevision(p: ProcessRevisionParams, step: StepLike, 
     return null;
   });
 
-  if (deps.evidence && (r.status === "up_to_date" || r.status === "clean" || r.status === "resolved") && r.tests?.status !== "fail") {
-    await step.do("collect visual evidence", () =>
-      collectVisualEvidence(store, deps.evidence, { repo: p.repo, change: p.change, sha: p.sha, result: r, intent: ctx.title, risk: ctx.risk }),
-    );
+  // B10: preview, screenshots + visual diff, risk, review (skipped for a failing candidate:
+  // it is bounced and ineligible, so spending a browser + two model calls on it buys nothing).
+  const rebasedOk = r.status === "up_to_date" || r.status === "clean" || r.status === "resolved";
+  let x: XEvidence | null = null;
+  if (rebasedOk && deps.evidence && r.tests?.status !== "fail") {
+    x = (await collectEvidence(step, store, deps.evidence, { repo: p.repo, change: p.change, sha: p.sha, result: r, title: ctx.title, criteria: ctx.criteria ?? [], fork: ctx.change.fork, trunk: ctx.trunk.name })).x;
+  }
+  // Vendor fields on a checkpoint record of the change (Hérmes Changes feed, video): the
+  // gateway keeps `payload` verbatim, so x_task_title / x_evidence ride inside it.
+  if (rebasedOk || r.tests) {
+    await step.do("stamp evidence", async () => {
+      const coord = deps.coord(p.repo);
+      const xe: XEvidence = x ?? { preview_url: null, tests: testsSummary(r.tests), screenshots: [], review: null, cost_usd: null };
+      const rec = await coord.system({
+        kind: "checkpoint",
+        base_seq: await coord.headSeq(),
+        change: p.change,
+        task: ctx.change.task,
+        payload: { sha: p.sha, ref: "refs/weft/evidence", ...(ctx.title ? { x_task_title: ctx.title } : {}), x_evidence: xe },
+        summary_hint: evidenceHint(ctx, xe).slice(0, 140),
+      });
+      return rec.seq;
+    });
   }
 
   let bounced: number | null = null;
@@ -222,12 +254,15 @@ export async function landChange(p: LandChangeParams, step: StepLike, deps: Deps
     const opId = await landOpId(p.repo, p.change, r.after!);
     const existing = (await coord.ops()).find((o) => o.op_id === opId);
     if (existing) return { op_id: opId, seq: existing.seq, status: "accepted" };
+    const xe = xEvidenceFromRows(await store.evidenceFor(p.change, sha));
+    const tests = testsSummary(r.tests);
+    if (tests) xe.tests = tests;
     const rec = await coord.system({
       kind: "land",
       base_seq: await coord.headSeq(),
       change: p.change,
       task: ctx.change.task,
-      payload: { sha: r.after!, op_id: opId, trunk_ref: `refs/heads/${ctx.trunk.branch}` },
+      payload: { sha: r.after!, op_id: opId, trunk_ref: `refs/heads/${ctx.trunk.branch}`, ...(ctx.title ? { x_task_title: ctx.title } : {}), x_evidence: xe },
       summary_hint: `landed ${ctx.change.agent ?? short(p.change)}: ${ctx.title ?? ctx.change.task} (${short(r.after)})`.slice(0, 140),
     });
     return { op_id: opId, seq: rec.seq, status: rec.status };
@@ -327,7 +362,7 @@ export async function revertOperation(p: RevertOperationParams, step: StepLike, 
     const change = await step.do("load reverted change", () => store.change(p.repo, target.op.change_id!));
     if (change)
       await step.do("tell the agent", () =>
-        bounce(deps, { change, trunk: target.trunk, cfg: target.cfg, title: null }, bounceText("revert", { reason: p.reason, ...(p.evidence?.text ? { evidence: p.evidence.text } : {}) }), `reverted: ${p.reason}`),
+        bounce(deps, { change, trunk: target.trunk, cfg: target.cfg, title: null, risk: "medium" }, bounceText("revert", { reason: p.reason, ...(p.evidence?.text ? { evidence: p.evidence.text } : {}) }), `reverted: ${p.reason}`),
       );
   }
   return { status: "reverted", op_id: logged.op_id, reverts_op_id: target.op.op_id, seq: logged.seq, sha: r.after! };
@@ -377,7 +412,12 @@ export async function bestOfN(p: BestOfNParams, step: StepLike, deps: Deps, inst
   //    candidate that only rebased through the resolver agent (an LLM merged code) always does.
   let winner = eligible[0]!.change;
   let approvedBy: string | undefined;
-  if (needsApproval(t0.risk) || eligible[0]!.layer === "resolver") {
+  // B10: the classified risk of the top candidate (heuristic + Workers AI) can raise the tier,
+  // and a review agent that did not pass it asks for a human too.
+  const top = snapshot.find((c) => c.change === eligible[0]!.change);
+  const topRisk = maxRisk(t0.risk as "low" | "medium" | "high", (top?.risk?.data?.risk as "low" | "medium" | "high" | undefined) ?? null);
+  const reviewVerdict = top?.review?.data?.verdict as string | undefined;
+  if (needsApproval(topRisk) || eligible[0]!.layer === "resolver" || (reviewVerdict !== undefined && reviewVerdict !== "pass")) {
     let ev: { payload: { change?: string; by?: string; reject?: boolean } };
     try {
       ev = await step.waitForEvent<{ change?: string; by?: string; reject?: boolean }>("approval", { type: "approve", timeout: `${p.approval_timeout_s ?? 86_400} seconds` });
