@@ -4,3 +4,9 @@ node_modules/
 dist/
 .env*
 .dev.vars
+# Download/execution by-products of the isolated analyzer spike; committed assets live in assets/.
+spikes/analyzer/vendor/
+spikes/analyzer/assets/tree-sitter.js
+spikes/analyzer/test/mergiraf/git-merged.ts
+spikes/analyzer/test/mergiraf/merged.ts
+

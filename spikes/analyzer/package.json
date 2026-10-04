@@ -1,0 +1,10 @@
+{
+  "name": "weft-analyzer-spike",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "test": "NODE_PATH=/usr/local/lib/node_modules node --experimental-strip-types test/run.ts",
+    "worker": "node test/worker-runner.mjs",
+    "bundle:ts": "node test/measure-bundles.mjs"
+  }
+}
