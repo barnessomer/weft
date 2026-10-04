@@ -11,7 +11,7 @@
 import { chromium } from "playwright";
 import { readFileSync, writeFileSync, existsSync, mkdirSync, rmSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { join } from "node:path";
+import { join, resolve } from "node:path";
 import { args, sections, sh, durationSec, RIG, VIDEO } from "./lib.mjs";
 import { scanVideo } from "./screen-safety.mjs";
 
@@ -19,7 +19,7 @@ const a = args();
 const edl = JSON.parse(readFileSync(join(RIG, "edl.json"), "utf8"));
 const script = Object.fromEntries(sections(a.script).map((s) => [s.id, s]));
 const audioDir = a.audio ?? join(VIDEO, "audio");
-const out = a.out ?? join(VIDEO, "out");
+const out = resolve(a.out ?? join(VIDEO, "out")); // absolute: ffmpeg concat lists resolve paths relative to the list file
 const work = join(out, ".work");
 mkdirSync(work, { recursive: true });
 const want = a.sections ? String(a.sections).split(",") : null;

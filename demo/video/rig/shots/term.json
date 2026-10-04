@@ -83,19 +83,19 @@
     },
     {
       "id": "S04b",
-      "note": "Negotiation: the proposal as injected into claude-a's next tool call (B11 run 5).",
+      "note": "Negotiation: the proposal as injected into claude-a's next tool call (B11 run 6, deployed preview gateway).",
       "lineMs": 90,
       "hold": 4500,
       "blocks": [
         {
-          "banner": "claude-a (Claude Code) · injected at its next PreToolUse:Edit · B11 run 5"
+          "banner": "claude-a (Claude Code) · injected at its next PreToolUse:Edit · B11 run 6 (preview gateway)"
         },
         {
           "pause": 500
         },
         {
-          "file": "demo/evidence/b11/run-5/transcript.md",
-          "from": "^\\[weft negotiation\\] #11",
+          "file": "demo/evidence/b11-preview/run-6/transcript.md",
+          "from": "^\\[weft negotiation\\] #10",
           "to": "Answer from the shell"
         }
       ],

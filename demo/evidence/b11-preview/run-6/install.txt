@@ -1,0 +1,10 @@
+weft: installed Claude Code adapter in /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b11-20261004-144005-r6/agent-a
+  coordinator https://weft-gateway-preview.elier.ai repo demo-b11-20261004-144005-r6 agent claude-a task T-1 change I6514850a814a6b11b2af5d1a5fa9027d5f2dc8c6
+  hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b11-20261004-144005-r6/agent-a/.claude/settings.local.json
+  git hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b11-20261004-144005-r6/origin/.git/worktrees/agent-a/hooks/commit-msg, pre-commit
+  agent cli: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b11-20261004-144005-r6/agent-a/.weft/bin/weft
+weft: installed Claude Code adapter in /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b11-20261004-144005-r6/agent-b
+  coordinator https://weft-gateway-preview.elier.ai repo demo-b11-20261004-144005-r6 agent claude-b task T-2 change I2aa24c520500a5813d279a35a585a09d14eb7722
+  hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b11-20261004-144005-r6/agent-b/.claude/settings.local.json
+  git hooks: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b11-20261004-144005-r6/origin/.git/worktrees/agent-b/hooks/commit-msg, pre-commit
+  agent cli: /private/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b11-20261004-144005-r6/agent-b/.weft/bin/weft

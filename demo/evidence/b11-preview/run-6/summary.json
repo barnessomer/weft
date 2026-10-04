@@ -1,0 +1,65 @@
+{
+  "run": 6,
+  "repo": "demo-b11-20261004-144005-r6",
+  "url": "https://weft-gateway-preview.elier.ai",
+  "pass": true,
+  "criteria": {
+    "b_denied_at_edit_time_by_a": true,
+    "b_proposed_overload": true,
+    "proposal_injected_into_a": true,
+    "a_accepted": true,
+    "a_made_agreed_edit": true,
+    "b_kept_old_call": true,
+    "both_landed": true,
+    "tests_green": true
+  },
+  "seqs": {
+    "a_signature": 4,
+    "b_rejected": 8,
+    "propose": 10,
+    "accept": 20,
+    "a_fulfil": 13,
+    "lands": [
+      25,
+      26
+    ]
+  },
+  "a_running_when_b2_started": true,
+  "a_resumed_for_proposal": false,
+  "proposal_reached_a_via": "PreToolUse:Edit",
+  "signup_createSession_args": "user.id",
+  "timeline_ms": {
+    "b_joined": 1301,
+    "a_started": 1303,
+    "a_signature_accepted": 27602,
+    "b2_started": 27602,
+    "b_proposed": 43249,
+    "a_accepted": 67292,
+    "a_done": 70231,
+    "b2_done": 92107
+  },
+  "harness_exit": {
+    "a": {
+      "code": 0,
+      "result": "success",
+      "ms": 68930,
+      "tokens": 200805,
+      "cost_usd": 0.32112500000000005
+    },
+    "b1": {
+      "code": 0,
+      "result": "success",
+      "ms": 23095,
+      "tokens": 65182,
+      "cost_usd": 0.1374494
+    },
+    "b2": {
+      "code": 0,
+      "result": "success",
+      "ms": 64504,
+      "tokens": 140761,
+      "cost_usd": 0.28481579999999995
+    }
+  },
+  "work": "/var/folders/h7/fpctn9ss3d72g2gn83vfhfdr0000gn/T/weft-b11-20261004-144005-r6"
+}
