@@ -27,7 +27,14 @@ importers:
         specifier: 4.35.0
         version: 4.35.0(@cloudflare/workers-types@4.20260702.1)
 
-  apps/gateway: {}
+  apps/gateway:
+    dependencies:
+      '@weft/protocol':
+        specifier: workspace:*
+        version: link:../../packages/protocol
+      '@weft/sequencer':
+        specifier: workspace:*
+        version: link:../../packages/sequencer
 
   apps/sandbox: {}
 
@@ -57,7 +64,11 @@ importers:
         specifier: ^8.17.1
         version: 8.20.0
 
-  packages/sequencer: {}
+  packages/sequencer:
+    dependencies:
+      '@weft/protocol':
+        specifier: workspace:*
+        version: link:../protocol
 
 packages:
 
