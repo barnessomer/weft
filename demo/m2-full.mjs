@@ -61,7 +61,7 @@ const scrub = (s) =>
     .replace(/wcp_[A-Za-z0-9_-]+/g, "wcp_***")
     .replace(/sk-ant-[A-Za-z0-9_-]+/g, "sk-ant-***");
 const T0 = Date.now();
-const secs = () => +((Date.now() - T0) / 1000).toFixed(1);
+const secs = () => +((Date.now() - T0) / 1000 + (globalThis.__m2_offset ?? 0)).toFixed(1);
 const log = (...a) => console.log(`[m2 run-${RUN} +${secs()}s]`, ...a.map((x) => scrub(typeof x === "string" ? x : JSON.stringify(x))));
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 const out = { run: RUN, started_at: new Date().toISOString(), gateway: GW, workflows: WF, repo: REPO, marks: {}, steps: [] };
@@ -406,6 +406,7 @@ async function prepare(a) {
   git(["clone", "-q", a.cand.fork.remote, a.dir], { token: a.cand.token.plaintext });
   for (const [k, v] of Object.entries({ "user.name": a.id, "user.email": `${a.id}@agents.weft.invalid` })) git(["config", k, v], { cwd: a.dir });
   const tok = (await api("POST", "/v1/admin/tokens", ADMIN, { principal: a.id, scopes: ["agent", "observe"], repos: [REPO], agent: a.id, label: `m2 run ${RUN}` }, 201)).token;
+  a.wcp = tok;
   execFileSync(process.execPath, [BUNDLES[a.harness], "install", "--url", GW, "--repo", REPO, "--agent", a.id, "--task", a.task.id, "--title", a.task.title, "--priority", String(a.task.priority), "--change", a.cand.change], {
     cwd: a.dir,
     env: { ...process.env, WEFT_TOKEN: tok },
@@ -506,10 +507,16 @@ async function main() {
   await Promise.all(independent);
   mark("all_agents_done");
   save();
+  await finishRun(agents, head0, sigSeq);
+}
+
+/** Phases D–G + verdict (also the entry point of `--resume`). */
+async function finishRun(agents, head0, sigSeq) {
 
   // Phase D: evidence for every pushed revision (ProcessRevision on the preview stack)
   const pushed = agents.filter((a) => a.push?.ok);
   const evidence = {};
+  void TASKS;
   await Promise.all(
     pushed.map(async (a) => {
       const t = Date.now();
@@ -583,7 +590,23 @@ async function main() {
   out.duration_s = secs();
   save();
   for (const id of SUBS) await cf("DELETE", `/event_subscriptions/subscriptions/${id}`).catch(() => undefined);
+  await releaseAll(agents);
   log(`${out.pass ? "PASS" : "FAIL"} ${JSON.stringify(Object.fromEntries(Object.entries(out.criteria).map(([k, v]) => [k, v.ok])))}`);
+}
+
+/** End of run: release every candidate's claims so the next run starts clean (claims outlive sessions). */
+async function releaseAll(agents) {
+  for (const a of agents) {
+    if (!a.wcp) continue;
+    try {
+      const hello = { type: "hello", protocol: "wcp/0.1", agent: { id: a.id, harness: "m2-driver" }, capabilities: { level: 0, observe: "async", inject: false, deny_edit: false, refuse_stop: false, commit_gate: false }, task: { id: a.task.id }, change: a.cand.change };
+      const w = await api("POST", `/v1/repos/${REPO}/sessions`, a.wcp, hello, 201);
+      await api("POST", `/v1/repos/${REPO}/sessions/${w.session}/events`, a.wcp, { type: "submit", mode: "commit", event: { kind: "release", base_seq: w.delivered_through } });
+      await api("POST", `/v1/repos/${REPO}/sessions/${w.session}/bye`, a.wcp, { type: "bye", reason: "m2 run finished" }).catch(() => undefined);
+    } catch (err) {
+      log(`release ${a.id}: ${String(err.message ?? err).slice(0, 160)}`);
+    }
+  }
 }
 
 function summarize(e) {
@@ -601,7 +624,7 @@ function summarize(e) {
   if (e.kind === "screenshot") return { route: d.route, ratio: d.ratio ?? d.diff_ratio ?? null };
   if (e.kind === "visual_diff") return d;
   if (e.kind === "rank") return { score: d.score, eligible: d.eligible, reasons: d.reasons };
-  return Object.keys(d).length ? JSON.parse(JSON.stringify(d).slice(0, 400).replace(/[^}\]]*$/, "") || "{}") : null;
+  return Object.keys(d).length ? Object.fromEntries(Object.entries(d).slice(0, 8).map(([k, v]) => [k, typeof v === "string" ? v.slice(0, 160) : v])) : null;
 }
 
 /** Proposals from t3 to t1 owners and their answers. */
@@ -737,7 +760,33 @@ function criteria(full, agents, sigSeq) {
   };
 }
 
-main().catch((e) => {
+/** `--resume`: an earlier run of this number stopped after its agents pushed; rebuild and finish it. */
+async function resume() {
+  const prev = JSON.parse(readFileSync(join(OUT, "run.json"), "utf8"));
+  Object.assign(out, { started_at: prev.started_at, first_seq: prev.first_seq, marks: prev.marks, steps: prev.steps, resumed_at: new Date().toISOString(), resumed_after: prev.error ?? null });
+  const resumedAt = prev.marks.all_agents_done ?? 0;
+  // keep the original clock: marks continue from the moment the agents were done
+  Object.defineProperty(globalThis, "__m2_offset", { value: resumedAt });
+  const tc = prev.steps.find((x) => x.name === "tasks + candidates");
+  const stamp = tc.tasks[0].task.split("-")[1];
+  WORK = readdirSync(tmpdir()).map((d) => join(tmpdir(), d)).find((d) => d.includes(`weft-m2-${stamp}-`));
+  for (const t of TASKS) t.id = `m2-${stamp}-${t.key}`;
+  const agents = tc.candidates.map((c) => {
+    const t = TASKS.find((x) => c.agent.endsWith(`-${x.key}`));
+    const a = new Agent(t, c.agent.split("-")[0], { agent: c.agent, change: c.change, fork: { name: c.fork } });
+    const pushed = prev.steps.find((x) => x.name === `pushed ${c.agent}`);
+    a.push = pushed ? (pushed.sha ? { ok: true, sha: pushed.sha } : { ok: false, reason: pushed.reason, detail: pushed.detail }) : { ok: false, reason: "no push recorded" };
+    a.turns = readdirSync(a.ev).filter((f) => f.endsWith(".prompt.txt")).map((f) => ({ name: f.replace(/^\d+-|\.prompt\.txt$/g, ""), code: existsSync(join(a.ev, f.replace(".prompt.txt", ".jsonl"))) ? 0 : null }));
+    return a;
+  });
+  const sig = prev.steps.find((x) => x.name === "t1 signature change")?.seq;
+  for (const x of await cf("GET", "/event_subscriptions/subscriptions?per_page=100")) if (x.name.includes(`m2-${stamp}-`)) SUBS.push(x.id);
+  for (const a of agents) a.wcp = (await api("POST", "/v1/admin/tokens", ADMIN, { principal: a.id, scopes: ["agent", "observe"], repos: [REPO], agent: a.id, label: `m2 run ${RUN} resume` }, 201)).token;
+  log(`resuming run ${RUN} (${stamp}) after: ${prev.error ?? "?"}`);
+  await finishRun(agents, prev.first_seq - 1, sig);
+}
+
+(argv.includes("--resume") ? resume() : main()).catch((e) => {
   console.error(scrub(e.stack ?? e));
   out.error = scrub(String(e.message ?? e));
   try {

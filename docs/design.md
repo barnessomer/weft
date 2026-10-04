@@ -358,3 +358,32 @@ WCP v0.1 is specified in `docs/protocol/wcp-v0.md` (normative; implemented by `p
   as git's own pre-commit hook).
 - Demo: `demo/b12-harnesses.mjs` (Claude Code + Codex + OpenCode + watcher on one coordinator;
   `--sim-a`, `--give-up` for the stop-gate proof). Evidence `demo/evidence/b12*/`.
+
+## Update 2026-10-04 (M2, the full demo end to end)
+- `demo/run-full.sh` (driver `demo/m2-full.mjs`, scenario `demo/scenarios/full.md`, report
+  `demo/evidence/m2-report.md`) runs §8 beats 1–6 on the preview stack in one command: 6 tasks ×
+  3 candidates = 18 live agents (Claude Code, Codex, OpenCode per task), each in a clone of its own
+  Artifacts fork with its adapter, all on one coordinator (`weft-demo`); every push goes through
+  ProcessRevision → BestOfN → LandChange; the planted-bug beat is B13's `live.mjs prove`.
+- **Protocol change: alternatives (spec §7.7).** Candidates of one task are competitors, not
+  collaborators: at most one lands. Before M2 the coordinator treated them like any two changes,
+  so with live best-of-N on one coordinator the second and third candidate got `claim_wait` /
+  `claim_wounded` against their siblings and `stale_assumption` on a sibling's signature edit.
+  Now changes with the same `task` skip in-flight R1/R2, claim arbitration and `contract_changed`
+  between each other; a landed/reverted alternative is trunk for the rest. Reference +
+  SqlCoordinator identical (new conformance scenario `alternatives-best-of-n`).
+- Analyzer limit found live: a change to an `export const f = (…) => …` arrow function is
+  classified as a `signature` write (the declaration has no body span), so two tasks editing
+  adjacent arrow one-liners collide with `stale_assumption`. Function declarations get `body`
+  writes, even on one line. The demo seed uses function declarations; teaching the analyzer the
+  arrow's parameter/return-type span is a follow-up.
+- Ops facts: concurrent `opencode serve` processes share one SQLite store and fail with
+  "database is locked" — give each agent its own `XDG_DATA_HOME`. The `*.elier.ai` custom
+  domains had no public DNS records during M2 (the Cloudflare authoritative servers answered
+  NXDOMAIN although the Workers custom domains exist and the edge serves them by SNI); the
+  driver pins them locally (`WEFT_PIN_EDGE_IP`, `demo/lib/pin-dns.cjs`) and server-side
+  Browser Rendering of preview URLs still worked.
+- The human approval in the driver goes through the same gateway human action the web UI's
+  Approve button sends (`POST /actions {action: approve}` with John's `observe+human` token),
+  which forwards to the waiting BestOfN.
+

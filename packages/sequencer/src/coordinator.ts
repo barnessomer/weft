@@ -1076,6 +1076,9 @@ export class SqlCoordinator {
       }
       case "land": {
         run(this.sql, `DELETE FROM claims WHERE change_id IS ?`, rec.change ?? null);
+        // ... and its alternatives' claims (§7.7): they lost.
+        const task = this.getChange(rec.change ?? undefined)?.task;
+        if (task !== undefined && task !== null) run(this.sql, `DELETE FROM claims WHERE change_id IN (SELECT id FROM changes WHERE task = ? AND id IS NOT ?)`, task, rec.change ?? null);
         if (change) run(this.sql, `UPDATE changes SET landed = 1 WHERE id = ?`, change.id);
         if (change) change.landed = 1;
         for (const cs of this.sessionsOf({ change: rec.change! })) this.openClear(cs.id);

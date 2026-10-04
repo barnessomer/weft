@@ -461,6 +461,8 @@ never coordinate with each other while in flight:
 - `contract_changed` broadcasts (§6.3) for an `edit` skip the editor's alternatives.
 - `land` and `revert` records of an alternative are trunk like any other: they count in W
   for the remaining siblings and broadcast `trunk_advanced`/`contract_changed` to them.
+- A `land` releases the claims of the landed change's alternatives too: they lost the
+  selection, so their claims must not hold other tasks back until the TTL.
 
 Alternatives are still distinct changes for everything else: seniority, negotiation, merge.
 A merged group (§7.6) whose members carry the lead's task makes the lead's alternatives

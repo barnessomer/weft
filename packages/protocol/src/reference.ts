@@ -777,7 +777,8 @@ export class ReferenceCoordinator {
         break;
       }
       case "land": {
-        this.claims = this.claims.filter((c) => c.change !== rec.change);
+        // The landed change's claims go, and so do its alternatives' (§7.7): they lost.
+        this.claims = this.claims.filter((c) => c.change !== rec.change && !this.alternatives(c.change, rec.change));
         if (change) change.landed = true;
         for (const cs of this.sessionsOf({ change: rec.change! })) cs.open.clear();
         break;
