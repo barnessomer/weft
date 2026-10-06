@@ -3,8 +3,8 @@
 Form: https://www.cloudflare.com/git-competition/submit/ (closes 2026-10-14 23:59 PDT)
 Rules: https://www.cloudflare.com/documents/build-next-gen-git-platform-competition-terms.pdf
 
-STATUS: NOT SUBMITTED. Everything below is ready to paste; the entry needs John to confirm
-eligibility and attendance and to submit it himself (see "Open items").
+STATUS: APPROVED by John 2026-10-06 (video signed off; US resident; will attend SF if finalist).
+Repo made PUBLIC 2026-10-06. John submits the form himself (rules forbid automated entry).
 
 ## Open items (need John)
 
@@ -39,7 +39,7 @@ Primary contact name: John Aaron Nelson
 
 Primary contact email: john@elier.ai
 
-Team location (max 160): TBD by John (see open item 1)
+Team location (max 160): United States (US resident; currently based in Montevideo, Uruguay)
 
 First attendee name: John Aaron Nelson
 
@@ -108,8 +108,7 @@ Protocol spec: docs/protocol/wcp-v0.md. Design: docs/design.md.
 Checkbox: I confirm this project was built using Cloudflare Workers and Artifacts. -> tick
 (verified: apps/gateway/src/artifacts.ts, packages/artifacts)
 
-Checkbox: I confirm this submission follows the competition terms. -> tick only after open
-items 1-3 are settled.
+Checkbox: I confirm this submission follows the competition terms. -> tick (eligibility and attendance confirmed by John 2026-10-06).
 
 ## Confirmation
 
