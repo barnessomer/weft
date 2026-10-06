@@ -3,7 +3,7 @@
 Form: https://www.cloudflare.com/git-competition/submit/ (closes 2026-10-14 23:59 PDT)
 Rules: https://www.cloudflare.com/documents/build-next-gen-git-platform-competition-terms.pdf
 
-STATUS: APPROVED by John 2026-10-06 (video signed off; US resident; will attend SF if finalist).
+STATUS: SUBMITTED 2026-10-06 (ID 19a22dd7-554f-43be-b80a-d57ad6414c4c). APPROVED by John 2026-10-06 (video signed off; US resident; will attend SF if finalist).
 Repo made PUBLIC 2026-10-06. John submits the form himself (rules forbid automated entry).
 
 ## Open items (need John)
@@ -112,4 +112,4 @@ Checkbox: I confirm this submission follows the competition terms. -> tick (elig
 
 ## Confirmation
 
-(fill in after submitting: date/time, confirmation text/ID, screenshot path)
+SUBMITTED by John on 2026-10-06. "Your project is submitted." Submission ID: 19a22dd7-554f-43be-b80a-d57ad6414c4c. Screenshot: demo/video/submission-confirmation.png

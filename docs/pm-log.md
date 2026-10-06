@@ -81,3 +81,6 @@ Append-only. One dated entry per heartbeat that changed something.
 
 ## 2026-10-06 — John signed off
 - John: US resident, will attend SF 10-21 if finalist, approved the 7:38 video ("ship it"). Repo celador/weft made PUBLIC; verified MIT license, README/try-it/LICENSE 200, video + captions 200, 0 customer-subdomain hits in all history. John submits the form himself (rules §4/§5 forbid automated entry). Packet: demo/video/submission.md.
+
+## 2026-10-06 — SUBMITTED
+- John submitted the entry. Submission ID 19a22dd7-554f-43be-b80a-d57ad6414c4c; confirmation screenshot saved. R4 complete; PM heartbeat paused.
