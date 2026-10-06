@@ -85,6 +85,41 @@ Zero Trust organization endpoint returns an auth error), so this is a dashboard 
    With Access configured and the key still set, a request with no Access JWT can still use
    the operator-key login; with the key deleted, Access is the only way in.
 
+## Public read-only demo (weft.elier.ai)
+
+Wrangler env `public` deploys the same Worker as `weft-web-public` at
+[https://weft.elier.ai](https://weft.elier.ai) with `WEFT_PUBLIC_DEMO = "1"`:
+
+- No login: `authenticate()` returns `{email:"guest", via:"public"}`; `/login` redirects to `/`.
+- API: GET routes and the WebSocket stream only. Every other method (actions, policy evaluate,
+  `/logout`) returns `403 {"error":{"code":"read_only"}}` before reaching the gateway.
+  `/api/me` reports `readOnly: true`; the SPA then hides Approve/Undo, disables policy
+  evaluation and shows a "Public read-only demo of Weft" strip.
+- Gateway token: `WEFT_PUBLIC_TOKEN` only (scopes `["observe"]`, no human/system), never
+  `WEFT_WEB_TOKEN`; the env has no web/email/operator secrets at all. The email handler rejects.
+- Repos: `WEFT_PUBLIC_REPOS` (var) is enforced by the Worker on top of the token's own repo list:
+  `weft` (dogfood), `weft-demo` (M2 runs + video), `demo-b11-20261004-144005-r6`,
+  `demo-m1-20261004-064201-r1` (the runs shown in the video). Other repos 404.
+- Scrubbing (`src/scrub.ts`): old diffs in the append-only log still name the account's
+  workers.dev hosts, so every relayed body and every stream frame (the stream is proxied frame by
+  frame in public mode) maps `<worker>.<sub>.workers.dev` to `<worker>.elier.ai`, redacts any
+  other workers.dev host or truncated hostname, and replaces the literal terms in the secret
+  `WEFT_REDACT` (comma-separated).
+- No Cloudflare Access application covers `weft.elier.ai` (it must answer 200, not a 302).
+
+```bash
+cd apps/web; export PATH=/opt/homebrew/opt/node@24/bin:$PATH; unset CLOUDFLARE_API_TOKEN
+# token: POST /v1/admin/tokens {"principal":"weft-public-demo","scopes":["observe"],
+#   "repos":[<WEFT_PUBLIC_REPOS>],"label":"weft-web-public (weft.elier.ai)"}
+#   stored at ~/.config/weft/web-public-token.json (mode 600), piped (never echoed) into:
+pnpm exec wrangler secret put WEFT_PUBLIC_TOKEN --env public
+pnpm exec wrangler secret put WEFT_REDACT --env public
+pnpm deploy:public
+```
+
+To add a repo: inspect its events for secrets/customer data, re-mint the token with the new repo
+list, update `WEFT_PUBLIC_REPOS`, redeploy.
+
 ## Deploy / operate
 
 ```

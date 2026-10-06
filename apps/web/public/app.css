@@ -78,6 +78,12 @@ select:focus, input:focus { border-color: var(--accent); }
 }
 .brand { display: inline-flex; align-items: center; gap: 9px; font-weight: 700; font-size: 17px; letter-spacing: -.02em; color: var(--fg); }
 .brand:hover { text-decoration: none; }
+.demo-strip {
+  text-align: center; padding: 5px 18px; font-size: 12px; color: var(--fg2);
+  background: var(--info-bg); border-bottom: 1px solid color-mix(in srgb, var(--info) 30%, transparent);
+}
+.demo-strip a { color: var(--fg2); }
+.demo-strip a:hover { color: var(--fg); }
 .brand.big { font-size: 28px; justify-content: center; margin-bottom: 10px; }
 .mark {
   width: 22px; height: 22px; border-radius: 6px; display: inline-block;

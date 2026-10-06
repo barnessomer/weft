@@ -49,6 +49,9 @@ async function api(path, init) {
   return body;
 }
 
+/** Public read-only demo (weft.elier.ai): no approve/undo/policy controls. */
+const readOnly = () => Boolean(S.me?.readOnly);
+
 const repoPath = (/** @type {string} */ p = "") => `/repos/${encodeURIComponent(S.repo)}${p}`;
 
 /** @param {Record<string, unknown>} body */
@@ -232,7 +235,10 @@ function renderTop() {
   }
   sel.value = S.repo;
   const who = $("#who");
-  if (S.me)
+  if (S.me?.readOnly) {
+    if (!document.querySelector(".demo-strip"))
+      document.body.prepend(h("div.demo-strip", { role: "note" }, h("a", { href: "https://github.com/celador/weft", target: "_blank", rel: "noopener" }, "Public read-only demo of Weft — github.com/celador/weft")));
+  } else if (S.me)
     mount(
       who,
       h("span.muted", null, S.me.identity.via === "access" ? "Access · " : ""),
@@ -817,7 +823,7 @@ function candidateCard(/** @type {string} */ task, /** @type {string} */ change,
       : null,
     st.diagnostics.length ? h("div.csq", null, h("h5", null, "Squiggles"), st.diagnostics.slice(-3).map(({ d, ev }) => squiggle(d, ev))) : null,
     st.files.size ? h("div.files", null, [...st.files].slice(0, 8).map((f) => h("code.fchip", null, f))) : null,
-    h("footer", null, approveBtn, d1?.fork?.remote ? h("span.muted.fork", { title: d1.fork.remote }, d1.fork.name) : null),
+    h("footer", null, readOnly() ? null : approveBtn, d1?.fork?.remote ? h("span.muted.fork", { title: d1.fork.remote }, d1.fork.name) : null),
   );
 }
 const metric = (/** @type {any} */ v, /** @type {string} */ label) => h("div.metric", null, h("b", null, v), h("span", null, label));
@@ -860,6 +866,11 @@ function renderPolicy(/** @type {HTMLElement} */ main) {
       } finally { run.disabled = false; }
     },
   }, "Evaluate candidate"));
+  if (readOnly()) {
+    run.disabled = true;
+    run.title = "Disabled in the public read-only demo";
+    output.textContent = "Policy evaluation is disabled in the public read-only demo.";
+  }
   mount(main, h("section.policy", null,
     h("div.toolbar", null, h("h2", null, "weft.policy.ts"), h("span.muted", null, "Per-repository code runs in an isolated dynamic Worker.")),
     h("div.telemetry", null, stat("events queried", String(evs.length)), stat("accepted", String(accepted), "ok"), stat("rejected", String(rejected), rejected ? "err" : ""), stat("error squiggles", String(errors), errors ? "err" : "")),
@@ -940,7 +951,7 @@ function opRow(/** @type {any} */ op) {
     h("td.opsum", null, op.summary, op.reason ? h("div.muted.small", null, op.reason) : null),
     h("td", null, h("code.sha", null, shortSha(op.sha))),
     h("td", null, h(`span.state.s-${op.state}`, null, op.state.replace("_", " ")), op.revert_seq ? h("div.small", null, "by ", seqLink(op.revert_seq)) : op.undo_seq ? h("div.small", null, "req ", seqLink(op.undo_seq)) : null),
-    h("td", null, op.type === "land" ? undo : null),
+    h("td", null, op.type === "land" && !readOnly() ? undo : null),
   );
 }
 

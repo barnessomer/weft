@@ -311,3 +311,117 @@ describe("static app", () => {
     expect((await worker.fetch(new Request(`${ORIGIN}/healthz`), env)).status).toBe(200);
   });
 });
+
+describe("public read-only demo (WEFT_PUBLIC_DEMO=1)", () => {
+  const repos = { type: "repos", repos: [{ repo: "weft" }, { repo: "weft-demo" }, { repo: "secret-repo" }] };
+  const pubEnv = (gw: Fetcher, extra: Partial<Env> = {}): Env =>
+    baseEnv({ GATEWAY: gw, WEFT_PUBLIC_DEMO: "1", WEFT_PUBLIC_TOKEN: "public-observe-token", WEFT_PUBLIC_REPOS: "weft,weft-demo", ...extra });
+  const responder = (req: Request) => {
+    const path = new URL(req.url).pathname;
+    if (path === "/v1/repos") return Response.json(repos);
+    if (path === "/v1/health") return Response.json({ ok: true });
+    return Response.json({ ok: true, path });
+  };
+
+  it("needs no login: guest identity, /login redirects home, /api/me reports readOnly", async () => {
+    const gw = fakeGateway(responder);
+    const env = pubEnv(gw.fetcher);
+    const home = await worker.fetch(new Request(`${ORIGIN}/`), env);
+    expect(home.status).toBe(200);
+    for (const method of ["GET", "POST"]) {
+      const r = await handle(new Request(`${ORIGIN}/login`, { method }), env);
+      expect(r.status).toBe(302);
+      expect(r.headers.get("location")).toBe("/");
+    }
+    const me = (await (await handle(new Request(`${ORIGIN}/api/me`), env)).json()) as Record<string, any>;
+    expect(me).toMatchObject({ identity: { email: "guest", via: "public" }, readOnly: true, token: true });
+  });
+
+  it("allows GET routes with the public token and only the allow-listed repos", async () => {
+    const gw = fakeGateway(responder);
+    const env = pubEnv(gw.fetcher);
+    const list = (await (await handle(new Request(`${ORIGIN}/api/repos`), env)).json()) as { repos: { repo: string }[] };
+    expect(list.repos.map((r) => r.repo)).toEqual(["weft", "weft-demo"]);
+    for (const p of ["/api/repos/weft/events?tail=1&limit=5", "/api/repos/weft/events/3", "/api/repos/weft-demo/tasks", "/api/repos/weft/changes/Iabc"]) {
+      expect((await handle(new Request(`${ORIGIN}${p}`), env)).status).toBe(200);
+    }
+    const hidden = await handle(new Request(`${ORIGIN}/api/repos/secret-repo/events`), env);
+    expect(hidden.status).toBe(404);
+    expect(gw.calls.some((c) => c.url.includes("secret-repo"))).toBe(false);
+  });
+
+  it("refuses every POST with 403 read_only and never reaches the gateway", async () => {
+    const gw = fakeGateway(responder);
+    const env = pubEnv(gw.fetcher);
+    const post = (path: string, body = "{}") => handle(new Request(`${ORIGIN}${path}`, { method: "POST", headers: { origin: ORIGIN, "content-type": "application/json" }, body }), env);
+    for (const path of ["/api/repos/weft/actions", "/api/policy/evaluate", "/logout", "/api/repos"]) {
+      const r = await post(path, JSON.stringify({ action: "approve", change: "Iabc", task: "t1" }));
+      expect(r.status).toBe(403);
+      const body = (await r.json()) as { error: { code: string } };
+      expect(body.error.code).toBe("read_only");
+    }
+    for (const method of ["PUT", "DELETE", "PATCH"]) expect((await handle(new Request(`${ORIGIN}/api/repos/weft/actions`, { method, headers: { origin: ORIGIN } }), env)).status).toBe(403);
+    expect(gw.calls).toHaveLength(0);
+  });
+
+  it("token isolation: uses WEFT_PUBLIC_TOKEN only, never falls back to WEFT_WEB_TOKEN", async () => {
+    const gw = fakeGateway(responder);
+    await handle(new Request(`${ORIGIN}/api/repos`), pubEnv(gw.fetcher));
+    await handle(new Request(`${ORIGIN}/api/repos/weft/events`), pubEnv(gw.fetcher));
+    await handle(new Request(`${ORIGIN}/api/me`), pubEnv(gw.fetcher));
+    expect(gw.calls.length).toBe(3);
+    for (const c of gw.calls) expect(c.auth).toBe("Bearer public-observe-token");
+    // public token missing: 503, and WEFT_WEB_TOKEN (still present in env) is not used
+    const gw2 = fakeGateway(responder);
+    const env2 = pubEnv(gw2.fetcher, { WEFT_PUBLIC_TOKEN: undefined });
+    const r = await handle(new Request(`${ORIGIN}/api/repos`), env2);
+    expect(r.status).toBe(503);
+    expect(((await r.json()) as { error: { message: string } }).error.message).toContain("WEFT_PUBLIC_TOKEN");
+    await handle(new Request(`${ORIGIN}/api/me`), env2);
+    expect(gw2.calls.every((c) => !c.auth?.includes("web-secret-token"))).toBe(true);
+  });
+
+  it("scrubs workers.dev hostnames and redact terms from relayed JSON and stream frames", async () => {
+    const leak = "see https://weft-gateway-preview.acme-corp.workers.dev/v1 and acme-corp.workers.dev and https://weft-web.acme-co... and ACME-corp";
+    const gw = fakeGateway((req) => {
+      if (req.headers.get("upgrade") === "websocket") {
+        const pair = new WebSocketPair();
+        const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
+        server.accept();
+        server.send(JSON.stringify({ type: "event", event: { summary: leak } }));
+        return new Response(null, { status: 101, webSocket: client });
+      }
+      return Response.json({ summary: leak });
+    });
+    const env = pubEnv(gw.fetcher, { WEFT_REDACT: "acme-corp" });
+    const text = await (await handle(new Request(`${ORIGIN}/api/repos/weft/events/1`), env)).text();
+    expect(text).not.toMatch(/workers\.dev|acme/i);
+    expect(text).toContain("https://weft-gateway-preview.elier.ai/v1");
+    const res = await worker.fetch(new Request(`${ORIGIN}/api/repos/weft/stream?after=0`, { headers: { upgrade: "websocket" } }), env);
+    expect(res.status).toBe(101);
+    const ws = res.webSocket!;
+    const got = new Promise<string>((resolve) => ws.addEventListener("message", (m) => resolve(String(m.data))));
+    ws.accept();
+    const frame = await got;
+    expect(frame).not.toMatch(/workers\.dev|acme/i);
+    expect(frame).toContain("weft-gateway-preview.elier.ai");
+    expect(gw.calls.at(-1)).toMatchObject({ auth: "Bearer public-observe-token", upgrade: "websocket" });
+    ws.close();
+  });
+
+  it("non-public mode is unchanged: login required, web token used, no readOnly, POST allowed", async () => {
+    const gw = fakeGateway(responder);
+    const env = baseEnv({ GATEWAY: gw.fetcher, WEFT_PUBLIC_TOKEN: "public-observe-token" });
+    expect((await handle(new Request(`${ORIGIN}/api/repos`), env)).status).toBe(401);
+    expect((await handle(new Request(`${ORIGIN}/login`), env)).status).toBe(200);
+    const cookie = await keyCookie(env);
+    const me = (await (await handle(new Request(`${ORIGIN}/api/me`, { headers: { cookie } }), env)).json()) as Record<string, any>;
+    expect(me.readOnly).toBe(false);
+    expect(me.identity).toEqual({ email: "operator", via: "key" });
+    const list = (await (await handle(new Request(`${ORIGIN}/api/repos`, { headers: { cookie } }), env)).json()) as { repos: unknown[] };
+    expect(list.repos).toHaveLength(3);
+    const act = await handle(new Request(`${ORIGIN}/api/repos/weft/actions`, { method: "POST", headers: { cookie, origin: ORIGIN, "content-type": "application/json" }, body: JSON.stringify({ action: "pause" }) }), env);
+    expect(act.status).toBe(200);
+    for (const c of gw.calls) expect(c.auth).toBe("Bearer web-secret-token");
+  });
+});

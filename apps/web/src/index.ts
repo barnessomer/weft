@@ -14,10 +14,16 @@
 //   GET  /api/repos/{repo}/changes/{change}        change + revisions + evidence
 //   POST /api/repos/{repo}/actions                 approve | undo | pause | resume | message
 //   WS   /api/repos/{repo}/stream?after=N          live log (spec §9.4), proxied to the repo DO
+//
+// Public read-only demo (WEFT_PUBLIC_DEMO=1, env `public`, weft.elier.ai): no login (guest),
+// GET routes + the stream only (every other method: 403 read_only), gateway calls use the
+// observe-only WEFT_PUBLIC_TOKEN and never WEFT_WEB_TOKEN, repos limited to WEFT_PUBLIC_REPOS,
+// and every relayed body / stream frame is scrubbed (./scrub.ts).
 
 import { EmailMessage } from "cloudflare:email";
-import { accessConfigured, authenticate, mintSession, sessionCookie, timingSafeEqual, type AuthEnv, type Identity, type JwksFetcher } from "./auth";
+import { accessConfigured, authenticate, publicDemo, mintSession, sessionCookie, timingSafeEqual, type AuthEnv, type Identity, type JwksFetcher } from "./auth";
 import { fixLegacyUrls } from "../public/lib/urls.js";
+import { redactTerms, scrubPublic } from "./scrub";
 import { emailBody, emailSubject, emailTaskId, evaluatePolicy, metric, validatePolicyInput, type AnalyticsEngine, type DispatchNamespace } from "./platform";
 
 export interface Env extends AuthEnv {
@@ -36,6 +42,12 @@ export interface Env extends AuthEnv {
   WEFT_EMAIL_TOKEN?: string;
   WEFT_EMAIL_REPO?: string;
   WEFT_EMAIL_FROM?: string;
+  /** Public demo: observe-only gateway token (the only token used when WEFT_PUBLIC_DEMO=1). */
+  WEFT_PUBLIC_TOKEN?: string;
+  /** Public demo: comma-separated repo allow-list, enforced here on top of the token's repos. */
+  WEFT_PUBLIC_REPOS?: string;
+  /** Public demo: extra literal terms scrubbed from every response (secret, comma-separated). */
+  WEFT_REDACT?: string;
 }
 
 const REPO = /^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$/;
@@ -75,9 +87,27 @@ const json = (body: unknown, status = 200, extra: Record<string, string> = {}) =
 
 const apiError = (status: number, code: string, message: string) => json({ type: "error", error: { code, message } }, status);
 
+/** The gateway token for fetch requests: public demo mode only ever uses WEFT_PUBLIC_TOKEN. */
+export function webToken(env: Env): string | undefined {
+  return publicDemo(env) ? env.WEFT_PUBLIC_TOKEN : env.WEFT_WEB_TOKEN;
+}
+
+const tokenName = (env: Env) => (publicDemo(env) ? "WEFT_PUBLIC_TOKEN" : "WEFT_WEB_TOKEN");
+
+function publicRepos(env: Env): string[] {
+  return (env.WEFT_PUBLIC_REPOS ?? "").split(",").map((s) => s.trim()).filter(Boolean);
+}
+
+/** Public demo: is this repo exposed? (empty allow-list = whatever the observe token allows) */
+function repoAllowed(env: Env, repo: string): boolean {
+  if (!publicDemo(env)) return true;
+  const list = publicRepos(env);
+  return !list.length || list.includes(repo);
+}
+
 /** Call weft-gateway with the Worker's token. */
 function gateway(env: Env, path: string, init: RequestInit = {}): Promise<Response> {
-  return gatewayWithToken(env, path, env.WEFT_WEB_TOKEN, init);
+  return gatewayWithToken(env, path, webToken(env), init);
 }
 
 function gatewayWithToken(env: Env, path: string, token: string | undefined, init: RequestInit = {}): Promise<Response> {
@@ -93,11 +123,49 @@ function gatewayWithToken(env: Env, path: string, token: string | undefined, ini
 
 /** Relay a gateway response, keeping status + JSON body, dropping hop headers. JSON bodies get
  *  legacy *.workers.dev previews origins rewritten (old x_evidence in the append-only log). */
-async function relay(res: Response): Promise<Response> {
+async function relay(res: Response, env: Env = {}, filter?: (body: string) => string): Promise<Response> {
   const type = res.headers.get("content-type") ?? "application/json";
   const headers = { "content-type": type, "cache-control": "no-store" };
-  if (!type.includes("json")) return new Response(res.body, { status: res.status, headers });
-  return new Response(fixLegacyUrls(await res.text()), { status: res.status, headers });
+  if (!type.includes("json")) {
+    if (publicDemo(env)) return new Response(scrubPublic(await res.text(), redactTerms(env.WEFT_REDACT)), { status: res.status, headers });
+    return new Response(res.body, { status: res.status, headers });
+  }
+  let text = fixLegacyUrls(await res.text());
+  if (filter && res.ok) text = filter(text);
+  if (publicDemo(env)) text = scrubPublic(text, redactTerms(env.WEFT_REDACT));
+  return new Response(text, { status: res.status, headers });
+}
+
+/** Public demo: proxy the stream frame by frame (gateway -> browser only) so every frame is
+ *  scrubbed; browser -> gateway messages are dropped (read-only). */
+async function publicStream(env: Env, path: string): Promise<Response> {
+  const up = await gateway(env, path, { headers: { upgrade: "websocket", connection: "Upgrade" } });
+  const upstream = up.webSocket;
+  if (up.status !== 101 || !upstream) return relay(up, env);
+  const terms = redactTerms(env.WEFT_REDACT);
+  const pair = new WebSocketPair();
+  const [client, server] = Object.values(pair) as [WebSocket, WebSocket];
+  upstream.accept();
+  server.accept();
+  const code = (c: number) => (c === 1000 || (c >= 3000 && c <= 4999) ? c : 1000);
+  upstream.addEventListener("message", (m) => {
+    const data = typeof m.data === "string" ? m.data : new TextDecoder().decode(m.data as ArrayBuffer);
+    try {
+      server.send(scrubPublic(fixLegacyUrls(data), terms));
+    } catch {
+      /* browser gone */
+    }
+  });
+  upstream.addEventListener("close", (e) => {
+    try { server.close(code(e.code), "upstream closed"); } catch { /* already closed */ }
+  });
+  upstream.addEventListener("error", () => {
+    try { server.close(1011, "upstream error"); } catch { /* already closed */ }
+  });
+  server.addEventListener("close", (e) => {
+    try { upstream.close(code(e.code), "client closed"); } catch { /* already closed */ }
+  });
+  return new Response(null, { status: 101, webSocket: client });
 }
 
 const pass = (u: URL, keys: string[]) => {
@@ -112,6 +180,8 @@ const pass = (u: URL, keys: string[]) => {
 
 async function api(req: Request, env: Env, who: Identity, path: string, u: URL): Promise<Response> {
   const m = req.method;
+  const pub = publicDemo(env);
+  if (pub && m !== "GET") return apiError(403, "read_only", "this is a public read-only demo of Weft");
   if (path === "/api/me" && m === "GET") {
     let gw: unknown = null;
     try {
@@ -120,7 +190,7 @@ async function api(req: Request, env: Env, who: Identity, path: string, u: URL):
     } catch (e) {
       gw = { ok: false, error: (e as Error).message };
     }
-    return json({ type: "me", identity: who, access: accessConfigured(env), token: Boolean(env.WEFT_WEB_TOKEN), gateway: gw, bestofn: Boolean(env.BESTOFN) });
+    return json({ type: "me", identity: who, access: accessConfigured(env), token: Boolean(webToken(env)), gateway: gw, bestofn: Boolean(env.BESTOFN), readOnly: pub });
   }
   if (path === "/api/policy/evaluate" && m === "POST") {
     const origin = req.headers.get("origin");
@@ -142,13 +212,20 @@ async function api(req: Request, env: Env, who: Identity, path: string, u: URL):
       return apiError(502, "bad_gateway", (e as Error).message);
     }
   }
-  if (!env.WEFT_WEB_TOKEN) return apiError(503, "unavailable", "WEFT_WEB_TOKEN is not configured");
-  if (path === "/api/repos" && m === "GET") return relay(await gateway(env, "/v1/repos"));
+  if (!webToken(env)) return apiError(503, "unavailable", `${tokenName(env)} is not configured`);
+  if (path === "/api/repos" && m === "GET") {
+    if (!pub || !publicRepos(env).length) return relay(await gateway(env, "/v1/repos"), env);
+    return relay(await gateway(env, "/v1/repos"), env, (text) => {
+      const body = JSON.parse(text) as { repos?: { repo: string }[] };
+      return JSON.stringify({ ...body, repos: (body.repos ?? []).filter((r) => repoAllowed(env, r.repo)) });
+    });
+  }
 
   const rm = /^\/api\/repos\/([^/]+)(\/.*)?$/.exec(path);
   if (!rm) return apiError(404, "not_found", `no route ${m} ${path}`);
   const repo = decodeURIComponent(rm[1]!);
   if (!REPO.test(repo)) return apiError(404, "repo_not_found", "bad repo");
+  if (!repoAllowed(env, repo)) return apiError(404, "repo_not_found", "repo is not part of the public demo");
   const rest = rm[2] ?? "";
   const base = `/v1/repos/${encodeURIComponent(repo)}`;
 
@@ -156,18 +233,19 @@ async function api(req: Request, env: Env, who: Identity, path: string, u: URL):
     if (req.headers.get("upgrade")?.toLowerCase() !== "websocket") return apiError(426, "invalid_message", "stream requires a WebSocket upgrade");
     // The gateway authenticates the Authorization header on upgrade; the DO replays then streams live.
     const after = /^\d+$/.test(u.searchParams.get("after") ?? "") ? u.searchParams.get("after")! : "0";
+    if (pub) return publicStream(env, `${base}/stream?after=${after}`);
     return gateway(env, `${base}/stream?after=${after}`, { headers: { upgrade: "websocket", connection: "Upgrade" } });
   }
 
   if (m === "GET") {
-    if (rest === "/events") return relay(await gateway(env, `${base}/events${pass(u, ["after", "before", "tail", "limit", "include", "kind", "agent", "task", "change", "status"])}`));
+    if (rest === "/events") return relay(await gateway(env, `${base}/events${pass(u, ["after", "before", "tail", "limit", "include", "kind", "agent", "task", "change", "status"])}`), env);
     const em = /^\/events\/(\d{1,12})$/.exec(rest);
-    if (em) return relay(await gateway(env, `${base}/events/${em[1]}`));
-    if (rest === "/tasks") return relay(await gateway(env, `${base}/tasks`));
+    if (em) return relay(await gateway(env, `${base}/events/${em[1]}`), env);
+    if (rest === "/tasks") return relay(await gateway(env, `${base}/tasks`), env);
     const tm = /^\/tasks\/([^/]+)\/candidates$/.exec(rest);
-    if (tm && ID.test(decodeURIComponent(tm[1]!))) return relay(await gateway(env, `${base}/tasks/${tm[1]}/candidates`));
+    if (tm && ID.test(decodeURIComponent(tm[1]!))) return relay(await gateway(env, `${base}/tasks/${tm[1]}/candidates`), env);
     const cm = /^\/changes\/([^/]+)$/.exec(rest);
-    if (cm && ID.test(decodeURIComponent(cm[1]!))) return relay(await gateway(env, `${base}/changes/${cm[1]}`));
+    if (cm && ID.test(decodeURIComponent(cm[1]!))) return relay(await gateway(env, `${base}/changes/${cm[1]}`), env);
   }
 
   if (rest === "/actions" && m === "POST") {
@@ -226,6 +304,10 @@ type InboundEmail = {
 export async function handleEmail(message: InboundEmail, env: Env): Promise<void> {
   const started = Date.now();
   const repo = env.WEFT_EMAIL_REPO || "weft";
+  if (publicDemo(env)) {
+    message.setReject("Weft public demo does not accept email");
+    return;
+  }
   if (!env.WEFT_EMAIL_TOKEN || !REPO.test(repo)) {
     message.setReject("Weft email intake is not configured");
     metric(env.WEFT_ANALYTICS, repo, "email.intake", "unconfigured", started, "email");
@@ -287,6 +369,10 @@ export async function handle(req: Request, env: Env, fetcher?: JwksFetcher): Pro
 
   if (path === "/healthz") return json({ ok: true, service: "weft-web" });
 
+  if (publicDemo(env)) {
+    if (path === "/login") return new Response(null, { status: 302, headers: { location: "/" } });
+    if (path === "/logout") return apiError(403, "read_only", "this is a public read-only demo of Weft");
+  }
   if (path === "/login") {
     if (!env.WEFT_WEB_KEY) return new Response(null, { status: 302, headers: { location: "/" } });
     if (m === "GET") return loginPage();

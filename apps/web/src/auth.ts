@@ -8,6 +8,9 @@
 // 2. Operator key (fallback while Access is not configured): POST /login with
 //    WEFT_WEB_KEY sets an HMAC-signed, HttpOnly session cookie.
 // 3. Neither configured: fail closed (503), unless WEFT_WEB_DEV=1 (local `wrangler dev`).
+// 0. Public read-only demo (WEFT_PUBLIC_DEMO=1, env `public` at weft.elier.ai): everyone is
+//    the "guest" identity, no login. index.ts then allows GET routes + the WS stream only and
+//    calls the gateway with the observe-only WEFT_PUBLIC_TOKEN (never WEFT_WEB_TOKEN).
 
 export interface AuthEnv {
   ACCESS_TEAM_DOMAIN?: string; // e.g. "elier.cloudflareaccess.com"
@@ -15,9 +18,14 @@ export interface AuthEnv {
   WEFT_ALLOWED_EMAILS?: string; // comma-separated; empty = anyone Access lets through
   WEFT_WEB_KEY?: string; // operator key for the fallback login (secret)
   WEFT_WEB_DEV?: string; // "1" = no auth (local dev only)
+  WEFT_PUBLIC_DEMO?: string; // "1" = public read-only demo: guest identity, GET only
 }
 
-export type Identity = { email: string; via: "access" | "key" | "dev" };
+export function publicDemo(env: AuthEnv): boolean {
+  return env.WEFT_PUBLIC_DEMO === "1";
+}
+
+export type Identity = { email: string; via: "access" | "key" | "dev" | "public" };
 export type AuthResult = { ok: true; identity: Identity } | { ok: false; status: 401 | 403 | 503; reason: string };
 
 export const SESSION_COOKIE = "weft_session";
@@ -143,6 +151,7 @@ export function accessConfigured(env: AuthEnv): boolean {
 
 /** Decide who is calling. Access wins when configured; then the operator-key session. */
 export async function authenticate(req: Request, env: AuthEnv, fetcher?: JwksFetcher): Promise<AuthResult> {
+  if (publicDemo(env)) return { ok: true, identity: { email: "guest", via: "public" } };
   if (accessConfigured(env)) {
     const jwt = req.headers.get("cf-access-jwt-assertion") ?? cookieValue(req, "CF_Authorization");
     if (jwt) {

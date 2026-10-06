@@ -71,3 +71,21 @@ ACCESS_AUD = ""
 WEFT_ALLOWED_EMAILS = ""
 WEFT_EMAIL_REPO = "weft"
 WEFT_EMAIL_FROM = "tasks@weft.work"
+
+# Public read-only demo at https://weft.elier.ai (docs/web-ui.md "Public demo"): no login,
+# GET routes + live stream only, observe-only gateway token, repo allow-list, scrubbed output.
+# Secrets (wrangler secret put <NAME> --env public): WEFT_PUBLIC_TOKEN (scopes ["observe"],
+# repos = WEFT_PUBLIC_REPOS), WEFT_REDACT (terms scrubbed from every response).
+# No WEFT_WEB_TOKEN / WEFT_WEB_KEY / WEFT_EMAIL_TOKEN here, ever.
+[env.public]
+name = "weft-web-public"
+workers_dev = false   # never expose *.workers.dev: that subdomain isn't ours to show (see AGENTS.md)
+routes = [{ pattern = "weft.elier.ai", custom_domain = true }]
+
+[[env.public.services]]
+binding = "GATEWAY"
+service = "weft-gateway-preview"
+
+[env.public.vars]
+WEFT_PUBLIC_DEMO = "1"
+WEFT_PUBLIC_REPOS = "weft,weft-demo,demo-b11-20261004-144005-r6,demo-m1-20261004-064201-r1"
