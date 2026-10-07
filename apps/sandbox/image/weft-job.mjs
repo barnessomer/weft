@@ -20,12 +20,22 @@
 //
 // Node >= 22, no dependencies (shared by the image and the workflows' Node tests).
 
-import { spawn } from "node:child_process";
+import { spawn, spawnSync } from "node:child_process";
 import { mkdtemp, readFile, writeFile, mkdir } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
 export const ZERO_SHA = "0000000000000000000000000000000000000000";
+let mergirafAvailable;
+/** True when a `mergiraf` binary is on PATH (checked once per process). */
+export function hasMergirafBinary() {
+  if (mergirafAvailable === undefined) {
+    const r = spawnSync("mergiraf", ["--version"], { stdio: "ignore" });
+    mergirafAvailable = !r.error && r.status === 0;
+  }
+  return mergirafAvailable;
+}
+
 const MERGIRAF_DRIVER = "mergiraf merge --git %O %A %B -s %S -x %X -y %Y -p %P -l %L";
 const MARKER = /^(<{7}|>{7}|={7}|\|{7})( |$)/m;
 const DEFAULT_RESOLVER_MODEL = "@cf/qwen/qwen2.5-coder-32b-instruct";
@@ -164,7 +174,11 @@ class Job {
   }
 
   layers() {
-    return this.spec.layers ?? ["git", "mergiraf", "resolver"];
+    const layers = this.spec.layers ?? ["git", "mergiraf", "resolver"];
+    // Without the mergiraf binary the merge driver fails and git leaves the file
+    // WITHOUT conflict markers, which would hide the conflict from the resolver and
+    // the bounce report. Skip the layer instead (the production image ships mergiraf).
+    return hasMergirafBinary() ? layers : layers.filter((l) => l !== "mergiraf");
   }
 
   /**
