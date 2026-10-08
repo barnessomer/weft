@@ -1,0 +1,24 @@
+# Local-only gateway: the coordinator (Durable Objects) and registry, with no Artifacts, Queues
+# or Workflows bindings, so `wrangler dev` needs no Cloudflare login or account.
+# Run: WEFT_ADMIN_TOKEN=<secret> pnpm --filter @weft/gateway dev:local   (see docs/try-it.md)
+name = "weft-gateway-local"
+main = "src/index.ts"
+compatibility_date = "2025-09-06"
+
+[[durable_objects.bindings]]
+name = "WEFT_REPO"
+class_name = "RepoCoordinator"
+
+[[durable_objects.bindings]]
+name = "WEFT_REGISTRY"
+class_name = "Registry"
+
+[[migrations]]
+tag = "v1"
+new_sqlite_classes = ["RepoCoordinator", "Registry"]
+
+[[d1_databases]]
+binding = "WEFT_DB"
+database_name = "weft-local"
+database_id = "00000000-0000-0000-0000-000000000000"
+migrations_dir = "migrations"

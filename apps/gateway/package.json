@@ -7,6 +7,7 @@
     "typecheck": "tsc -p tsconfig.json",
     "test": "vitest run",
     "dev": "wrangler dev",
+    "dev:local": "wrangler dev -c wrangler.local.toml --var WEFT_ADMIN_TOKEN:${WEFT_ADMIN_TOKEN:?set WEFT_ADMIN_TOKEN}",
     "deploy:preview": "wrangler deploy --env preview"
   },
   "dependencies": {
