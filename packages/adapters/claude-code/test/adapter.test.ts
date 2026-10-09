@@ -3,7 +3,7 @@ import { ReferenceCoordinator, parseNegotiate } from "@weft/protocol";
 import { analyzeDiff } from "@weft/analyzer";
 import { execFileSync, execFile } from "node:child_process";
 import { promisify } from "node:util";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeChanges, unifiedDiff, importReads } from "../src/analysis";
@@ -269,19 +269,33 @@ describe("installer, git hooks and the bundled CLI", () => {
     await run({ hook_event_name: "SessionEnd", session_id: "c1", cwd: root });
   }, 30_000);
 
-  it("configStarts: the edited file's checkout first only with --by-path", () => {
-    const input = { hook_event_name: "PreToolUse", session_id: "s", cwd: "/repo", tool_input: { file_path: "/wt/a/src/x.ts" } } as HookInput;
-    expect(configStarts(input, false)).toEqual(["/repo"]);
-    expect(configStarts(input, true)).toEqual(["/wt/a/src", "/repo"]);
-    expect(configStarts({ ...input, tool_input: { file_path: "src/x.ts" } } as HookInput, true)).toEqual(["/repo/src", "/repo"]);
-    expect(configStarts({ ...input, tool_input: { command: "ls" } } as HookInput, true)).toEqual(["/repo"]);
+  it("configStarts: only with --by-path, and only the edited file's own joined checkout", () => {
+    const joined = checkout("joined");
+    mkdirSync(join(joined, ".weft"));
+    writeFileSync(join(joined, ".weft/claude.json"), "{}");
+    const parent = checkout("parent");
+    // an unjoined worktree nested inside the joined checkout: its own .git file is the boundary
+    const nested = join(joined, "nested-wt");
+    execFileSync("git", ["-C", joined, "worktree", "add", "-q", nested, "-b", "nested"]);
+    const at = (file: string) => ({ hook_event_name: "PreToolUse", session_id: "s", cwd: parent, tool_input: { file_path: file } }) as HookInput;
+    expect(configStarts(at(join(joined, "src/cart.ts")), false)).toEqual([parent]);
+    expect(configStarts(at(join(joined, "src/cart.ts")), true)).toEqual([joined, parent]);
+    expect(configStarts({ ...at(""), tool_input: { path: join(joined, "src/cart.ts") } } as HookInput, true)).toEqual([joined, parent]);
+    expect(configStarts(at(join(nested, "src/cart.ts")), true)).toEqual([parent]);
+    expect(configStarts(at("/tmp/outside-any-checkout.ts"), true)).toEqual([parent]);
+    expect(configStarts({ ...at(""), tool_input: { command: "ls" } } as HookInput, true)).toEqual([parent]);
   });
 
-  it("weft-worker subagent: scoped hooks run `hook --by-path` on edits", () => {
-    const md = workerAgent("'/n' '/b.mjs' hook --by-path");
+  it("weft-worker subagent: scoped hooks run `hook --by-path` on edits; --name is checked", () => {
+    const md = workerAgent(`'/a dir/n' '/b "x".mjs' hook --by-path`);
     expect(md).toMatch(/^---\nname: weft-worker\n/);
-    expect(md).toContain(`command: "'/n' '/b.mjs' hook --by-path"`);
-    expect(md.match(/matcher: "Edit\|Write\|MultiEdit\|NotebookEdit"/g)).toHaveLength(2);
+    // JSON string = a valid YAML double-quoted scalar that round-trips the command
+    const cmd = /command: (".*")\n/.exec(md)![1]!;
+    expect(JSON.parse(cmd)).toBe(`'/a dir/n' '/b "x".mjs' hook --by-path`);
+    expect(md.match(/matcher: "Edit\|Write\|MultiEdit"\n/g)).toHaveLength(2);
+    const root = checkout("names");
+    expect(() => execFileSync(process.execPath, [BUNDLE, "install-agent", "--name", "../x"], { cwd: root, stdio: "pipe" })).toThrow();
+    expect(existsSync(join(root, ".claude"))).toBe(false);
   });
 
   it("hook --by-path from a session outside the worktree acts as the worktree's agent; plain hook stays a no-op (real bundle)", async () => {

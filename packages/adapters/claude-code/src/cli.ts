@@ -19,6 +19,7 @@ import { fileURLToPath } from "node:url";
 import { NEGOTIATE_USAGE, parseNegotiate } from "@weft/protocol";
 import { HttpTransport, type Transport } from "./client";
 import { CONFIG_REL, currentSession, loadConfig, readState, stateDir, type AdapterConfig, type Loaded } from "./config";
+import { editPath } from "./edits";
 import { ClaudeAdapter, type HookInput } from "./hooks";
 
 const SELF = fileURLToPath(import.meta.url);
@@ -88,9 +89,14 @@ export function injectedText(out: unknown): string {
  */
 export function configStarts(input: HookInput, byPath: boolean, fallback: string = process.cwd()): string[] {
   const cwd = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? fallback;
-  const ti = (input.tool_input ?? {}) as { file_path?: unknown; notebook_path?: unknown };
-  const file = typeof ti.file_path === "string" ? ti.file_path : typeof ti.notebook_path === "string" ? ti.notebook_path : undefined;
-  return byPath && file ? [dirname(resolve(cwd, file)), cwd] : [cwd];
+  const file = byPath ? editPath((input.tool_input ?? {}) as Record<string, unknown>) : undefined;
+  if (!file) return [cwd];
+  // Only the file's own checkout counts: an unjoined worktree nested inside a joined one must
+  // not resolve to its parent's agent.
+  for (let dir = dirname(resolve(cwd, file)); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, ".git"))) return existsSync(join(dir, CONFIG_REL)) ? [dir, cwd] : [cwd];
+    if (dirname(dir) === dir) return [cwd];
+  }
 }
 
 async function hook(byPath: boolean): Promise<void> {
@@ -274,7 +280,7 @@ async function install(args: string[]): Promise<void> {
 /** `weft-worker` subagent: its frontmatter hooks run only while that subagent runs, and route by edited path. */
 export function workerAgent(command: string, name = "weft-worker"): string {
   const q = JSON.stringify(command);
-  const edits = "Edit|Write|MultiEdit|NotebookEdit";
+  const edits = "Edit|Write|MultiEdit";
   return `---
 name: ${name}
 description: Implements one task inside its own Weft-joined git worktree. Give it the absolute worktree path and the task; its edits are checked by the Weft coordinator as that worktree's agent.
@@ -310,12 +316,14 @@ function installAgent(args: string[]): void {
   const dir = resolve(arg(args, "dir") ?? process.cwd());
   const root = git(dir, ["rev-parse", "--show-toplevel"]);
   const name = arg(args, "name") ?? "weft-worker";
+  if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(name)) throw new Error(`install-agent: --name must be letters, digits, - or _ (got ${JSON.stringify(name)})`);
   const path = join(root, ".claude", "agents", `${name}.md`);
   mkdirSync(dirname(path), { recursive: true });
   writeFileSync(path, workerAgent(`${shellQuote(process.execPath)} ${shellQuote(SELF)} hook --by-path`, name));
   // absolute machine paths: keep it out of git, like settings.local.json
   const exclude = resolve(root, git(root, ["rev-parse", "--git-path", "info/exclude"]));
   const rel = `.claude/agents/${name}.md`;
+  mkdirSync(dirname(exclude), { recursive: true });
   const ex = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
   if (!ex.split("\n").includes(rel)) writeFileSync(exclude, `${ex}${ex && !ex.endsWith("\n") ? "\n" : ""}${rel}\n`);
   process.stdout.write(`weft: wrote subagent ${path}\n  run \`weft-adapter-claude install\` in each worktree, then start a ${name} subagent per worktree\n`);
