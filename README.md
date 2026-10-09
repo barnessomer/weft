@@ -44,9 +44,22 @@ The implementation is evolving; the [design](docs/design.md) distinguishes core,
 
 Follow [docs/try-it.md](docs/try-it.md) to install the toolchain, run the protocol conformance suite locally, and optionally deploy a preview using your own Cloudflare account. The local path needs no Cloudflare account, API token, or provider credential.
 
+## Standardization
+
+Every coding-agent runtime has hooks; none are interoperable. We propose the hook semantics Weft
+runs on as a small open standard, separate from Weft itself:
+
+- [One-pager](docs/standardization/one-pager.md) ([PDF](docs/standardization/one-pager.pdf)): problem, proposal, evidence, ask.
+- [Agent Hooks Core v0.1](docs/protocol/hooks-core-v0.md): capability levels L0–L3, normalized lifecycle events, the allow/advise/deny decision envelope, diagnostics, failure policy, host mappings. [WCP](docs/protocol/wcp-v0.md) is its coordination extension.
+- [Conformance suite](packages/conformance/README.md) (`wcp-hook-conformance`): runs any hook command through the core fixtures and reports the level it verifies. See the [reports for the Weft adapters](docs/standardization/reports/README.md).
+- [3-minute video](https://weft-media.elier.ai/weft-demo-short.mp4) for meetings.
+
+Discussions are open: [github.com/celador/weft/discussions](https://github.com/celador/weft/discussions).
+
 ## Repository map
 
 - `packages/protocol` — WCP types, schema, validator, reference coordinator, and conformance fixtures.
+- `packages/conformance` — standalone hook conformance runner for Agent Hooks Core (`wcp-hook-conformance`).
 - `packages/analyzer` — TypeScript diff-to-symbol read/write analysis.
 - `packages/adapters` — harness-specific hook translators.
 - `apps/gateway`, `apps/workflows`, `apps/sandbox`, `apps/web` — coordination API, durable jobs, isolated execution, and human UI.

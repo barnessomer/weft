@@ -1,0 +1,29 @@
+{
+  "name": "@weft/hook-conformance",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Standalone conformance runner for the Agent Hooks Core v0 (docs/protocol/hooks-core-v0.md): drives any hook command (stdin JSON -> stdout JSON) through the core fixtures and prints which capability levels (L0-L3) it actually delivers.",
+  "license": "MIT",
+  "bin": {
+    "wcp-hook-conformance": "./bin/wcp-hook-conformance.mjs"
+  },
+  "scripts": {
+    "build": "node scripts/build.mjs",
+    "typecheck": "tsc -p tsconfig.json",
+    "test": "node scripts/build.mjs && vitest run"
+  },
+  "dependencies": {
+    "@weft/protocol": "workspace:*"
+  },
+  "devDependencies": {
+    "@weft/adapter-claude-code": "workspace:*",
+    "esbuild": "^0.25.4"
+  },
+  "files": [
+    "bin",
+    "dist",
+    "fixtures",
+    "README.md"
+  ]
+}

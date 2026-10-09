@@ -1,0 +1,45 @@
+{
+  "id": "L2.deny-stale-edit",
+  "level": 2,
+  "required": true,
+  "spec": "\u00a75.2 deny, \u00a75.3",
+  "title": "an edit built on a stale signature is denied before it runs, with a model-visible explanation",
+  "steps": [
+    {
+      "event": "session.start"
+    },
+    {
+      "peer": "change_signature"
+    },
+    {
+      "tool": {
+        "kind": "edit",
+        "path": "src/cart.ts",
+        "old_text": "  return `${items.length} items`;",
+        "new_text": "  return `${items.length} items, total ${calcTotal(items)}`;"
+      },
+      "expect_pre": {
+        "decision": "deny",
+        "explanation": [
+          "stale_assumption",
+          "calcTotal"
+        ]
+      },
+      "expect_applied": false
+    },
+    {
+      "expect_file": {
+        "path": "src/cart.ts",
+        "unchanged": true
+      }
+    },
+    {
+      "expect_log": {
+        "agent": "$SELF",
+        "status": "rejected",
+        "mode": "check",
+        "min": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,80 @@
+{
+  "description": "2\u20133 minute meeting cut of the competition video (weft-demo.mp4, 7:38): problem \u2192 squiggle \u2192 negotiation \u2192 harnesses \u2192 standard pitch \u2192 tagline. Times are seconds in the full cut (demo/video/timeline.json + captions.srt); in/out points were placed on whisper word timestamps of the full cut's narration (burned captions run up to ~0.4 s ahead of the audio), so no word is clipped.",
+  "source": "https://weft-media.elier.ai/weft-demo.mp4",
+  "output": "weft-demo-short.mp4",
+  "segments": [
+    {
+      "label": "cold open: an agent stopped mid-edit",
+      "shots": [
+        "S00a"
+      ],
+      "in": 0.0,
+      "out": 12.95
+    },
+    {
+      "label": "the problem: agents are not slow",
+      "shots": [
+        "S01c"
+      ],
+      "in": 31.2,
+      "out": 54.9
+    },
+    {
+      "label": "the squiggle: Codex denied, adapts, accepted",
+      "shots": [
+        "S03a",
+        "S03b",
+        "S03c"
+      ],
+      "in": 96.4,
+      "out": 143.4,
+      "mask": {
+        "from": 142.8,
+        "box": [
+          520,
+          950,
+          880,
+          110
+        ],
+        "color": "0x1d1d2d",
+        "why": "the next shot's caption (\"Both branches merge\u2026\") is burned in ~0.4 s ahead of its audio; hide it while \"accepted\" is still being spoken"
+      }
+    },
+    {
+      "label": "negotiation: overload proposed, accepted, both land",
+      "shots": [
+        "S04a",
+        "S04b",
+        "S04c"
+      ],
+      "in": 163.45,
+      "out": 191.25
+    },
+    {
+      "label": "many harnesses, one protocol, capability levels",
+      "shots": [
+        "S07b",
+        "S07c"
+      ],
+      "in": 285.0,
+      "out": 323.05
+    },
+    {
+      "label": "an open standard (Agent Plugins left hooks out)",
+      "shots": [
+        "S10a",
+        "S10c"
+      ],
+      "in": 390.8,
+      "out": 418.75
+    },
+    {
+      "label": "tagline card",
+      "shots": [
+        "S11b"
+      ],
+      "in": 452.91,
+      "out": 455.45
+    }
+  ]
+}

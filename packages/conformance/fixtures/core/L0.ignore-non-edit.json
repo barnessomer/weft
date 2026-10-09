@@ -1,0 +1,31 @@
+{
+  "id": "L0.ignore-non-edit",
+  "level": 0,
+  "required": true,
+  "spec": "\u00a74.3",
+  "title": "a read-only tool call is allowed and records no edit",
+  "steps": [
+    {
+      "event": "session.start"
+    },
+    {
+      "tool": {
+        "kind": "read",
+        "path": "src/pricing.ts"
+      },
+      "expect_pre": {
+        "decision": "allow"
+      },
+      "expect_post": {
+        "decision": "not-deny"
+      }
+    },
+    {
+      "expect_log": {
+        "agent": "$SELF",
+        "kind": "edit",
+        "max": 0
+      }
+    }
+  ]
+}

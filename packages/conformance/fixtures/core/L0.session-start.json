@@ -1,0 +1,18 @@
+{
+  "id": "L0.session-start",
+  "level": 0,
+  "required": true,
+  "spec": "\u00a74.1, \u00a73.2",
+  "title": "session.start is answered and the session joins with a capability declaration",
+  "steps": [
+    {
+      "event": "session.start",
+      "expect": {
+        "decision": "not-deny"
+      }
+    },
+    {
+      "expect_join": {}
+    }
+  ]
+}

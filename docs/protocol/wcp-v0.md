@@ -1,5 +1,7 @@
 # Weft Coordination Protocol (WCP) — version 0.1
 
+**A coordination extension to [Agent Hooks Core v0.1](hooks-core-v0.md).**
+
 Status: implementation draft, not a ratified standard (initial draft 2026-10-03; updated 2026-10-04). This document is normative for Weft's `packages/sequencer`, `apps/gateway`, `packages/adapters/*`, and observer clients. It does not require other implementations to adopt Weft's architecture or service choices.
 
 Version 0.1 is the wire version sent in `WCP-Version`. Additions listed as compatible in the changelog preserve that version only when existing message meanings and required fields remain valid; incompatible changes require a new protocol version. An implementation MUST reject an unsupported major version rather than silently interpreting it.
@@ -15,6 +17,25 @@ Machine-readable artifacts (the spec wins if they disagree; file a bug):
 | Message fixtures | `packages/protocol/fixtures/messages/{valid,invalid}/*.json` |
 | Behavioural scenarios | `packages/protocol/fixtures/scenarios/*.json` |
 | Scenario runner | `packages/protocol/src/conformance.ts` |
+
+### Relationship to Agent Hooks Core
+
+[Agent Hooks Core](hooks-core-v0.md) (the *core*) is the minimal, transport-agnostic hook
+interoperability layer: capability declaration (L0–L3), normalized lifecycle events, the
+allow/advise/deny decision envelope, the diagnostic model, timeout/failure policy, security,
+host mappings and a conformance suite. WCP builds on it and adds what coordination needs and
+the core deliberately leaves out: one strictly ordered event log per repository, symbol-level
+validation against everything that entered the log after the agent's base (§6), claim
+arbitration and negotiation between agents (§7), and the observer/human API (§9).
+
+- A WCP adapter **is** a core hook. `hello.capabilities` is the core capability declaration
+  (core §3.2, same fields); the core's rules on levels and honest declaration (core §3.3) apply.
+- WCP verdicts become core decisions at the hook points of §8.3: a rejecting `check` is a
+  `deny` on `tool.pre`, `verdict.context`/`inbox.context` is an `advise` explanation, a
+  refusing stop gate is a `deny` on `agent.stop`. A WCP `Diagnostic` is a profile of the core
+  diagnostic (core §6.2).
+- Implementing the core does not require WCP; implementing WCP requires the core semantics
+  at the adapter's hook points.
 
 The key words MUST, MUST NOT, SHOULD, SHOULD NOT and MAY are to be interpreted as in
 RFC 2119. "Coordinator" means the per-repo sequencer (a Durable Object in Weft's
@@ -54,7 +75,7 @@ Roles and token scopes:
 ### 2.1 HTTPS
 
 - All endpoints live under the binding prefix `/v1` on the coordinator origin
-  (Weft: `https://weft-gateway.<account>.workers.dev/v1`).
+  (Weft: `https://weft-gateway.elier.ai/v1`).
 - Bodies are UTF-8 JSON, `Content-Type: application/json`. Every request and response
   body is one WCP message whose `type` field names it (exception: `EventRecord` and the
   system endpoint, which carry no `type`).
@@ -473,6 +494,9 @@ alternatives of every member too.
 
 ### 8.1 Capability levels
 
+Levels, the declaration object and the honesty rule are defined by the core (hooks-core-v0
+§3); this section states what the coordinator relies on at each level.
+
 | Level | Name | Adapter can | Coordinator relies on |
 |---|---|---|---|
 | L0 | observe | report edits after the fact (file watcher, async hook) | nothing — diagnostics reach humans only |
@@ -513,17 +537,26 @@ required output field is rejected.
 
 ### 8.3 What adapters do at each hook point
 
-1. Session start → `hello`; inject `welcome` + any inbox `context` (L1).
-2. Before an edit tool runs (L2) → derive reads/writes from the proposed content
-   (analyzer on before/after text), `submit` `mode:"check"`. On `reject`, deny the tool
-   call with `verdict.context` as the reason. On `accept` with warnings, allow (and
-   inject the warnings at step 3).
-3. After an edit tool ran → derive the real diff (`git diff` of touched files), submit
-   `mode:"commit"`, inject `verdict.context` (L1). Ack the inbox ids injected.
-4. On user prompt / turn start → `drain` and inject (L1).
-5. Before stop (L3) → `gate {gate:"stop"}`; if `allow` is false refuse with `reason`.
-   Before a shell `git commit` (`commit_gate`) → `gate {gate:"commit"}` likewise.
-6. Session end → `bye`.
+Core event names (hooks-core-v0 §4.1) in brackets; the decision the adapter returns follows
+the arrow.
+
+1. Session start [`session.start`] → `hello`; inject `welcome` + any inbox `context` →
+   `advise` (L1).
+2. Before an edit tool runs [`tool.pre`, kind `edit`/`write`/`delete`] (L2) → derive
+   reads/writes from the proposed content (analyzer on before/after text), `submit`
+   `mode:"check"`. On `reject` → `deny` with `verdict.context` as the explanation. On
+   `accept` with warnings → `allow` (and inject the warnings at step 3) or `advise` where the
+   host can carry pre-tool context.
+3. After an edit tool ran [`tool.post`] → derive the real diff (`git diff` of touched files),
+   submit `mode:"commit"`, inject `verdict.context` → `advise` (L1). Ack the inbox ids injected.
+4. On user prompt / turn start [`prompt.submit`] → `drain` and inject → `advise` (L1).
+5. Before stop [`agent.stop`] (L3) → `gate {gate:"stop"}`; if `allow` is false → `deny` with
+   `reason`. Before a shell `git commit` [`tool.pre`, kind `shell`] (`commit_gate`) →
+   `gate {gate:"commit"}` likewise.
+6. Session end [`session.end`] → `bye`.
+
+Coordinator unreachable: Weft adapters are fail-open (core §7.2, `on_failure: "open"`): they
+answer `allow` (or `advise` that checks are offline) and never block a harness on Weft.
 
 `verdict.context` / `inbox.context` is the deterministic rendering from
 `renderContext()`:
@@ -551,7 +584,11 @@ may override a refusal; the open errors then remain visible to humans in the fee
 
 ### 8.5 Per-harness mapping
 
-From `docs/research/hooks.md` (official docs) plus local probes (2026-10-03).
+The host-level mapping (native event names and output fields per harness, with examples) is
+now normative in the core (hooks-core-v0 §10). This table is the Weft adapters' view: what
+each adapter does on its harness. From `docs/research/hooks.md` (official docs) plus local
+probes (2026-10-03). Wire-level conformance of each adapter's hook command against the core
+fixtures: `docs/standardization/reports/`.
 
 | Harness | L0 observe | L1 inject | L2 deny edit | L3 gate | commit_gate | Verified locally |
 |---|---|---|---|---|---|---|
@@ -714,6 +751,10 @@ An implementation conforms to WCP v0.1 if:
    step advances 1 ms from `start`, `advance` steps add more; `tick` runs expiry (claims,
    sessions) and returns appended records.
 
+Hook-level conformance (an adapter's hook command at its native wire, levels L0–L3) is
+tested by the core's suite, not here: `packages/conformance` (hooks-core-v0 §11), which uses
+this protocol's reference coordinator as its oracle.
+
 Scenario coverage today: accept + observe/paging (`accept-and-observe`), R1
 (`stale-overwrite`), R2 error + L2 check + gates (`signature-read-error`), R2 warning
 (`body-read-warning`), wound-wait asymmetry + firm claims + multi-holder wound
@@ -799,3 +840,6 @@ Proposed for `docs/design.md` (rule 7 of agent-rules):
 - 0.1 addition (2026-10-04, M2; additive): alternatives (§7.7) — changes of the same task
   (best-of-N candidates) are exempt from in-flight R1/R2, claim arbitration and
   `contract_changed` between each other. Scenario `alternatives-best-of-n`.
+- 0.1 editorial (2026-10-09): hook-level semantics split out into [Agent Hooks Core
+  v0.1](hooks-core-v0.md); this document is now its coordination extension. §8.1/§8.3/§8.5
+  reference the core (event names, decisions, host mappings); no wire or behaviour change.

@@ -1,0 +1,16 @@
+{
+  "id": "F.malformed-input",
+  "level": null,
+  "required": false,
+  "failure": true,
+  "spec": "\u00a77.3",
+  "title": "malformed stdin: the hook exits in time without crashing the host (empty or valid output)",
+  "steps": [
+    {
+      "raw": "{not json",
+      "expect_raw": {
+        "valid_output": true
+      }
+    }
+  ]
+}

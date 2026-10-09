@@ -121,6 +121,19 @@ regex per line, outside the repo so the names are never committed.
   the 4 repos on screen, `~/.config/weft/observer-video-token`); S09b showed an empty filter
   (now opens the first collision, `weft:6`); S10c ran in the worktree (`cwd: main-checkout`).
 
+## Meeting cut (A1, 2026-10-09)
+
+- **Video**: https://weft-media.elier.ai/weft-demo-short.mp4 — 3:00 (180.1 s), same encode
+  settings, 36.7 MB, sha256 `9d67ed6f9590a8ffa188629c757569478f4b77568370d4952fefba2755e85cb6`;
+  captions https://weft-media.elier.ai/weft-demo-short.en.srt (51 cues).
+- Made by `node demo/video/rig/cut-short.mjs` from `../short.json`: problem (S00a, S01c) →
+  squiggle (S03a–c) → negotiation (S04) → harnesses (S07) → standard pitch (S10) → tagline (S11b),
+  cut from the full cut, whose captions are already burned in. Cut points sit on whisper word
+  timestamps of the narration (the burned cues run up to ~0.4 s ahead of the audio); the one cue
+  that would flash ahead of a cut ("Both branches merge…") is masked.
+- Watch-back: 15-frame contact sheet and a whisper transcript of the whole short; every
+  sentence is complete, no clipped words.
+
 ## Known issues (historical, all resolved in the final cut)
 
 
