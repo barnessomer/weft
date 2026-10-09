@@ -83,7 +83,7 @@ describe("Cursor adapter end to end (real bundle, real git, local coordinator)",
     expect(commit.permission).toBe("deny");
     expect(commit.agent_message).toContain("commit refused by the Weft commit gate");
     const stop = await run({ hook_event_name: "stop", status: "completed", loop_count: 0 });
-    expect(stop.followup_message).toContain("stale_assumption");
+    expect(stop.followup_message).toBeUndefined(); // another agent's conflict does not hold the stop
 
     // a read-only tool is allowed with a valid permission answer (Cursor blocks on invalid JSON)
     expect(await run({ hook_event_name: "preToolUse", tool_name: "Read", tool_use_id: "t3", tool_input: { path: cart } })).toEqual({ permission: "allow" });

@@ -250,6 +250,14 @@
       "expect": {
         "items": [
           {
+            "seq": 4,
+            "kind": "diagnostic",
+            "diagnostic": {
+              "code": "claim_wait",
+              "severity": "warning"
+            }
+          },
+          {
             "seq": 6,
             "kind": "negotiation",
             "record": {

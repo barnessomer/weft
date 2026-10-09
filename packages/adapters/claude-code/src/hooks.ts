@@ -330,7 +330,7 @@ export class ClaudeAdapter {
     const lines = [
       `[weft] This checkout is coordinated by Weft (repo ${config.repo}; you are agent ${config.agent}, task ${config.task.id}${config.task.title ? ` "${config.task.title}"` : ""}, change ${config.change}). ` +
         `Other agents edit the same codebase concurrently in their own checkouts. Every edit you make is checked against their work: ` +
-        `lines like "[weft error] <code> <file>:<line>: …" are multi-agent compiler diagnostics. An edit with errors is blocked, and you cannot finish while errors are open — fix the cited code (or retreat from it) instead of retrying the same edit. When the error comes from another agent's change, do not rebase onto it or adapt your code to its partial work: stop and report the conflict to the owner of your change.` +
+        `lines like "[weft error] <code> <file>:<line>: …" are multi-agent compiler diagnostics. An edit with errors is blocked, and you cannot finish while errors are open — fix the cited code (or retreat from it) instead of retrying the same edit. When the error comes from another agent's change, keep working on your other tasks: do not rebase onto it or adapt your code to its partial work. The owner of that change is told and resolves it, and you may finish with the error open (your commits to that symbol stay blocked until it resolves).` +
         (this.deps.cli
           ? ` When another agent's change is in your way you may also negotiate with it (\`${this.deps.cli} negotiate propose|accept|reject|counter|escalate …\`, see \`${this.deps.cli} negotiate --help\`); proposals addressed to you arrive as "[weft negotiation]" lines and must be answered before you finish. \`${this.deps.cli} inbox\` shows what is waiting for you.`
           : ""),
@@ -497,7 +497,7 @@ export class ClaudeAdapter {
         ]
           .filter(Boolean)
           .join(", ")}.\n${text}\n` +
-        (result.open_errors.length ? `Resolve each error by stopping and reporting the conflict to the owner of your change (do not re-edit the cited code to fit another agent's change; an accepted edit touching the symbol clears it), or retreat from that code.` : "") +
+        (result.open_errors.length ? `Resolve each error you caused by fixing the cited code, or retreat from it. Errors caused by another agent's change are not yours to fix: keep working on your other tasks, do not re-edit the cited code to fit that change, and finish with them open; their owner is told.` : "") +
         (dues.length ? `${result.open_errors.length ? " " : ""}Answer each proposal and make every edit you agreed to.` : ""),
     };
   }

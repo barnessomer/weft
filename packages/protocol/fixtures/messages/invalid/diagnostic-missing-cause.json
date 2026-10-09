@@ -19,6 +19,6 @@
     "message": "You use src/auth/session.ts#refreshToken, whose signature changed in #12 by claude-a after your base #9.",
     "caused_by_agent": "claude-a",
     "caused_by_task": "T-1",
-    "suggestion": "Stop and report this to the owner of your change; do not adapt this call site to claude-a's new src/auth/session.ts#refreshToken (event #12) or adopt their partial work."
+    "suggestion": "Keep working on your other tasks. Do not adapt this call site to claude-a's new src/auth/session.ts#refreshToken (event #12) or adopt their partial work: claude-a owns the conflict and is told about it, and you may finish with this open."
   }
 }
