@@ -20,6 +20,7 @@ import {
 } from "@weft/protocol";
 import { canAccessRepo, hasScope, type Grant, type TokenVerifier } from "./auth";
 import { SqlCoordinator, type CoordinatorConfig, type CoordinatorInit, type EventQuery } from "./coordinator";
+import { conflictsFrom } from "./conflicts";
 import { JournaledCoordinator, type JournalOp } from "./journal";
 import { redactRecord } from "./redact";
 import type { Sql } from "./sql";
@@ -29,6 +30,8 @@ export type Result<T> = { ok: true; value: T } | { ok: false; error: WcpError };
 export interface SequencerEnv {
   /** Registry Durable Object (token verification for WebSocket auth frames). */
   WEFT_REGISTRY?: DurableObjectNamespace;
+  /** Deployment-wide cross-agent conflict handling: `continue` opts in; default `hold` (today's behaviour). */
+  WEFT_CONFLICTS?: string;
 }
 
 /** Observer replay cap per stream connect (spec §9.4: MAY close with 4413 beyond it). */
@@ -74,7 +77,7 @@ export class RepoCoordinator extends DurableObject<SequencerEnv> {
   }
 
   private get j(): JournaledCoordinator {
-    if (!this.engine) this.engine = new JournaledCoordinator(this.sql, () => this.clock());
+    if (!this.engine) this.engine = new JournaledCoordinator(this.sql, () => this.clock(), conflictsFrom(this.env.WEFT_CONFLICTS));
     return this.engine;
   }
 

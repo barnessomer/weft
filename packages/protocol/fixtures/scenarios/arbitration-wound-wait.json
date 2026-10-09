@@ -253,16 +253,7 @@
       "as": "A",
       "ack": "last",
       "expect": {
-        "items": [
-          {
-            "seq": 6,
-            "kind": "diagnostic",
-            "diagnostic": {
-              "code": "claim_wait",
-              "severity": "warning"
-            }
-          }
-        ],
+        "items": [],
         "open_errors": []
       }
     },
@@ -271,7 +262,7 @@
       "as": "B",
       "gate": "stop",
       "expect": {
-        "allow": true
+        "allow": false
       }
     },
     {
@@ -387,7 +378,7 @@
       "as": "A",
       "gate": "stop",
       "expect": {
-        "allow": true,
+        "allow": false,
         "open_errors": [
           {
             "code": "claim_wounded",

@@ -228,14 +228,6 @@
       "expect": {
         "items": [
           {
-            "seq": 5,
-            "kind": "diagnostic",
-            "diagnostic": {
-              "code": "stale_assumption",
-              "severity": "warning"
-            }
-          },
-          {
             "seq": 8,
             "kind": "trunk",
             "requires_rebase": true,

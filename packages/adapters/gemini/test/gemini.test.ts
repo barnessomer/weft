@@ -55,7 +55,7 @@ describe("Gemini adapter end to end with fixture payloads (real bundle, local co
     expect(deny.decision).toBe("deny");
     expect(deny.reason).toContain("[weft error] stale_assumption src/cart.ts:4:19");
     const retry = await run({ hook_event_name: "AfterAgent", prompt: "do it", prompt_response: "done", stop_hook_active: false });
-    expect(retry).toEqual({}); // another agent's conflict does not hold the stop
+    expect(retry).toMatchObject({ decision: "deny" });
     const fixIn = { file_path: cart, old_string: CART_LINE, new_string: NEW_CALL };
     expect(await run({ hook_event_name: "BeforeTool", tool_name: "replace", tool_input: fixIn })).toEqual({});
     writeFileSync(cart, readFileSync(cart, "utf8").replace(CART_LINE, NEW_CALL));

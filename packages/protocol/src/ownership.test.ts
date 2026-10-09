@@ -7,9 +7,29 @@ const caps = { level: 3, observe: "sync", inject: "immediate", deny_edit: true, 
 const hello = (c: ReferenceCoordinator, agent: string, change: string) =>
   c.hello({ type: "hello", protocol: "wcp/0.1", agent: { id: agent, harness: "claude-code" }, capabilities: caps, task: { id: `T-${agent}` }, change });
 
-describe("cross-agent conflicts: the hit agent may stop, the owner is told", () => {
+/** The same scenario: A's signature change lands, then B (old base) calls it. Returns the coordinator and B's stale result. */
+function staleCall(conflicts?: "hold" | "continue") {
+  const coord = new ReferenceCoordinator({ repo: "demo", ...(conflicts ? { conflicts } : {}) });
+  const a = hello(coord, "claude-a", "I-a");
+  const b = hello(coord, "claude-b", "I-b");
+  coord.submit(a.session, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: a.delivered_through, files: ["src/pricing.ts"], reads: [], writes: [{ key: "src/pricing.ts#calcTotal", kind: "signature" }] } });
+  const r = coord.submit(b.session, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: b.delivered_through, files: ["src/cart.ts"], reads: ["src/pricing.ts#calcTotal"], writes: [{ key: "src/cart.ts#cartSummary", kind: "body" }] } });
+  return { coord, a, b, r };
+}
+
+describe("default (hold): unchanged from today", () => {
+  it("the stale agent's stop is refused, and the owner is not told", () => {
+    const { coord, a, b, r } = staleCall();
+    expect(r.verdict).toBe("reject");
+    expect(coord.gate(b.session, { type: "gate", gate: "stop" }).allow).toBe(false);
+    expect(coord.drain(a.session, 0).items.filter((i) => i.kind === "diagnostic")).toEqual([]);
+    expect(r.diagnostics.find((d) => d.code === "stale_assumption")?.suggestion).toContain("Read the new src/pricing.ts#calcTotal");
+  });
+});
+
+describe("conflicts: continue (opt-in): the hit agent may stop, the owner is told", () => {
   it("stop is allowed with the conflict open; commit is still refused; the owner gets a warning, not a block", () => {
-    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const coord = new ReferenceCoordinator({ repo: "demo", conflicts: "continue" });
     const a = hello(coord, "claude-a", "I-a");
     const b = hello(coord, "claude-b", "I-b");
     // A changes calcTotal's signature and it is accepted.

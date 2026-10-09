@@ -4,6 +4,13 @@
 // error (the commit gate is unchanged), so a conflicting symbol cannot land while it is open.
 import type { Diagnostic } from "./types";
 
+/**
+ * `hold` (default, today's behaviour): a conflict on the agent's own symbols holds its stop, and the
+ * owner is not told. `continue` (deployment opt-in, WEFT_CONFLICTS=continue): another agent's
+ * conflict does not hold the stop, the owner is told, and the wording says to keep working.
+ */
+export type ConflictMode = "hold" | "continue";
+
 /** True when this open error was caused by a change of another agent (not the agent's own). */
 export function ownedElsewhere(d: Diagnostic, agent: string): boolean {
   return d.severity === "error" && d.code !== "agent_paused" && d.caused_by_agent !== agent;

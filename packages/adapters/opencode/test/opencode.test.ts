@@ -77,7 +77,8 @@ describe("OpenCode plugin end to end (generated plugin loaded as OpenCode would,
 
     await expect(hooks["tool.execute.before"]!({ tool: "bash", sessionID: "ses_1", callID: "call_2" }, { args: { command: "git commit -am wip", description: "commit" } })).rejects.toThrow(/commit refused by the Weft commit gate/);
     await hooks.event!({ event: { type: "session.idle", properties: { sessionID: "ses_1" } } });
-    expect(prompts).toHaveLength(0); // another agent's conflict does not hold the stop
+    expect(prompts).toHaveLength(1);
+    expect(prompts[0]!.text).toContain("Not done (stop refusal 1/5)");
 
     // fixed edit: allowed, then the after-hook commits it and appends nothing alarming
     const fixed = { filePath: cart, oldString: CART_LINE, newString: NEW_CALL, replaceAll: false };
@@ -90,7 +91,7 @@ describe("OpenCode plugin end to end (generated plugin loaded as OpenCode would,
     expect(ev.diff).toContain(`+  ${NEW_CALL}`);
 
     await hooks.event!({ event: { type: "session.idle", properties: { sessionID: "ses_1" } } });
-    expect(prompts).toHaveLength(0); // nothing open: the session may stop
+    expect(prompts).toHaveLength(1); // nothing open: the session may stop
     const c = await gitCommit(root, "cart: total");
     expect(c.ok).toBe(true);
     expect(gitLog(root)).toMatch(/Task-Id: T-2\nAgent-Id: opencode-c/);

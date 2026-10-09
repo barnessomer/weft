@@ -185,7 +185,7 @@
       "as": "B",
       "gate": "stop",
       "expect": {
-        "allow": true,
+        "allow": false,
         "open_errors": [
           {
             "code": "stale_assumption",

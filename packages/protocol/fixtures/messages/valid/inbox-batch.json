@@ -83,7 +83,7 @@
         "caused_by_seq": 12,
         "caused_by_agent": "claude-a",
         "caused_by_task": "T-1",
-        "suggestion": "Keep working on your other tasks. Do not adapt this call site to claude-a's new src/auth/session.ts#refreshToken (event #12) or adopt their partial work: claude-a owns the conflict and is told about it, and you may finish with this open."
+        "suggestion": "Read the new src/auth/session.ts#refreshToken (event #12) and update this call site, or negotiate with claude-a."
       }
     ],
     "paused": false

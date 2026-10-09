@@ -124,11 +124,11 @@ describe("Claude Code hooks against the reference coordinator", () => {
     expect(reason).toContain("+export function calcTotal(items: Item[], opts: PriceOptions): number {");
     expect(readFileSync(join(rootB, "src/cart.ts"), "utf8")).toBe(CART_V1);
 
-    // B may stop: the conflict is another agent's, so it does not hold B; its owner is told
+    // B tries to stop: refused while the error is open
     const stop1 = (await B.handle(hook("sb", rootB, { hook_event_name: "Stop", stop_hook_active: false }))) as any;
-    expect(stop1?.decision).not.toBe("block");
-    // and the commit gate still refuses `git commit` on the conflicting symbol
-
+    expect(stop1.decision).toBe("block");
+    expect(stop1.reason).toContain("stale_assumption");
+    // and the commit gate refuses `git commit`
     const commit = (await B.handle(hook("sb", rootB, { tool_name: "Bash", tool_input: { command: "git commit -am wip" }, tool_use_id: "tB2" }))) as any;
     expect(commit.hookSpecificOutput.permissionDecision).toBe("deny");
     expect(await B.commitGate("sb")).toContain("stale_assumption");
@@ -308,9 +308,6 @@ export function calcTotal(items: Item[], opts: PriceOptions = { taxRate: 0 }): n
     const deny = (b2.pre as { hookSpecificOutput: { permissionDecisionReason: string } }).hookSpecificOutput.permissionDecisionReason;
     expect(deny).toContain("stale_assumption");
     expect(deny).toContain("Your options: retreat");
-    expect(deny).toContain("Keep working on your other tasks");
-    expect(deny).not.toContain("Stop and report");
-    expect(deny).not.toMatch(/Read the new|update this call site|Rebase onto/);
     expect(deny).toContain('/w/b/.weft/bin/weft negotiate propose overload');
     expect(deny).toContain("negotiate escalate");
 

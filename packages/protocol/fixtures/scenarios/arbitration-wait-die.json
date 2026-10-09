@@ -214,14 +214,6 @@
       "expect": {
         "items": [
           {
-            "seq": 4,
-            "kind": "diagnostic",
-            "diagnostic": {
-              "code": "claim_die",
-              "severity": "warning"
-            }
-          },
-          {
             "seq": 6,
             "diagnostic": {
               "severity": "info",

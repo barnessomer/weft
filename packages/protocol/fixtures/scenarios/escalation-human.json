@@ -177,14 +177,6 @@
       "expect": {
         "items": [
           {
-            "seq": 4,
-            "kind": "diagnostic",
-            "diagnostic": {
-              "code": "stale_assumption",
-              "severity": "warning"
-            }
-          },
-          {
             "seq": 6,
             "kind": "negotiation",
             "record": {
@@ -199,7 +191,7 @@
       "as": "B",
       "gate": "stop",
       "expect": {
-        "allow": true,
+        "allow": false,
         "open_errors": [
           {
             "code": "stale_assumption"
