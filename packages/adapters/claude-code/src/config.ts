@@ -3,6 +3,8 @@
 // concurrently (parallel tool calls), so state is a JSON file guarded by a lock dir.
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, readdirSync } from "node:fs";
 import { dirname, join, resolve } from "node:path";
+import { editPath } from "./edits";
+import type { HookInput } from "./hooks";
 
 export type Mode = "enforce" | "advise";
 
@@ -35,6 +37,24 @@ export function findRoot(start: string, configRel: string = CONFIG_REL): string 
     const parent = dirname(dir);
     if (parent === dir) return undefined;
     dir = parent;
+  }
+}
+
+/**
+ * Where to look for `.weft/claude.json`. By default the session's cwd. With `byPath` (the
+ * `weft-worker` subagent's hooks) the edited file's own checkout comes first: a subagent runs in
+ * the parent session's cwd but edits inside its own joined worktree, which must be the agent it
+ * acts as. Lives here, not in cli.ts, so the shared Host (host.ts) can use it too.
+ */
+export function configStarts(input: HookInput, byPath: boolean, fallback: string = process.cwd()): string[] {
+  const cwd = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? fallback;
+  const file = byPath ? editPath((input.tool_input ?? {}) as Record<string, unknown>) : undefined;
+  if (!file) return [cwd];
+  // Only the file's own checkout counts: an unjoined worktree nested inside a joined one must
+  // not resolve to its parent's agent.
+  for (let dir = dirname(resolve(cwd, file)); ; dir = dirname(dir)) {
+    if (existsSync(join(dir, ".git"))) return existsSync(join(dir, CONFIG_REL)) ? [dir, cwd] : [cwd];
+    if (dirname(dir) === dir) return [cwd];
   }
 }
 

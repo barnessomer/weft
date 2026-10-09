@@ -10,8 +10,8 @@ import { analyzeChanges, unifiedDiff, importReads } from "../src/analysis";
 import { ClaudeAdapter, type HookInput } from "../src/hooks";
 import { proposedText, isGitCommit } from "../src/edits";
 import { locateUse, locateDeclaration, quoteDiff } from "../src/render";
-import { configStarts, mergeSettings, workerAgent } from "../src/cli";
-import type { Loaded } from "../src/config";
+import { mergeSettings, workerAgent } from "../src/cli";
+import { configStarts, type Loaded } from "../src/config";
 import { CART_V1, PRICING_V1, PRICING_V2, checkout, refTransport, serve } from "./helpers";
 import type { Transport } from "../src/client";
 

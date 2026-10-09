@@ -18,8 +18,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NEGOTIATE_USAGE, parseNegotiate } from "@weft/protocol";
 import { HttpTransport, type Transport } from "./client";
-import { CONFIG_REL, currentSession, loadConfig, readState, stateDir, type AdapterConfig, type Loaded } from "./config";
-import { editPath } from "./edits";
+import { CONFIG_REL, configStarts, currentSession, loadConfig, readState, stateDir, type AdapterConfig, type Loaded } from "./config";
 import { ClaudeAdapter, type HookInput } from "./hooks";
 
 const SELF = fileURLToPath(import.meta.url);
@@ -80,23 +79,6 @@ function timed(t: Transport, calls: Call[]): Transport {
 export function injectedText(out: unknown): string {
   const o = (out ?? {}) as { reason?: unknown; hookSpecificOutput?: { additionalContext?: unknown; permissionDecisionReason?: unknown } };
   return [o.reason, o.hookSpecificOutput?.additionalContext, o.hookSpecificOutput?.permissionDecisionReason].filter((x): x is string => typeof x === "string").join("\n");
-}
-
-/**
- * Where to look for `.weft/claude.json`. By default the session's cwd. With `--by-path` (the
- * `weft-worker` subagent's hooks) the edited file's directory comes first: a subagent runs in the
- * parent session's cwd but edits inside its own joined worktree, which must be the agent it acts as.
- */
-export function configStarts(input: HookInput, byPath: boolean, fallback: string = process.cwd()): string[] {
-  const cwd = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? fallback;
-  const file = byPath ? editPath((input.tool_input ?? {}) as Record<string, unknown>) : undefined;
-  if (!file) return [cwd];
-  // Only the file's own checkout counts: an unjoined worktree nested inside a joined one must
-  // not resolve to its parent's agent.
-  for (let dir = dirname(resolve(cwd, file)); ; dir = dirname(dir)) {
-    if (existsSync(join(dir, ".git"))) return existsSync(join(dir, CONFIG_REL)) ? [dir, cwd] : [cwd];
-    if (dirname(dir) === dir) return [cwd];
-  }
 }
 
 async function hook(byPath: boolean): Promise<void> {
