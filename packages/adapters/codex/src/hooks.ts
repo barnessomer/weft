@@ -42,6 +42,19 @@ export const CAPABILITIES: Capabilities = {
   refuse_stop: false,
   commit_gate: false,
 };
+/**
+ * Declared when the loaded config is advisory (`mode: "advise"` / WEFT_MODE=advise): denials
+ * become advise text and the stop/commit gates stay open, so the adapter delivers L1 and,
+ * per Agent Hooks Core §3.3, MUST NOT declare L2/L3.
+ */
+export const ADVISORY_CAPABILITIES: Capabilities = {
+  level: 1,
+  observe: "sync",
+  inject: "immediate",
+  deny_edit: false,
+  refuse_stop: false,
+  commit_gate: false,
+};
 const SKIP_PARTS = new Set([".git", ".weft", ".codex", "node_modules", ".wrangler", "dist", ".turbo"]);
 const DRAIN_MIN_INTERVAL_MS = 2000;
 const MAX_FILE_BYTES = 1 << 20;
@@ -176,7 +189,7 @@ export class CodexAdapter {
       ...(this.deps.model ? { model: this.deps.model } : {}),
     };
     const task = { id: config.task.id, ...(config.task.title ? { title: config.task.title } : {}), ...(config.task.priority !== undefined ? { priority: config.task.priority } : {}) };
-    const welcome = await t.hello({ type: "hello", protocol: PROTOCOL, agent, capabilities: CAPABILITIES, task, change: config.change });
+    const welcome = await t.hello({ type: "hello", protocol: PROTOCOL, agent, capabilities: this.enforce ? CAPABILITIES : ADVISORY_CAPABILITIES, task, change: config.change });
     // A new session cannot claim more than it was delivered; an older base (what this
     // Codex conversation actually saw) is kept so stale knowledge stays visible to R1/R2.
     st.base = st.wcpSession === undefined && st.base === 0 ? welcome.delivered_through : Math.min(st.base || welcome.delivered_through, welcome.delivered_through);

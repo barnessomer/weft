@@ -38,8 +38,8 @@ adapter per host.
   are verified at L0–L3, Codex at L0–L2. Translators for Cursor and Gemini CLI are tested
   against the documented formats only.
 - **Conformance:** all five adapters verify at **L3** at the wire, about 100 ms per hook
-  (p50). The suite also caught a real over-declaration: the Claude adapter in advisory mode
-  delivers L1 but declares L3 ([reports](https://github.com/celador/weft/tree/main/docs/standardization/reports)).
+  (p50). The suite also caught a real over-declaration: in advisory mode the adapters
+  delivered L1 but declared L3. They now declare L1 there ([reports](https://github.com/celador/weft/tree/main/docs/standardization/reports)).
 - **Built under itself:** Weft's own log recorded **627 events in 11.3 hours**. That was
   **460 edits** from 3 agent profiles across 25 tasks, with 73 checkpoints, 18 landings and
   59 warnings that told one agent to wait for another.

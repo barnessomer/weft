@@ -8,13 +8,13 @@ harness's native hook dialect, against a local WCP reference coordinator as the 
 
 | Subject | Dialect | Declared | Verified | Honest | Commit gate | Backend down | Hook ms p50 / max |
 |---|---|---|---|---|---|---|---|
-| [Claude Code adapter (@weft/adapter-claude-code)](claude-code.md) | `claude-code` | L3 | **L3** | yes | pass | fail-open | 97 / 367 |
-| [Codex adapter (@weft/adapter-codex)](codex.md) | `codex` | L2 | **L3** | yes | pass | fail-open | 112 / 303 |
-| [OpenCode adapter (@weft/adapter-opencode, plugin bridge)](opencode.md) | `opencode` | L3 | **L3** | yes | pass | fail-open | 132 / 287 |
-| [Cursor CLI translator (@weft/adapter-cursor)](cursor.md) | `cursor` | L3 | **L3** | yes | pass | fail-open | 88 / 198 |
-| [Gemini CLI translator (@weft/adapter-gemini)](gemini.md) | `gemini` | L3 | **L3** | yes | pass | fail-open | 87 / 204 |
-| [Core stdio binding (bridge → Claude Code adapter)](core-binding.md) | `core` | L3 | **L3** | yes | pass | fail-open | 233 / 434 |
-| [Claude Code adapter in advisory mode (WEFT_MODE=advise)](claude-code-advise.md) | `claude-code` | L3 | **L1** | **no** | fail | fail-open | 86 / 211 |
+| [Claude Code adapter (@weft/adapter-claude-code)](claude-code.md) | `claude-code` | L3 | **L3** | yes | pass | fail-open | 108 / 287 |
+| [Codex adapter (@weft/adapter-codex)](codex.md) | `codex` | L2 | **L3** | yes | pass | fail-open | 94 / 233 |
+| [OpenCode adapter (@weft/adapter-opencode, plugin bridge)](opencode.md) | `opencode` | L3 | **L3** | yes | pass | fail-open | 80 / 191 |
+| [Cursor CLI translator (@weft/adapter-cursor)](cursor.md) | `cursor` | L3 | **L3** | yes | pass | fail-open | 80 / 198 |
+| [Gemini CLI translator (@weft/adapter-gemini)](gemini.md) | `gemini` | L3 | **L3** | yes | pass | fail-open | 84 / 206 |
+| [Core stdio binding (bridge → Claude Code adapter)](core-binding.md) | `core` | L3 | **L3** | yes | pass | fail-open | 172 / 291 |
+| [Claude Code adapter in advisory mode (WEFT_MODE=advise)](claude-code-advise.md) | `claude-code` | L1 | **L1** | yes | fail | fail-open | 80 / 194 |
 
 What these reports prove, and what they do not:
 

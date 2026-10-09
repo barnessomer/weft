@@ -231,6 +231,24 @@ class EditTests(AdapterTestCase):
         out = first or later  # this result, or the next one if the worker finished afterwards
         self.assertIn("[weft error] x", json.loads(out)["weft_diagnostics"])
 
+    def test_hello_declares_l1_when_advisory(self):
+        # Agent Hooks Core §3.3: an advisory adapter MUST NOT declare L2/L3.
+        def hello_caps():
+            self.adapter.session = None
+            self.client.calls.clear()
+            self.adapter.ensure_session()
+            return [c for c in self.client.calls if c[0] == "hello"][-1][2]
+        self.cfg.mode = "enforce"
+        self.assertEqual(hello_caps()["level"], 3)
+        self.cfg.mode, self.cfg.async_advise = "advise", False
+        caps = hello_caps()
+        self.assertEqual(caps, {"level": 1, "observe": "sync", "inject": "immediate",
+                                "deny_edit": False, "refuse_stop": False, "commit_gate": False})
+        self.cfg.async_advise = True
+        caps = hello_caps()
+        self.assertEqual((caps["level"], caps["observe"], caps["inject"], caps["deny_edit"]),
+                         (1, "async", "delayed", False))
+
     def test_advise_sync_mode_still_prechecks(self):
         self.cfg.mode, self.cfg.async_advise = "advise", False
         self.client.script["check"] = [{"verdict": "reject", "diagnostics": [], "inbox": [], "context": "[weft error] x"}]
