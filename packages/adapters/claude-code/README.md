@@ -24,6 +24,29 @@ WEFT_TOKEN=... npx weft-adapter-claude install \
 | git `pre-commit` hook | last gate: refuses the commit while the checkout's WCP session has open errors |
 | `.git/info/exclude` | `.weft/`, `.claude/settings.local.json` |
 
+### Subagents (`install-agent`, `hook --by-path`)
+
+A subagent runs with its parent session's working directory, so the plain `hook` would look for
+`.weft/claude.json` in the parent's checkout and ignore the subagent's edits in another worktree.
+To let one orchestrating session hand each worktree to its own subagent:
+
+```sh
+# in each worktree the subagents will work in
+WEFT_TOKEN=... npx weft-adapter-claude install --url … --repo my-repo --agent worker-1 --task T-1
+# once, in the orchestrating session's project (then start a new session so it loads)
+npx weft-adapter-claude install-agent [--name weft-worker]
+```
+
+`install-agent` writes `.claude/agents/weft-worker.md` (added to `.git/info/exclude`: it holds
+absolute paths), a subagent whose own frontmatter hooks run `hook --by-path` on Edit, Write and
+MultiEdit. `--by-path` looks for the config in the edited file's own checkout first (stopping at
+the first directory holding `.git`), then in the cwd, so each subagent acts as the agent of the
+worktree it edits. Give each subagent the absolute worktree path. Plain `hook` is unchanged.
+
+Not covered yet (#10): a subagent's Bash commands and Stop are not routed by path, so the
+in-session commit and stop gates use the parent's checkout; the worktree's git `pre-commit` hook
+still refuses commits while that worktree has open errors.
+
 Runtime state lives in `.weft/state/<claude-session>.json` (WCP session, base, acked inbox id,
 pending edits; guarded by a lock dir because Claude runs parallel tool calls' hooks
 concurrently); the adapter log is `.weft/log/adapter.log`.
@@ -71,8 +94,9 @@ flags the call. Trunk items (`requires_rebase`) floor the base below the landing
 ### Failure behaviour
 
 Fail open: a transport/coordinator error lets the tool run (`additionalContext` notes that the
-edit was not coordinated) and is logged. Files outside the checkout, and under `.git`, `.weft`,
-`.claude`, `node_modules`, `dist`, are ignored. Edits whose analysis yields no writes
+edit was not coordinated) and is logged. Files outside the checkout (with `--by-path`: outside
+the edited file's own joined checkout), and under `.git`, `.weft`, `.claude`, `node_modules`,
+`dist`, are ignored. Edits whose analysis yields no writes
 (comment/import-only) are not submitted.
 
 ## Negotiation from the shell (spec §7.4, §7.6, §8.4)

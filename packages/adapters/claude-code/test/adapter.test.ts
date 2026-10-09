@@ -17,7 +17,7 @@ import type { Transport } from "../src/client";
 
 const BUNDLE = join(dirname(dirname(fileURLToPath(import.meta.url))), "dist", "weft-claude.mjs");
 
-function adapter(root: string, agent: string, task: string, transport: Transport, priority?: number, extra: { cli?: string; sleep?: (ms: number) => Promise<void> } = {}): ClaudeAdapter {
+function adapter(root: string, agent: string, task: string, transport: Transport, priority?: number, extra: { cli?: string; sleep?: (ms: number) => Promise<void>; startHeartbeat?: (s: string) => void } = {}): ClaudeAdapter {
   const loaded: Loaded = {
     root,
     token: "test",
@@ -95,6 +95,23 @@ describe("edit tools", () => {
 });
 
 describe("Claude Code hooks against the reference coordinator", () => {
+  it("starts one heartbeat on the first hello, with or without SessionStart (subagents have none)", async () => {
+    const t = refTransport(new ReferenceCoordinator({ repo: "demo", now: () => 1_790_000_000_000 }));
+    const beats: string[] = [];
+    // a subagent: its first event is an edit
+    const rootW = checkout("hb-w");
+    const W = adapter(rootW, "worker", "T-1", t, undefined, { startHeartbeat: (s) => beats.push(s) });
+    await edit(W, "parent-s", rootW, "w1", "src/pricing.ts", PRICING_V1, PRICING_V2);
+    await edit(W, "parent-s", rootW, "w2", "src/cart.ts", "items`;", "item(s)`;");
+    expect(beats).toEqual(["parent-s"]);
+    // a normal session: SessionStart, then edits
+    const rootS = checkout("hb-s");
+    const A = adapter(rootS, "claude-a", "T-2", t, undefined, { startHeartbeat: (s) => beats.push(s) });
+    await A.handle(hook("sa", rootS, { hook_event_name: "SessionStart", source: "startup" }));
+    await A.handle(hook("sa", rootS, { hook_event_name: "SessionStart", source: "resume" }));
+    expect(beats).toEqual(["parent-s", "sa"]);
+  });
+
   it("A changes a signature; B's stale call is denied with a positioned squiggle; B adapts; gates follow open errors", async () => {
     const coord = new ReferenceCoordinator({ repo: "demo", now: () => 1_790_000_000_000 });
     const t = refTransport(coord);

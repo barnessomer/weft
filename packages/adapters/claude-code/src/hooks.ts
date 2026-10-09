@@ -192,7 +192,12 @@ export class ClaudeAdapter {
   }
 
   private async ensure(st: SessionState): Promise<string> {
-    return st.wcpSession ?? (await this.hello(st));
+    if (st.wcpSession) return st.wcpSession;
+    const session = await this.hello(st);
+    // First hello of this conversation in this checkout. Usually SessionStart, but a subagent
+    // (`hook --by-path`) has none, and without a heartbeat its session expires while it is idle.
+    this.deps.startHeartbeat?.(st.claudeSession);
+    return session;
   }
 
   /** Run a session call; re-hello once if the coordinator forgot the session (410). */
@@ -321,8 +326,7 @@ export class ClaudeAdapter {
 
   private async sessionStart(input: HookInput, st: SessionState): Promise<HookOutput> {
     const { config } = this.loaded;
-    const fresh = !st.wcpSession;
-    await this.ensure(st);
+    await this.ensure(st); // starts the heartbeat on a fresh session
     st.head = this.git(["rev-parse", "HEAD"])?.trim();
     const batch = await this.call(st, (s) => this.deps.transport.drain(s, this.ack(st)));
     const inbox = await renderForModel([], batch.items, this.ctx());
@@ -338,7 +342,6 @@ export class ClaudeAdapter {
       ...(inbox ? [inbox] : []),
     ];
     this.delivered(st, inbox || open, batch.delivered_through, batch.items);
-    if (fresh) this.deps.startHeartbeat?.(input.session_id);
     return { hookSpecificOutput: { hookEventName: "SessionStart", additionalContext: lines.join("\n") } };
   }
 

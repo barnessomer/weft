@@ -44,7 +44,8 @@ export function findRoot(start: string, configRel: string = CONFIG_REL): string 
  * Where to look for `.weft/claude.json`. By default the session's cwd. With `byPath` (the
  * `weft-worker` subagent's hooks) the edited file's own checkout comes first: a subagent runs in
  * the parent session's cwd but edits inside its own joined worktree, which must be the agent it
- * acts as. Lives here, not in cli.ts, so the shared Host (host.ts) can use it too.
+ * acts as. Lives here, not in cli.ts, because host.ts (the shared Host for Cursor, OpenCode and
+ * Gemini) cannot import cli.ts; Host.load does not use it yet (#11).
  */
 export function configStarts(input: HookInput, byPath: boolean, fallback: string = process.cwd()): string[] {
   const cwd = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? fallback;
