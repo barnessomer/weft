@@ -29,6 +29,8 @@ export type Result<T> = { ok: true; value: T } | { ok: false; error: WcpError };
 export interface SequencerEnv {
   /** Registry Durable Object (token verification for WebSocket auth frames). */
   WEFT_REGISTRY?: DurableObjectNamespace;
+  /** Deployment-wide enforcement for every repo: `block` denies same-symbol overlaps; anything else is `advise`. */
+  WEFT_ENFORCEMENT?: string;
 }
 
 /** Observer replay cap per stream connect (spec §9.4: MAY close with 4413 beyond it). */
@@ -74,7 +76,7 @@ export class RepoCoordinator extends DurableObject<SequencerEnv> {
   }
 
   private get j(): JournaledCoordinator {
-    if (!this.engine) this.engine = new JournaledCoordinator(this.sql, () => this.clock());
+    if (!this.engine) this.engine = new JournaledCoordinator(this.sql, () => this.clock(), this.env.WEFT_ENFORCEMENT === "block" ? "block" : "advise");
     return this.engine;
   }
 

@@ -251,3 +251,30 @@ describe("schema migration", () => {
     expect(new SqlCoordinator(sql).escalation).toBe("auto");
   });
 });
+
+describe("enforcement mode (deployment-wide, SQLite coordinator)", () => {
+  const caps = { level: 3, observe: "sync", inject: "immediate", deny_edit: true, refuse_stop: true, commit_gate: "tool_interception" } as const;
+  const key = "src/auth/session.ts#refreshToken";
+  function overlap(enforcement?: "advise" | "block") {
+    const clock = scenarioClock("2026-10-05T14:00:00.000Z");
+    const sql = nodeSql();
+    SqlCoordinator.init(sql, { repo: "demo" });
+    const j = enforcement ? new JournaledCoordinator(sql, clock.now, enforcement) : new JournaledCoordinator(sql, clock.now);
+    const a = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "claude-a", harness: "claude-code" }, capabilities: caps, task: { id: "T-1" }, change: "I-a" });
+    const b = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "codex-b", harness: "codex" }, capabilities: caps, task: { id: "T-2" }, change: "I-b" });
+    const edit = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key, kind: "body" }] } };
+    j.call("submit", a.session, edit);
+    return j.call<{ verdict: string; diagnostics: Array<{ code: string; severity: string }> }>("submit", b.session, edit);
+  }
+  it("defaults to advise: claim_wait warning, edit accepted", () => {
+    const r = overlap();
+    expect(r.verdict).toBe("accept");
+    expect(r.diagnostics).toMatchObject([{ code: "claim_wait", severity: "warning" }]);
+    expect(overlap("advise").diagnostics).toMatchObject([{ code: "claim_wait", severity: "warning" }]);
+  });
+  it("block: claim_wait error, edit rejected", () => {
+    const r = overlap("block");
+    expect(r.verdict).toBe("reject");
+    expect(r.diagnostics).toMatchObject([{ code: "claim_wait", severity: "error" }]);
+  });
+});

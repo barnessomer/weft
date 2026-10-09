@@ -48,6 +48,7 @@ import {
   type Welcome,
   type Write,
   type WriteKind,
+  type EnforcementMode,
 } from "@weft/protocol";
 import { all, migrate, one, run, type Sql } from "./sql";
 
@@ -196,6 +197,8 @@ export class SqlCoordinator {
   constructor(
     private readonly sql: Sql,
     private readonly now: () => number = () => Date.now(),
+    /** Deployment-wide (not persisted per repo): `block` turns a same-symbol `claim_wait` into an error. */
+    readonly enforcement: EnforcementMode = "advise",
   ) {
     migrate(sql);
     const c = one<{ v: string }>(sql, `SELECT v FROM meta WHERE k = 'config'`);
@@ -817,7 +820,7 @@ export class SqlCoordinator {
       } else if (outcome === "wait") {
         out.push({
           ...base,
-          severity: h.firm ? "error" : "warning",
+          severity: h.firm || this.enforcement === "block" ? "error" : "warning",
           code: "claim_wait",
           message: `${w.key} is ${h.firm ? "firmly claimed" : "being edited"} by ${h.agent} (${h.change}), which has precedence.`,
           suggestion: `Wait for ${h.agent} to land or release ${w.key}, work elsewhere, or negotiate (negotiate.propose to ${h.agent}).`,
