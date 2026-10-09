@@ -11,3 +11,4 @@ spikes/analyzer/assets/tree-sitter.js
 spikes/analyzer/test/mergiraf/git-merged.ts
 spikes/analyzer/test/mergiraf/merged.ts
 
+.DS_Store

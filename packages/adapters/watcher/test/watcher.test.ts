@@ -79,8 +79,15 @@ describe("file watcher (L0)", () => {
       return f();
     };
     expect(await until(() => out.includes("[weft-watch] watching"))).toBe(true);
-    writeFileSync(join(root, "src/pricing.ts"), PRICING_V2);
-    expect(await until(() => coord.log.some((r) => r.kind === "edit" && r.agent === "human-r"))).toBe(true);
+    // Linux arms recursive fs.watch asynchronously after "watching" is printed, so a
+    // single write can land before the watch exists (flaky on CI). Re-touch until seen.
+    const sawEdit = () => coord.log.some((r) => r.kind === "edit" && r.agent === "human-r");
+    let seen = false;
+    for (let attempt = 0; attempt < 10 && !seen; attempt++) {
+      writeFileSync(join(root, "src/pricing.ts"), attempt % 2 ? PRICING_V2 + "\n" : PRICING_V2);
+      seen = await until(sawEdit, 2_000);
+    }
+    expect(seen).toBe(true);
     const ev = coord.log.find((r) => r.kind === "edit" && r.agent === "human-r")!;
     expect(ev.writes).toContainEqual({ key: "src/pricing.ts#calcTotal", kind: "signature" });
     expect(ev.diff).toContain(`-${PRICING_V1.split("\n")[2]}`);
