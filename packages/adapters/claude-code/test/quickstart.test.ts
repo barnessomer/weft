@@ -137,6 +137,7 @@ describe("gateway errors say what to do", () => {
       new Response(JSON.stringify({ type: "error", error: { code: status === 401 ? "unauthorized" : "forbidden", message } }), { status });
     await expect(Q.client("http://x", reply(401, "invalid token")).createRepo("t", "r")).rejects.toThrow(/differs from apps\/gateway\/\.dev\.vars\.test/);
     await expect(Q.client("http://x", reply(403, "admin API disabled")).createRepo("t", "r")).rejects.toThrow(/has no WEFT_ADMIN_TOKEN/);
+    await expect(Q.client("http://x", reply(422, "unknown change Iabc")).system("t", "r", {})).rejects.toThrow(/session starts[\s\S]*then land/);
   });
   it("never puts the token in an error message", async () => {
     const api = Q.client("http://x", async () => new Response("{}", { status: 500 }));

@@ -93,6 +93,8 @@ export function client(url, fetchImpl = fetch) {
       if (r.status === 401 && path.startsWith("/v1/admin"))
         hint = "\nThe gateway's admin token differs from apps/gateway/.dev.vars.test. Restart `pnpm dev:local` after writing that file (Wrangler reads it at start).";
       if (r.status === 403 && /admin API disabled/.test(msg)) hint = "\nThe gateway has no WEFT_ADMIN_TOKEN. Write apps/gateway/.dev.vars.test and restart `pnpm dev:local`.";
+      if (r.status === 422 && /unknown change/.test(msg))
+        hint = "\nThe coordinator learns a change when its agent's session starts (the first Claude Code hook in that checkout). Start the agent there once, then land.";
       throw new QuickstartError(`${method} ${path} -> ${r.status} ${code}: ${msg}${hint}`);
     }
     return json;
@@ -198,7 +200,7 @@ export function nextSteps({ url, repo, agents, systemTokenFile }) {
     "Next steps:",
     ...agents.map((x) => `  cd ${x.dir} && claude          # ${x.agent}; hooks load when the session starts`),
     "  Watch the log:   curl -s -H \"authorization: Bearer $(cat " + systemTokenFile + ")\" " + `${url}/v1/repos/${repo}/events | jq '.events[] | [.seq, .status, .kind, .agent, .summary]'`,
-    `  Agent state:     ${join(a.dir, ".weft/bin/weft")} status    (adapter log: ${join(a.dir, ".weft/log/adapter.log")})`,
+    `  Agent state:     cd ${a.dir} && .weft/bin/weft status    (adapter log: .weft/log/adapter.log)`,
     "  Land a change:   once an agent's commit is merged into your main branch, post a land event so",
     "                   the others get stale_overwrite until they merge it:",
     `    node scripts/local-quickstart.mjs land --url ${url} --repo ${repo} --change <Change-Id> --sha <merged sha>`,

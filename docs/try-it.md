@@ -125,7 +125,7 @@ already open.
 While it runs:
 
 ```sh
-<checkout>/.weft/bin/weft status                    # this agent's session, base and open errors
+cd <checkout> && .weft/bin/weft status              # this agent's session, base and open errors
 tail -f <checkout>/.weft/log/adapter.log            # every check/commit and its verdict
 curl -s -H "authorization: Bearer $(cat apps/gateway/.wrangler/weft-local/<repo>.system-token)" \
   http://localhost:8787/v1/repos/<repo>/events | jq -c '.events[] | [.seq, .status, .kind, .agent, .summary]'
@@ -141,7 +141,9 @@ node scripts/local-quickstart.mjs land --repo <repo> --change <Change-Id> --sha 
 ```
 
 The Change-Id is `change` in that agent's `<checkout>/.weft/claude.json` (it is also the
-`Change-Id:` trailer the adapter adds to the agent's commits). See
+`Change-Id:` trailer the adapter adds to the agent's commits). The coordinator learns a change
+when its agent's first session starts, so landing a change whose agent never ran fails with
+`422 invalid_reference: unknown change`. See
 [integrate.md](integrate.md#land-events) for what a land does.
 
 ### 4d. The same steps by hand
