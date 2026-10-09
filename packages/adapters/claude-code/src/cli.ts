@@ -2,7 +2,9 @@
 //
 //   install        configure a checkout: .weft/claude.json (+ token file), .claude/settings.json
 //                  hooks, git commit-msg (Change-Id/Task-Id/Agent-Id trailers) + pre-commit gate
-//   hook           Claude Code hook entry: JSON on stdin -> JSON on stdout (always exit 0)
+//   hook           Claude Code hook entry: JSON on stdin -> JSON on stdout (always exit 0);
+//                  --by-path: find the checkout from the edited file first (weft-worker subagents)
+//   install-agent  write .claude/agents/weft-worker.md: a subagent whose own hooks run `hook --by-path`
 //   commit-msg F   git commit-msg hook
 //   pre-commit     git pre-commit hook (last gate: refuses while the session has open errors)
 //   heartbeat-loop keep a WCP session alive between hooks (spawned detached by SessionStart)
@@ -79,7 +81,19 @@ export function injectedText(out: unknown): string {
   return [o.reason, o.hookSpecificOutput?.additionalContext, o.hookSpecificOutput?.permissionDecisionReason].filter((x): x is string => typeof x === "string").join("\n");
 }
 
-async function hook(): Promise<void> {
+/**
+ * Where to look for `.weft/claude.json`. By default the session's cwd. With `--by-path` (the
+ * `weft-worker` subagent's hooks) the edited file's directory comes first: a subagent runs in the
+ * parent session's cwd but edits inside its own joined worktree, which must be the agent it acts as.
+ */
+export function configStarts(input: HookInput, byPath: boolean, fallback: string = process.cwd()): string[] {
+  const cwd = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? fallback;
+  const ti = (input.tool_input ?? {}) as { file_path?: unknown; notebook_path?: unknown };
+  const file = typeof ti.file_path === "string" ? ti.file_path : typeof ti.notebook_path === "string" ? ti.notebook_path : undefined;
+  return byPath && file ? [dirname(resolve(cwd, file)), cwd] : [cwd];
+}
+
+async function hook(byPath: boolean): Promise<void> {
   let out: unknown;
   let input: HookInput | undefined;
   let loaded: Loaded | undefined;
@@ -87,7 +101,7 @@ async function hook(): Promise<void> {
   const handleStart = performance.now();
   try {
     input = JSON.parse(await readStdin()) as HookInput;
-    loaded = loadConfig(input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
+    for (const start of configStarts(input, byPath)) if ((loaded = loadConfig(start))) break;
     if (loaded) out = await adapterFor(loaded, calls).handle(input);
   } catch {
     out = undefined; // fail open: malformed input or a bug must not block the harness
@@ -257,6 +271,56 @@ async function install(args: string[]): Promise<void> {
   );
 }
 
+/** `weft-worker` subagent: its frontmatter hooks run only while that subagent runs, and route by edited path. */
+export function workerAgent(command: string, name = "weft-worker"): string {
+  const q = JSON.stringify(command);
+  const edits = "Edit|Write|MultiEdit|NotebookEdit";
+  return `---
+name: ${name}
+description: Implements one task inside its own Weft-joined git worktree. Give it the absolute worktree path and the task; its edits are checked by the Weft coordinator as that worktree's agent.
+hooks:
+  PreToolUse:
+    - matcher: "${edits}"
+      hooks:
+        - type: command
+          command: ${q}
+          timeout: 30
+  PostToolUse:
+    - matcher: "${edits}"
+      hooks:
+        - type: command
+          command: ${q}
+          timeout: 30
+---
+
+You work on one task inside one git worktree that is joined to Weft (it has \`.weft/claude.json\`).
+The task message gives you its absolute path.
+
+- Edit only files under that worktree, always by absolute path. Weft checks each edit as that
+  worktree's agent; edits elsewhere are not coordinated.
+- Run git and build commands with the worktree as the working directory (\`git -C <worktree> …\`,
+  \`cd <worktree> && …\`). Its git \`pre-commit\` hook refuses commits while Weft has open errors.
+- If an edit is denied with \`[weft error]\`, do not retry it. When the cause is another agent's
+  change, stop and report it (the diagnostic names the agent and event) instead of adopting their work.
+- \`<worktree>/.weft/bin/weft inbox\` shows what is waiting for you.
+`;
+}
+
+function installAgent(args: string[]): void {
+  const dir = resolve(arg(args, "dir") ?? process.cwd());
+  const root = git(dir, ["rev-parse", "--show-toplevel"]);
+  const name = arg(args, "name") ?? "weft-worker";
+  const path = join(root, ".claude", "agents", `${name}.md`);
+  mkdirSync(dirname(path), { recursive: true });
+  writeFileSync(path, workerAgent(`${shellQuote(process.execPath)} ${shellQuote(SELF)} hook --by-path`, name));
+  // absolute machine paths: keep it out of git, like settings.local.json
+  const exclude = resolve(root, git(root, ["rev-parse", "--git-path", "info/exclude"]));
+  const rel = `.claude/agents/${name}.md`;
+  const ex = existsSync(exclude) ? readFileSync(exclude, "utf8") : "";
+  if (!ex.split("\n").includes(rel)) writeFileSync(exclude, `${ex}${ex && !ex.endsWith("\n") ? "\n" : ""}${rel}\n`);
+  process.stdout.write(`weft: wrote subagent ${path}\n  run \`weft-adapter-claude install\` in each worktree, then start a ${name} subagent per worktree\n`);
+}
+
 function commitMsg(file: string): void {
   const loaded = loadConfig(process.cwd());
   if (!loaded) return;
@@ -349,9 +413,11 @@ async function main(): Promise<void> {
   const [cmd, ...args] = process.argv.slice(2);
   switch (cmd) {
     case "hook":
-      return hook();
+      return hook(args.includes("--by-path"));
     case "install":
       return install(args);
+    case "install-agent":
+      return installAgent(args);
     case "commit-msg":
       return commitMsg(args[0]);
     case "pre-commit":
@@ -368,7 +434,7 @@ async function main(): Promise<void> {
       process.exitCode = await inboxCmd(args);
       return;
     default:
-      process.stderr.write("usage: weft-adapter-claude install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise] [--shared]\n       weft-adapter-claude hook|commit-msg FILE|pre-commit|status\n       weft-adapter-claude negotiate …|inbox (see negotiate --help)\n");
+      process.stderr.write("usage: weft-adapter-claude install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise] [--shared]\n       weft-adapter-claude hook [--by-path]|install-agent [--dir D] [--name N]|commit-msg FILE|pre-commit|status\n       weft-adapter-claude negotiate …|inbox (see negotiate --help)\n");
       process.exitCode = cmd ? 2 : 0;
   }
 }

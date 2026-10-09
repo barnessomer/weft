@@ -10,7 +10,7 @@ import { analyzeChanges, unifiedDiff, importReads } from "../src/analysis";
 import { ClaudeAdapter, type HookInput } from "../src/hooks";
 import { proposedText, isGitCommit } from "../src/edits";
 import { locateUse, locateDeclaration, quoteDiff } from "../src/render";
-import { mergeSettings } from "../src/cli";
+import { configStarts, mergeSettings, workerAgent } from "../src/cli";
 import type { Loaded } from "../src/config";
 import { CART_V1, PRICING_V1, PRICING_V2, checkout, refTransport, serve } from "./helpers";
 import type { Transport } from "../src/client";
@@ -267,6 +267,51 @@ describe("installer, git hooks and the bundled CLI", () => {
     const msg = execFileSync("git", ["-C", root, "log", "-1", "--format=%B"], { encoding: "utf8" });
     expect(msg).toMatch(new RegExp(`Change-Id: ${cfg.change}\\nTask-Id: T-2\\nAgent-Id: claude-b`));
     await run({ hook_event_name: "SessionEnd", session_id: "c1", cwd: root });
+  }, 30_000);
+
+  it("configStarts: the edited file's checkout first only with --by-path", () => {
+    const input = { hook_event_name: "PreToolUse", session_id: "s", cwd: "/repo", tool_input: { file_path: "/wt/a/src/x.ts" } } as HookInput;
+    expect(configStarts(input, false)).toEqual(["/repo"]);
+    expect(configStarts(input, true)).toEqual(["/wt/a/src", "/repo"]);
+    expect(configStarts({ ...input, tool_input: { file_path: "src/x.ts" } } as HookInput, true)).toEqual(["/repo/src", "/repo"]);
+    expect(configStarts({ ...input, tool_input: { command: "ls" } } as HookInput, true)).toEqual(["/repo"]);
+  });
+
+  it("weft-worker subagent: scoped hooks run `hook --by-path` on edits", () => {
+    const md = workerAgent("'/n' '/b.mjs' hook --by-path");
+    expect(md).toMatch(/^---\nname: weft-worker\n/);
+    expect(md).toContain(`command: "'/n' '/b.mjs' hook --by-path"`);
+    expect(md.match(/matcher: "Edit\|Write\|MultiEdit\|NotebookEdit"/g)).toHaveLength(2);
+  });
+
+  it("hook --by-path from a session outside the worktree acts as the worktree's agent; plain hook stays a no-op (real bundle)", async () => {
+    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const { url, server } = await serve(coord);
+    servers.push(server);
+    const wt = checkout("wt");
+    const parent = checkout("parent"); // the orchestrating session's cwd: not joined
+    execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "worker-1", "--task", "T-9"], { cwd: wt, env: { ...process.env, WEFT_TOKEN: "t" } });
+    const out = execFileSync(process.execPath, [BUNDLE, "install-agent"], { cwd: parent, encoding: "utf8" });
+    expect(out).toContain("weft-worker.md");
+    expect(readFileSync(join(parent, ".claude/agents/weft-worker.md"), "utf8")).toContain("hook --by-path");
+    expect(readFileSync(join(parent, ".git/info/exclude"), "utf8")).toContain(".claude/agents/weft-worker.md");
+
+    const other = coord.hello({ type: "hello", protocol: "wcp/0.1", agent: { id: "claude-a", harness: "claude-code" }, capabilities: { level: 3, observe: "sync", inject: "immediate", deny_edit: true, refuse_stop: true, commit_gate: "tool_interception" }, task: { id: "T-1" } });
+    coord.submit(other.session, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: other.delivered_through, files: ["src/pricing.ts"], reads: [], writes: [{ key: "src/pricing.ts#calcTotal", kind: "signature" }], diff: unifiedDiff("src/pricing.ts", PRICING_V1, PRICING_V2) } });
+
+    const run = (args: string[], input: object) =>
+      new Promise<string>((res, rej) => {
+        const child = execFile(process.execPath, [BUNDLE, ...args], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout)));
+        child.stdin!.end(JSON.stringify(input));
+      });
+    // a subagent: parent's session id and cwd, no SessionStart of its own, editing in the worktree
+    const edit = { hook_event_name: "PreToolUse", session_id: "parent-s", agent_id: "sub-1", cwd: parent, tool_name: "Edit", tool_use_id: "y1", tool_input: { file_path: join(wt, "src/cart.ts"), old_string: "return `${items.length} items`;", new_string: "return `${calcTotal(items)}`;" } };
+    expect(await run(["hook"], edit)).toBe("");
+    const pre = JSON.parse(await run(["hook", "--by-path"], edit));
+    expect(pre.hookSpecificOutput.permissionDecision).toBe("deny");
+    expect(pre.hookSpecificOutput.permissionDecisionReason).toContain("[weft error] stale_assumption src/cart.ts");
+    expect(coord.log.some((r) => r.kind === "join" && r.agent === "worker-1")).toBe(true);
+    expect(existsSync(join(wt, ".weft/log/hooks.jsonl"))).toBe(true);
   }, 30_000);
 });
 
