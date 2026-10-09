@@ -84,3 +84,9 @@ Append-only. One dated entry per heartbeat that changed something.
 
 ## 2026-10-06 — SUBMITTED
 - John submitted the entry. Submission ID 19a22dd7-554f-43be-b80a-d57ad6414c4c; confirmation screenshot saved. R4 complete; PM heartbeat paused.
+
+## 2026-10-09 — Hermes adapter 0.2: every profile, every project
+- John asked for every Hermes edit in every project on the phone Changes feed. Hermes adapter 0.2: projects = git repos directly under ~/github and ~/code (one Weft repo each, named after the dir); `.worktrees/*` and external linked worktrees map to their project; ~/.hermes, deps, caches and build outputs are never reported. One WCP session per (profile, repo), opened lazily by `WeftRouter`.
+- Modes per repo: `weft` stays enforce; everything else advise — no pre-check, commit on a background worker, so an advise repo never blocks or waits. Circuit breaker per gateway URL: a dead/hung gateway costs one 4 s timeout per 5 min (off the tool-call path in advise repos). Turn end (`on_session_end`) flushes deferred submits ≤3 s because one-shot/kanban exits can skip atexit.
+- Tokens: kept protocol §3 (agent tokens are single-repo) instead of widening the registry: one token per (profile, repo), minted by `install.py`; the admin token never enters an agent process. 50 repos (49 new), 8 profiles, 397 new tokens. Projects created later are skipped (one log line) until `install.py --sync`.
+- Live: `hermes -p webmaster -z` edit in a throwaway cto worktree → cto event #2; edit under ~/.hermes → nothing; dead gateway URL → hooks 0.4–1.5 ms per tool call, breaker logged.
