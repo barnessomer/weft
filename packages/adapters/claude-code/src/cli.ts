@@ -18,6 +18,7 @@ import { NEGOTIATE_USAGE, parseNegotiate } from "@weft/protocol";
 import { HttpTransport, type Transport } from "./client";
 import { CONFIG_REL, currentSession, loadConfig, readState, stateDir, type AdapterConfig, type Loaded } from "./config";
 import { ClaudeAdapter, type HookInput } from "./hooks";
+import { stableNodePath } from "./node-path";
 
 const SELF = fileURLToPath(import.meta.url);
 const HOOK_MARK = "weft-claude";
@@ -225,7 +226,7 @@ async function install(args: string[]): Promise<void> {
 
   // Claude Code hooks. Default: .claude/settings.local.json (machine-specific absolute paths,
   // never committed); --shared writes the committed .claude/settings.json instead.
-  const command = `${shellQuote(process.execPath)} ${shellQuote(SELF)} hook`;
+  const command = `${shellQuote(stableNodePath())} ${shellQuote(SELF)} hook`;
   const settingsPath = join(root, ".claude", args.includes("--shared") ? "settings.json" : "settings.local.json");
   mkdirSync(dirname(settingsPath), { recursive: true });
   const settings = existsSync(settingsPath) ? (JSON.parse(readFileSync(settingsPath, "utf8")) as Record<string, unknown>) : {};
@@ -234,7 +235,7 @@ async function install(args: string[]): Promise<void> {
   // git hooks (respect core.hooksPath; per-worktree hooks for linked worktrees)
   const hooksDir = gitHooksDir(root);
   mkdirSync(hooksDir, { recursive: true });
-  for (const [name, body] of [["commit-msg", COMMIT_MSG(process.execPath)], ["pre-commit", PRE_COMMIT(process.execPath)]] as const) {
+  for (const [name, body] of [["commit-msg", COMMIT_MSG(stableNodePath())], ["pre-commit", PRE_COMMIT(stableNodePath())]] as const) {
     const p = join(hooksDir, name);
     if (existsSync(p) && !readFileSync(p, "utf8").includes(HOOK_MARK)) {
       writeFileSync(`${p}.pre-weft`, readFileSync(p));
@@ -246,7 +247,7 @@ async function install(args: string[]): Promise<void> {
   // The agent's own Weft command (negotiate / inbox), run through its shell tool.
   const cliPath = join(root, CLI_REL);
   mkdirSync(dirname(cliPath), { recursive: true });
-  writeFileSync(cliPath, `#!/bin/sh\n# ${HOOK_MARK}: Weft CLI for the agent in this checkout (negotiate, inbox)\nexec ${shellQuote(process.execPath)} ${shellQuote(SELF)} "$@"\n`, { mode: 0o755 });
+  writeFileSync(cliPath, `#!/bin/sh\n# ${HOOK_MARK}: Weft CLI for the agent in this checkout (negotiate, inbox)\nexec ${shellQuote(stableNodePath())} ${shellQuote(SELF)} "$@"\n`, { mode: 0o755 });
   chmodSync(cliPath, 0o755);
   const hasToken = existsSync(resolve(root, config.tokenFile!)) || !!process.env.WEFT_TOKEN;
   process.stdout.write(

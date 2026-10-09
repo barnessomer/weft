@@ -8,8 +8,10 @@ finishing or committing until they are resolved.
 ```sh
 # in the agent's checkout (token: an agent token bound to this agent; add `observe` scope so
 # the adapter can quote the other agent's diff)
-WEFT_TOKEN=... npx weft-adapter-claude install \
-  --url https://weft-gateway-preview.<sub>.workers.dev --repo my-repo \
+# (the package is not on npm: build it with `pnpm --filter @weft/adapter-claude-code build` and
+# use the absolute path of dist/weft-claude.mjs; `scripts/local-quickstart.mjs` does all of this)
+WEFT_TOKEN=... node /abs/path/to/weft/packages/adapters/claude-code/dist/weft-claude.mjs install \
+  --url http://localhost:8787 --repo my-repo \
   --agent claude-b --task T-2 --title "Show the cart total" [--priority 0] [--prefix sub/dir/] [--mode enforce|advise] [--shared]
 ```
 

@@ -14,6 +14,7 @@ import { NEGOTIATE_USAGE, parseNegotiate } from "@weft/protocol";
 import { HttpTransport, type Transport } from "./client";
 import { currentSession, loadConfig, readState, stateDir, withLock, writeState, type AdapterConfig, type Loaded } from "./config";
 import { ClaudeAdapter, type HookInput, type HookOutput } from "./hooks";
+import { stableNodePath } from "./node-path";
 
 // Not imported from ./cli: that module runs Claude's main() when it is the entry bundle,
 // and esbuild would make every translator bundle that entry.
@@ -250,13 +251,13 @@ export class Host {
     const want = [".weft/", ...(spec.excludes ?? [])].filter((l) => !ex.split("\n").includes(l));
     if (want.length) writeFileSync(exclude, `${ex}${ex && !ex.endsWith("\n") ? "\n" : ""}${want.join("\n")}\n`);
 
-    const hookCommand = `${shellQuote(process.execPath)} ${shellQuote(spec.self)} hook`;
+    const hookCommand = `${shellQuote(stableNodePath())} ${shellQuote(spec.self)} hook`;
     const harnessLines = spec.installHarness(root, hookCommand, args);
 
     const mark = `weft-${spec.name}`;
     const hooksDir = gitHooksDir(root);
     mkdirSync(hooksDir, { recursive: true });
-    const node = process.execPath;
+    const node = stableNodePath();
     const bodies: Array<[string, string]> = [
       ["commit-msg", `#!/bin/sh\n# ${mark}: add Change-Id / Task-Id / Agent-Id trailers (installed by ${spec.bin})\nexec ${shellQuote(node)} ${shellQuote(spec.self)} commit-msg "$1"\n`],
       ["pre-commit", `#!/bin/sh\n# ${mark}: last gate — refuse the commit while this checkout's Weft session has open errors\nexec ${shellQuote(node)} ${shellQuote(spec.self)} pre-commit\n`],
