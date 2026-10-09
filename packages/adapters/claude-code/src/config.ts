@@ -41,6 +41,19 @@ export function findRoot(start: string, configRel: string = CONFIG_REL): string 
 }
 
 /**
+ * The directory a Bash command works in, when it says so: `cd <dir>` (first in the command, or
+ * after `&&`, `;`, `|`) or `git -C <dir>`. Relative paths resolve against cwd. Undefined when the
+ * command names no directory, so the caller falls back to cwd.
+ */
+export function bashTargetDir(command: string, cwd: string): string | undefined {
+  const re = /(?:^|[;&|]\s*)cd\s+("([^"]+)"|'([^']+)'|([^\s;&|]+))|\bgit\s+-C\s+("([^"]+)"|'([^']+)'|([^\s;&|]+))/;
+  const m = re.exec(command);
+  if (!m) return undefined;
+  const dir = m[2] ?? m[3] ?? m[4] ?? m[6] ?? m[7] ?? m[8];
+  return dir ? resolve(cwd, dir) : undefined;
+}
+
+/**
  * Where to look for `.weft/claude.json`. By default the session's cwd. With `byPath` (the
  * `weft-worker` subagent's hooks) the edited file's own checkout comes first: a subagent runs in
  * the parent session's cwd but edits inside its own joined worktree, which must be the agent it
@@ -49,11 +62,14 @@ export function findRoot(start: string, configRel: string = CONFIG_REL): string 
  */
 export function configStarts(input: HookInput, byPath: boolean, fallback: string = process.cwd()): string[] {
   const cwd = input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? fallback;
-  const file = byPath ? editPath((input.tool_input ?? {}) as Record<string, unknown>) : undefined;
-  if (!file) return [cwd];
-  // Only the file's own checkout counts: an unjoined worktree nested inside a joined one must
+  if (!byPath) return [cwd];
+  const ti = (input.tool_input ?? {}) as Record<string, unknown>;
+  const file = editPath(ti);
+  const dir0 = file ? dirname(resolve(cwd, file)) : input.tool_name === "Bash" && typeof ti.command === "string" ? bashTargetDir(ti.command, cwd) : undefined;
+  if (!dir0) return [cwd];
+  // Only the target's own checkout counts: an unjoined worktree nested inside a joined one must
   // not resolve to its parent's agent.
-  for (let dir = dirname(resolve(cwd, file)); ; dir = dirname(dir)) {
+  for (let dir = dir0; ; dir = dirname(dir)) {
     if (existsSync(join(dir, ".git"))) return existsSync(join(dir, CONFIG_REL)) ? [dir, cwd] : [cwd];
     if (dirname(dir) === dir) return [cwd];
   }

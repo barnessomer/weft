@@ -46,10 +46,22 @@ function adapterFor(loaded: Loaded, calls?: Call[]): ClaudeAdapter {
     diff: async (rel, before, after) => (await import("./analysis")).unifiedDiff(rel, before, after),
     cli: cliFor(loaded.root),
     startHeartbeat: (claudeSession) => {
+      // Best-effort (sessions re-hello on expiry), but not silent: the outcome goes to the log.
+      const note = (msg: string) => {
+        try {
+          mkdirSync(join(loaded.root, ".weft", "log"), { recursive: true });
+          appendFileSync(join(loaded.root, ".weft", "log", "heartbeat.log"), `${new Date().toISOString()} ${msg}\n`);
+        } catch {
+          /* logging is best-effort */
+        }
+      };
       try {
-        spawn(process.execPath, [SELF, "heartbeat-loop", claudeSession, "--root", loaded.root], { detached: true, stdio: "ignore" }).unref();
-      } catch {
-        /* heartbeat is best-effort; sessions re-hello on expiry */
+        const child = spawn(process.execPath, [SELF, "heartbeat-loop", claudeSession, "--root", loaded.root], { detached: true, stdio: "ignore" });
+        child.on("error", (err) => note(`spawn error for ${claudeSession}: ${err.message}`));
+        child.unref();
+        note(`spawned heartbeat for ${claudeSession} pid ${child.pid}`);
+      } catch (err) {
+        note(`spawn threw for ${claudeSession}: ${String(err)}`);
       }
     },
   });
@@ -262,7 +274,8 @@ async function install(args: string[]): Promise<void> {
 /** `weft-worker` subagent: its frontmatter hooks run only while that subagent runs, and route by edited path. */
 export function workerAgent(command: string, name = "weft-worker"): string {
   const q = JSON.stringify(command);
-  const edits = "Edit|Write|MultiEdit";
+  // Bash too: a shell edit (sed, heredoc, redirect) is reconciled against the worktree after it runs.
+  const edits = "Edit|Write|MultiEdit|Bash";
   return `---
 name: ${name}
 description: Implements one task inside its own Weft-joined git worktree. Give it the absolute worktree path and the task; its edits are checked by the Weft coordinator as that worktree's agent.
@@ -286,8 +299,9 @@ The task message gives you its absolute path.
 
 - Edit only files under that worktree, always by absolute path. Weft checks each edit as that
   worktree's agent; edits elsewhere are not coordinated.
-- Run git and build commands with the worktree as the working directory (\`git -C <worktree> …\`,
-  \`cd <worktree> && …\`). Its git \`pre-commit\` hook refuses commits while Weft has open errors.
+- Start every Bash command with \`cd <worktree> && …\` (or use \`git -C <worktree> …\`). Weft finds
+  the worktree from that; a command without it is attributed to the session's own checkout. Its
+  git \`pre-commit\` hook refuses commits while Weft has open errors.
 - If an edit is denied with \`[weft error]\`, do not retry it. When the cause is another agent's
   change, stop and report it (the diagnostic names the agent and event) instead of adopting their work.
 - \`<worktree>/.weft/bin/weft inbox\` shows what is waiting for you.
@@ -341,9 +355,22 @@ async function heartbeatLoop(claudeSession: string, rootArg?: string): Promise<v
   const adapter = adapterFor(loaded);
   const intervalMs = 30_000;
   const idleLimitMs = 30 * 60_000;
+  const note = (msg: string) => {
+    try {
+      appendFileSync(join(loaded.root, ".weft", "log", "heartbeat.log"), `${new Date().toISOString()} [pid ${process.pid}] ${msg}\n`);
+    } catch {
+      /* logging is best-effort */
+    }
+  };
+  note(`loop start for ${claudeSession}`);
   for (;;) {
     await new Promise((r) => setTimeout(r, intervalMs));
-    if (!(await adapter.beat(claudeSession, idleLimitMs).catch(() => false))) return;
+    const ok = await adapter.beat(claudeSession, idleLimitMs).catch((err) => {
+      note(`beat threw: ${String(err)}`);
+      return false;
+    });
+    note(ok ? "beat ok" : "beat stopped (no session or idle limit)");
+    if (!ok) return;
   }
 }
 

@@ -11,7 +11,7 @@ import { ClaudeAdapter, type HookInput } from "../src/hooks";
 import { proposedText, isGitCommit } from "../src/edits";
 import { locateUse, locateDeclaration, quoteDiff } from "../src/render";
 import { mergeSettings, workerAgent } from "../src/cli";
-import { configStarts, type Loaded } from "../src/config";
+import { bashTargetDir, configStarts, type Loaded } from "../src/config";
 import { CART_V1, PRICING_V1, PRICING_V2, checkout, refTransport, serve } from "./helpers";
 import type { Transport } from "../src/client";
 
@@ -303,13 +303,61 @@ describe("installer, git hooks and the bundled CLI", () => {
     expect(configStarts({ ...at(""), tool_input: { command: "ls" } } as HookInput, true)).toEqual([parent]);
   });
 
+  it("bashTargetDir: cd or git -C names the directory a command works in", () => {
+    expect(bashTargetDir("cd /wt/a && npm test", "/repo")).toBe("/wt/a");
+    expect(bashTargetDir(`cd "/wt/a b" && sed -i s/x/y/ f`, "/repo")).toBe("/wt/a b");
+    expect(bashTargetDir("echo hi; cd ../wt && ls", "/repo/sub")).toBe("/repo/wt");
+    expect(bashTargetDir("git -C /wt/c commit -m x", "/repo")).toBe("/wt/c");
+    expect(bashTargetDir("ls -la", "/repo")).toBeUndefined();
+    expect(bashTargetDir("echo cd /not/this", "/repo")).toBeUndefined();
+  });
+
+  it("configStarts for Bash --by-path: the cd target's checkout, else cwd", () => {
+    const joined = checkout("bjoined");
+    mkdirSync(join(joined, ".weft"));
+    writeFileSync(join(joined, ".weft/claude.json"), "{}");
+    const parent = checkout("bparent");
+    const bash = (command: string) => ({ hook_event_name: "PreToolUse", session_id: "s", cwd: parent, tool_name: "Bash", tool_input: { command } }) as HookInput;
+    expect(configStarts(bash(`cd ${joined} && echo x > src/n.ts`), true)).toEqual([joined, parent]);
+    expect(configStarts(bash("echo x > src/n.ts"), true)).toEqual([parent]);
+    expect(configStarts(bash(`cd ${joined} && echo x`), false)).toEqual([parent]);
+  });
+
+  it("Bash edits by a worker are coordinated: a shell-written function is recorded as the worktree's agent (real bundle)", async () => {
+    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const { url, server } = await serve(coord);
+    servers.push(server);
+    const wt = checkout("bashwt");
+    const parent = checkout("bashparent2");
+    execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "worker-2", "--task", "T-7"], { cwd: wt, env: { ...process.env, WEFT_TOKEN: "t" } });
+    const run = (input: object) =>
+      new Promise<string>((res, rej) => {
+        const child = execFile(process.execPath, [BUNDLE, "hook", "--by-path"], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout)));
+        child.stdin!.end(JSON.stringify(input));
+      });
+    const command = `cd ${wt} && printf 'export function newFn(n: number) { return n; }\\n' > src/new.ts`;
+    const base = { session_id: "parent-s", agent_id: "sub-2", cwd: parent, tool_name: "Bash", tool_input: { command } };
+    await run({ ...base, hook_event_name: "PreToolUse", tool_use_id: "bb1" });
+    execFileSync("sh", ["-c", command]); // what Claude's Bash tool does
+    await run({ ...base, hook_event_name: "PostToolUse", tool_use_id: "bb1", tool_response: {} });
+    const edit = coord.log.find((r) => r.kind === "edit" && r.agent === "worker-2");
+    expect(edit).toBeDefined();
+    expect(edit!.writes).toContainEqual({ key: "src/new.ts#newFn", kind: "new" });
+    expect(edit!.files).toEqual(["src/new.ts"]);
+    // a file that did not change is not re-submitted
+    const before = coord.log.length;
+    await run({ ...base, hook_event_name: "PreToolUse", tool_use_id: "bb2" });
+    await run({ ...base, hook_event_name: "PostToolUse", tool_use_id: "bb2", tool_response: {} });
+    expect(coord.log.length).toBe(before);
+  }, 30_000);
+
   it("weft-worker subagent: scoped hooks run `hook --by-path` on edits; --name is checked", () => {
     const md = workerAgent(`'/a dir/n' '/b "x".mjs' hook --by-path`);
     expect(md).toMatch(/^---\nname: weft-worker\n/);
     // JSON string = a valid YAML double-quoted scalar that round-trips the command
     const cmd = /command: (".*")\n/.exec(md)![1]!;
     expect(JSON.parse(cmd)).toBe(`'/a dir/n' '/b "x".mjs' hook --by-path`);
-    expect(md.match(/matcher: "Edit\|Write\|MultiEdit"\n/g)).toHaveLength(2);
+    expect(md.match(/matcher: "Edit\|Write\|MultiEdit\|Bash"\n/g)).toHaveLength(2);
     const root = checkout("names");
     expect(() => execFileSync(process.execPath, [BUNDLE, "install-agent", "--name", "../x"], { cwd: root, stdio: "pipe" })).toThrow();
     expect(existsSync(join(root, ".claude"))).toBe(false);
