@@ -731,7 +731,7 @@ export class SqlCoordinator {
           file: fileOf(w.key),
           symbol: w.key,
           message: `${w.key} changed on trunk (#${hit.r.seq}, ${hit.r.kind} by ${hit.r.agent ?? hit.r.actor.id}) after your base #${e.base_seq}; this edit would overwrite it.`,
-          suggestion: `Rebase onto trunk at or after #${hit.r.seq}, then redo the edit.`,
+          suggestion: `Stop and report this to the owner of your change; do not rebase onto trunk, redo this edit on top of ${hit.r.agent ?? hit.r.actor.id}'s work, or widen your change to absorb it.`,
           ...cause(hit.r),
         });
       }
@@ -746,7 +746,7 @@ export class SqlCoordinator {
             file: fileOf(key),
             symbol: key,
             message: `You use ${key}, whose ${strong.w.kind === "deleted" ? "declaration was removed" : "signature changed"} in #${strong.r.seq} by ${strong.r.agent ?? strong.r.actor.id} after your base #${e.base_seq}.`,
-            suggestion: `Read the new ${key} (event #${strong.r.seq}) and update this call site, or negotiate with ${strong.r.agent ?? strong.r.actor.id}.`,
+            suggestion: `Stop and report this to the owner of your change; do not adapt this call site to ${strong.r.agent ?? strong.r.actor.id}'s new ${key} (event #${strong.r.seq}) or adopt their partial work.`,
             ...cause(strong.r),
           });
           continue;
@@ -1177,7 +1177,7 @@ export class SqlCoordinator {
                 file: fileOf(w.key),
                 symbol: w.key,
                 message: `${rec.agent ?? rec.actor.id} ${w.kind === "deleted" ? "removed" : "changed the signature of"} ${w.key} (#${rec.seq}), which your change uses.`,
-                suggestion: `Re-read ${w.key} and adapt your call sites before your next edit, or negotiate (e.g. keep the old signature as an overload).`,
+                suggestion: `Stop and report this to the owner of your change instead of adapting your call sites to ${rec.agent ?? rec.actor.id}'s change; do not adopt their partial work.`,
                 caused_by_seq: rec.seq,
                 caused_by_agent: rec.agent ?? rec.actor.id,
                 ...(rec.task ? { caused_by_task: rec.task } : {}),
@@ -1416,7 +1416,7 @@ export class SqlCoordinator {
             code: "stale_overwrite",
             file: fileOf(w.key),
             symbol: w.key,
-            message: `Trunk changed ${w.key} in #${hit.seq} after the landing base #${d.base_seq}; rebase and retry the landing.`,
+            message: `Trunk changed ${w.key} in #${hit.seq} after the landing base #${d.base_seq}; stop and report this to the owner of the change instead of rebasing and retrying the landing.`,
             caused_by_seq: hit.seq,
             caused_by_agent: hit.agent ?? hit.actor.id,
             ...(hit.task ? { caused_by_task: hit.task } : {}),

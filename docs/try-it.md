@@ -89,7 +89,7 @@ Stop the server with Ctrl-C. Local Durable Object state is isolated to your loca
 
    Use a distinct `--agent` and token per worktree. Agents working on different repositories need different `--repo` values: coordination is per repository, so agents in different repos are not checked against each other.
 
-4. Start the agents. An edit that conflicts with another agent's change is denied with a diagnostic.
+4. Start the agents. An edit that conflicts with another agent's change is denied with a diagnostic. When the conflict crosses agents (`stale_overwrite`, `stale_assumption`), the diagnostic tells the agent to stop and report to the owner of its change; it does not tell the agent to rebase or adapt its code to the neighbor's partial work.
 
 5. To make `stale_overwrite` fire, post a `land` event once an agent's work is merged, using the system token:
 

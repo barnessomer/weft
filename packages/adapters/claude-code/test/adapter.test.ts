@@ -308,6 +308,8 @@ export function calcTotal(items: Item[], opts: PriceOptions = { taxRate: 0 }): n
     const deny = (b2.pre as { hookSpecificOutput: { permissionDecisionReason: string } }).hookSpecificOutput.permissionDecisionReason;
     expect(deny).toContain("stale_assumption");
     expect(deny).toContain("Your options: retreat");
+    expect(deny).toContain("Stop and report this to the owner of your change");
+    expect(deny).not.toMatch(/Read the new|update this call site|Rebase onto/);
     expect(deny).toContain('/w/b/.weft/bin/weft negotiate propose overload');
     expect(deny).toContain("negotiate escalate");
 
