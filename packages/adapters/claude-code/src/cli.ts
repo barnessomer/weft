@@ -316,7 +316,10 @@ async function negotiateCmd(args: string[]): Promise<number> {
   return r.code;
 }
 
-export const CLAIM_USAGE = `usage: weft claim --keys path#symbol[,path#symbol…] [--firm] [--ttl MS]
+/** Longest a claim may be held (one hour). A longer hold would block other agents for the rest of a run. */
+export const CLAIM_TTL_MAX_MS = 60 * 60_000;
+
+export const CLAIM_USAGE = `usage: weft claim --keys path#symbol[,path#symbol…] [--firm] [--ttl MS] (1..${CLAIM_TTL_MAX_MS}, default: the deployment claim TTL)
 
 Claim symbols you are about to write. A plain claim is soft: another agent's overlapping edit
 only gets a warning. --firm makes an overlapping edit by a junior change an error (blocked).`;
@@ -330,9 +333,13 @@ export function parseClaim(args: string[]): ClaimCommand {
   const keys = (raw ?? "").split(",").map((k) => k.trim()).filter(Boolean);
   if (!keys.length) throw new Error("claim: which symbols? pass --keys path#symbol[,…]");
   for (const k of keys) parseKey(k);
+  // A present --ttl must carry a value: a bare flag would otherwise fall back to the default
+  // lifetime and report success.
+  const hasTtl = args.includes("--ttl");
   const ttl = arg(args, "ttl");
-  const ttl_ms = ttl === undefined ? undefined : Number(ttl);
-  if (ttl_ms !== undefined && (!Number.isInteger(ttl_ms) || ttl_ms < 1)) throw new Error("claim: --ttl must be a positive integer (milliseconds)");
+  const ttl_ms = hasTtl ? Number(ttl) : undefined;
+  if (hasTtl && (!Number.isInteger(ttl_ms) || ttl_ms! < 1 || ttl_ms! > CLAIM_TTL_MAX_MS))
+    throw new Error(`claim: --ttl must be a whole number of milliseconds from 1 to ${CLAIM_TTL_MAX_MS} (got ${JSON.stringify(ttl ?? "")})`);
   return { keys, firm: args.includes("--firm"), ...(ttl_ms !== undefined ? { ttl_ms } : {}) };
 }
 
@@ -414,7 +421,7 @@ async function main(): Promise<void> {
       process.exitCode = await claimCmd(args);
       return;
     default:
-      process.stderr.write("usage: weft-adapter-claude install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise] [--shared]\n       weft-adapter-claude hook|commit-msg FILE|pre-commit|status\n       weft-adapter-claude negotiate …|inbox|claim --keys K[,K] [--firm] (see negotiate --help, claim --help)\n");
+      process.stderr.write("usage: weft-adapter-claude install --url URL --repo REPO --agent ID --task ID [--title T] [--priority N] [--prefix P] [--mode enforce|advise] [--shared]\n       weft-adapter-claude hook|commit-msg FILE|pre-commit|status\n       weft-adapter-claude negotiate …|inbox|claim --keys K[,K] [--firm] [--ttl MS] (see negotiate --help, claim --help)\n");
       process.exitCode = cmd ? 2 : 0;
   }
 }

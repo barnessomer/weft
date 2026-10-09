@@ -447,5 +447,27 @@ describe("explicit claims from the agent's shell (spec §7.5)", () => {
     expect(parseClaim(["--keys", "src/a.ts#f", "--firm", "--ttl", "60000"])).toEqual({ keys: ["src/a.ts#f"], firm: true, ttl_ms: 60000 });
     expect(() => parseClaim([])).toThrow(/--keys/);
     expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl", "0"])).toThrow(/ttl/);
+    // a bare --ttl must not fall back to the default lifetime and report success
+    expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl"])).toThrow(/ttl/);
+    expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl", "--firm"])).toThrow(/ttl/);
+    // a ceiling: an hour at most
+    expect(parseClaim(["--keys", "src/a.ts#f", "--ttl", "3600000"]).ttl_ms).toBe(3_600_000);
+    expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl", "3600001"])).toThrow(/ttl/);
+    expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl", "1e15"])).toThrow(/ttl/);
+  });
+
+  it("a junior claim over a firm holder is refused with exit code 1", async () => {
+    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const t = refTransport(coord);
+    const rootA = checkout("fsenior");
+    const rootB = checkout("fjunior");
+    const A = adapter(rootA, "claude-a", "T-1", t, 1);
+    const B = adapter(rootB, "claude-b", "T-2", t, 0);
+    await A.handle(hook("sa", rootA, { hook_event_name: "SessionStart" }));
+    await B.handle(hook("sb", rootB, { hook_event_name: "SessionStart" }));
+    expect((await A.claim("sa", parseClaim(["--keys", "src/pricing.ts#calcTotal", "--firm"]))).code).toBe(0);
+    const refused = await B.claim("sb", parseClaim(["--keys", "src/pricing.ts#calcTotal"]));
+    expect(refused.code).toBe(1);
+    expect(refused.text).toContain("claim refused");
   });
 });
