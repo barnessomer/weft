@@ -40,6 +40,9 @@ import type {
 import { WCP_VERSION } from "./types";
 import { validate } from "./validate";
 
+/** Longest a single claim may hold (one hour), enforced by the coordinator, not only the CLI. */
+export const CLAIM_TTL_MAX_MS = 60 * 60_000;
+
 export type CoordinatorOptions = {
   repo: string;
   policy?: ArbitrationPolicy;
@@ -704,7 +707,8 @@ export class ReferenceCoordinator {
       case "edit":
       case "claim": {
         const isClaim = rec.kind === "claim";
-        const ttl = isClaim && typeof p.ttl_ms === "number" ? p.ttl_ms : this.claimTtl;
+        // A claim's own length is capped server-side: an uncapped one would hold a symbol for the run.
+        const ttl = isClaim && typeof p.ttl_ms === "number" ? Math.min(p.ttl_ms, CLAIM_TTL_MAX_MS) : this.claimTtl;
         for (const d of rec.diagnostics) {
           const arb = d.arbitration;
           if (!arb) continue;

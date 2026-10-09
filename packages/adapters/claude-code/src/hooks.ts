@@ -637,6 +637,15 @@ export class ClaudeAdapter {
    * to write (spec §7.5). `firm` makes an overlapping junior edit an error instead of a warning.
    * Opt-in: nothing claims unless the agent runs this. Never throws.
    */
+  /** `path#symbol` as the coordinator keys it for this checkout (same prefix rule as edits). */
+  private claimKey(key: string): string {
+    const hash = key.indexOf("#");
+    const path = (hash < 0 ? key : key.slice(0, hash)).replace(/^\.\//, "");
+    const symbol = hash < 0 ? "" : key.slice(hash);
+    if (path.split("/").includes("..") || isAbsolute(path)) throw new Error(`claim: ${key} is outside this checkout`);
+    return this.prefix + path + symbol;
+  }
+
   async claim(claudeSession: string, cmd: ClaimCommand): Promise<CliResult> {
     try {
       return await withLock(this.root, claudeSession, async () => {
@@ -645,7 +654,8 @@ export class ClaudeAdapter {
           const batch = await this.call(st, (s) => this.deps.transport.drain(s, this.ack(st)));
           const pre = this.delivered(st, await renderForModel([], batch.items, this.ctx()), batch.delivered_through, batch.items);
           const event = this.draft(st, "claim", {
-            writes: cmd.keys.map((key) => ({ key, kind: "body" as const })),
+            // Keys are written the way edits are keyed: this checkout's prefix plus a relative path.
+            writes: cmd.keys.map((key) => ({ key: this.claimKey(key), kind: "body" as const })),
             payload: { firm: cmd.firm, source: "explicit", ...(cmd.ttl_ms ? { ttl_ms: cmd.ttl_ms } : {}) },
             tool: { name: "weft-cli", harness_event: "Bash" },
           });

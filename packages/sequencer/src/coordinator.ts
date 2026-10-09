@@ -11,6 +11,7 @@
 import {
   addresseeOf,
   agreementOf,
+  CLAIM_TTL_MAX_MS,
   negotiationDues,
   renderDue,
   fileOf,
@@ -1001,7 +1002,8 @@ export class SqlCoordinator {
       case "edit":
       case "claim": {
         const isClaim = rec.kind === "claim";
-        const ttl = isClaim && typeof p.ttl_ms === "number" ? p.ttl_ms : this.claimTtl;
+        // A claim's own length is capped server-side (see CLAIM_TTL_MAX_MS in the protocol).
+        const ttl = isClaim && typeof p.ttl_ms === "number" ? Math.min(p.ttl_ms, CLAIM_TTL_MAX_MS) : this.claimTtl;
         for (const d of rec.diagnostics) {
           const arb = d.arbitration;
           if (!arb) continue;
