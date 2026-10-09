@@ -42,7 +42,15 @@ The implementation is evolving; the [design](docs/design.md) distinguishes core,
 
 ## Try it
 
-Follow [docs/try-it.md](docs/try-it.md) to install the toolchain, run the protocol conformance suite locally, and optionally deploy a preview using your own Cloudflare account. The local path needs no Cloudflare account, API token, or provider credential.
+Follow [docs/try-it.md](docs/try-it.md): about five minutes from a fresh clone to two Claude Code worktrees coordinated by a local gateway, with no Cloudflare account, API token, or model key:
+
+```sh
+pnpm install --frozen-lockfile
+cd apps/gateway && echo "WEFT_ADMIN_TOKEN=$(openssl rand -hex 16)" > .dev.vars.test && pnpm dev:local   # terminal 1
+node scripts/local-quickstart.mjs --demo                                                                  # terminal 2, repo root
+```
+
+To wire Weft into an agent setup you already run (any harness), read [docs/integrate.md](docs/integrate.md).
 
 ## Repository map
 
@@ -51,6 +59,7 @@ Follow [docs/try-it.md](docs/try-it.md) to install the toolchain, run the protoc
 - `packages/adapters` — harness-specific hook translators.
 - `apps/gateway`, `apps/workflows`, `apps/sandbox`, `apps/web` — coordination API, durable jobs, isolated execution, and human UI.
 - `demo/` — scenarios, drivers, and recorded evidence.
+- `scripts/local-quickstart.mjs` — local gateway setup: repo, tokens, adapter installs, `--demo`, `land`.
 - `docs/` — design, protocol, runbooks, and [AAIF proposal](docs/proposal-aaif.md).
 
 ## License

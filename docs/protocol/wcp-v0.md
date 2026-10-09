@@ -54,7 +54,7 @@ Roles and token scopes:
 ### 2.1 HTTPS
 
 - All endpoints live under the binding prefix `/v1` on the coordinator origin
-  (Weft: `https://weft-gateway.<account>.workers.dev/v1`).
+  (Weft: `https://weft-gateway.elier.ai/v1`; locally `http://localhost:8787/v1`).
 - Bodies are UTF-8 JSON, `Content-Type: application/json`. Every request and response
   body is one WCP message whose `type` field names it (exception: `EventRecord` and the
   system endpoint, which carry no `type`).

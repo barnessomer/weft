@@ -7,7 +7,7 @@ diagnostics are identical to the Claude Code and Codex adapters'.
 
 ```sh
 WEFT_TOKEN=... node dist/weft-cursor.mjs install \
-  --url https://weft-gateway-preview.<sub>.workers.dev --repo my-repo \
+  --url http://localhost:8787 --repo my-repo \
   --agent cursor-d --task T-5 --title "..." [--priority 0] [--mode enforce|advise]
 cursor-agent -p --trust --force "..."     # project hooks only run in a trusted workspace
 ```

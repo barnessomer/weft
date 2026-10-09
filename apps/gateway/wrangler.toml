@@ -142,6 +142,7 @@ WEFT_EVENTS_QUEUE_ID = "3d609144a2a5458492dc665f49ce88ee"
 # and minus Artifacts (tests inject a fake).
 [env.test]
 name = "weft-gateway-test"
+routes = []   # local-only env (`pnpm dev:local`): never inherit the production custom domain
 
 [[env.test.durable_objects.bindings]]
 name = "WEFT_REPO"

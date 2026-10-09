@@ -9,7 +9,7 @@ to Claude Code's and Codex's.
 
 ```sh
 WEFT_TOKEN=... node dist/weft-opencode.mjs install \
-  --url https://weft-gateway-preview.<sub>.workers.dev --repo my-repo \
+  --url http://localhost:8787 --repo my-repo \
   --agent opencode-c --task T-3 --title "Session refresh" [--priority 0] [--mode enforce|advise]
 ```
 

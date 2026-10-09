@@ -10,6 +10,7 @@ import type { Capabilities } from "@weft/protocol";
 import { Host, readStdin } from "../../claude-code/src/host";
 import { ADAPTER_VERSION } from "../../claude-code/src/hooks";
 import { obj, str } from "../../claude-code/src/tools";
+import { stableNodePath } from "../../claude-code/src/node-path";
 import { pluginSource } from "./plugin";
 import { fromCore, patchFiles, toCore, type OpenCodeAnswer, type OpenCodeMsg } from "./translate";
 
@@ -46,7 +47,7 @@ export const host = new Host({
   installHarness: (root) => {
     const p = join(root, PLUGIN_REL);
     mkdirSync(dirname(p), { recursive: true });
-    writeFileSync(p, pluginSource(process.execPath, SELF, HOOK_MARK));
+    writeFileSync(p, pluginSource(stableNodePath(), SELF, HOOK_MARK));
     return [`plugin: ${p}`];
   },
 });
