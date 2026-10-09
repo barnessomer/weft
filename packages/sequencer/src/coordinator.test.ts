@@ -84,10 +84,10 @@ describe("SqlCoordinator conformance (spec §12)", () => {
   it.each(scenarios)("$name: journal replay reproduces log and state exactly", async ({ data }) => {
     const live = await runSql(data);
     const entries = live.j.journal();
-    const re = replay(nodeSql(), initOf(data), entries);
+    const re = replay(nodeSql(), initOf(data), entries, "advise");
     expect(JSON.stringify(re.coord.dump())).toBe(JSON.stringify(live.j.coord.dump()));
     // And replay of the replay is a fixed point.
-    const again = replay(nodeSql(), initOf(data), entries);
+    const again = replay(nodeSql(), initOf(data), entries, "advise");
     expect(again.results).toEqual(re.results);
   });
 });
@@ -295,7 +295,7 @@ describe("enforcement mode (deployment-wide, SQLite coordinator)", () => {
     const asBlock = replay(nodeSql(), init, entries, "block");
     expect(JSON.stringify(asBlock.coord.dump())).toBe(JSON.stringify(j.coord.dump()));
     // Replayed as advise, the same overlap is accepted: the caller must pass the mode.
-    const asAdvise = replay(nodeSql(), init, entries);
+    const asAdvise = replay(nodeSql(), init, entries, "advise");
     expect(JSON.stringify(asAdvise.coord.dump())).not.toBe(JSON.stringify(j.coord.dump()));
   });
 });

@@ -94,7 +94,7 @@ export function replay(
   sql: Sql,
   init: CoordinatorInit,
   entries: JournalEntry[],
-  enforcement: EnforcementMode = "advise",
+  enforcement: EnforcementMode,
 ): { coord: SqlCoordinator; results: unknown[] } {
   let t = 0;
   SqlCoordinator.init(sql, init);
