@@ -13,17 +13,21 @@ export type ConflictMode = "hold" | "continue";
 
 /** True when this open error was caused by a change of another agent (not the agent's own). */
 export function ownedElsewhere(d: Diagnostic, agent: string): boolean {
-  return d.severity === "error" && d.code !== "agent_paused" && d.caused_by_agent !== agent;
+  return d.severity === "error" && d.code !== "agent_paused" && d.caused_by_agent !== undefined && d.caused_by_agent !== agent;
 }
 
 /** What the owner of the causing change sees: a warning, so it never blocks the owner. */
 export function ownerNotice(d: Diagnostic, editor: string): Diagnostic {
+  // Built field by field: the editor's diagnostic (and its suggestion, which is written for the editor)
+  // is not copied to the owner.
   return {
-    ...d,
     severity: "warning",
-    message:
-      `${editor}'s edit to ${d.symbol} conflicts with your change #${d.caused_by_seq}. ` +
-      `${editor} keeps working on its other tasks and does not adopt your change; ` +
-      `negotiate with ${editor} if the contract needs to change.`,
+    code: d.code,
+    file: d.file,
+    symbol: d.symbol,
+    message: `${editor}'s edit to ${d.symbol} conflicts with your change #${d.caused_by_seq}.`,
+    suggestion: `${editor} keeps working on its other tasks and does not adopt your change. Negotiate with ${editor} if the contract needs to change; otherwise no action is needed.`,
+    caused_by_seq: d.caused_by_seq,
+    caused_by_agent: editor,
   };
 }

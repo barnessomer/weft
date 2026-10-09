@@ -294,7 +294,7 @@ keys appear in E (`writes` for R1/R3, `reads` for R2).
 - **R3 claim overlap** (`edit`, `claim`): for each write key k with active claims, apply
   arbitration (§7). Predicted claims never arbitrate (§7.5).
 - `land` drafts (system) are checked with R1 only, against committed records in W: this
-  is the trunk compare-and-swap. A rejected land (`stale_overwrite`) is reported to the owner of the change, which decides how to rework it; the coordinator does not require, and the diagnostic does not instruct, a rebase onto trunk (see §7).
+  is the trunk compare-and-swap; a rejected land MUST be retried after rebase. Under `conflicts: continue` the owner of the blocking change is also told (§8.4).
 - Other kinds produce no diagnostics.
 
 **Verdict:** `reject` iff at least one diagnostic for E has severity `error`; else
@@ -478,7 +478,7 @@ alternatives of every member too.
 | L0 | observe | report edits after the fact (file watcher, async hook) | nothing — diagnostics reach humans only |
 | L1 | inject | put model-visible text into the run after a tool call | diagnostics reach the model (immediately or at the next safe point) |
 | L2 | block | deny a tool call before it runs, with a model-visible reason | `check` before every edit |
-| L3 | gate | refuse the agent's stop (and/or intercept `git commit`) | open errors keep the agent working |
+| L3 | gate | refuse the agent's stop (and/or intercept `git commit`) | open errors keep the agent working (default `hold`; under `conflicts: continue`, another agent's conflict does not hold the stop, §8.4) |
 
 `hello.capabilities` = `{level, observe: sync|async, inject: immediate|delayed|false,
 deny_edit, refuse_stop, commit_gate: native|tool_interception|false}`. Consistency
@@ -540,7 +540,7 @@ Adapters SHOULD inject it verbatim so squiggles look the same in every harness.
 (`WEFT_CONFLICTS=continue` in the gateway), open errors caused by **another agent's change**
 (`caused_by_agent` differs from the session's agent) do not hold a `gate:"stop"`: the agent may
 stop and finish its other work with them open, and the owner of the causing change receives a
-`warning` diagnostic (never an error, so the owner is not blocked). `gate:"commit"` refuses on
+`warning` diagnostic (never an error, so the owner is not blocked); a rejected landing notifies the owner of the change that blocked it the same way. `gate:"commit"` refuses on
 every open error in both modes, so a conflicting symbol cannot be committed while it is open
 (see `ownership.ts`). Under `continue`, the diagnostics' suggestions say to keep working on
 other tasks instead of rebasing or adapting to the other agent's change. `reason` renders both, and

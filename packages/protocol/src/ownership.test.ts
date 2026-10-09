@@ -2,6 +2,7 @@
 // blocked; the owner of the change is told as a warning and is not blocked.
 import { describe, expect, it } from "vitest";
 import { ReferenceCoordinator } from "./reference";
+import { ownedElsewhere, ownerNotice } from "./ownership";
 
 const caps = { level: 3, observe: "sync", inject: "immediate", deny_edit: true, refuse_stop: true, commit_gate: "tool_interception" } as const;
 const hello = (c: ReferenceCoordinator, agent: string, change: string) =>
@@ -51,5 +52,22 @@ describe("conflicts: continue (opt-in): the hit agent may stop, the owner is tol
     expect(told.find((i) => i.diagnostic?.code === "stale_assumption")?.diagnostic?.message).toContain("conflicts with your change");
     expect(coord.gate(a.session, { type: "gate", gate: "commit" }).allow).toBe(true);
     expect(coord.gate(a.session, { type: "gate", gate: "stop" }).allow).toBe(true);
+  });
+});
+
+describe("ownership rules", () => {
+  const d = { severity: "error", code: "stale_assumption", file: "src/a.ts", symbol: "src/a.ts#f", message: "editor's message", suggestion: "Keep working on your other tasks.", caused_by_seq: 4, caused_by_agent: "claude-a" } as const;
+  it("a conflict with no cause agent is never treated as another agent's", () => {
+    const { caused_by_agent: _ignored, ...noCause } = d;
+    expect(ownedElsewhere(noCause as never, "claude-b")).toBe(false);
+    expect(ownedElsewhere(d as never, "claude-b")).toBe(true);
+    expect(ownedElsewhere(d as never, "claude-a")).toBe(false);
+  });
+  it("the owner's notice carries owner-directed text, not the editor's suggestion", () => {
+    const n = ownerNotice(d as never, "claude-b");
+    expect(n.severity).toBe("warning");
+    expect(n.suggestion).not.toContain("Keep working on your other tasks.");
+    expect(n.suggestion).toContain("does not adopt your change");
+    expect(n.message).toContain("conflicts with your change #4");
   });
 });

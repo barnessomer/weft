@@ -293,7 +293,7 @@ export class ReferenceCoordinator {
     const rec = this.append({ kind: e.kind, actor, session: s, draft: e, diagnostics, status: reject ? "rejected" : "accepted", mode: msg.mode });
     if (reject) {
       for (const d of diagnostics) if (d.severity === "error" && d.code !== "agent_paused") s.open.set(d.symbol, d);
-      if (this.continueMode) for (const d of diagnostics) if (ownedElsewhere(d, s.agent)) this.notifyOwner(d, s);
+      if (this.continueMode) for (const d of diagnostics) if (ownedElsewhere(d, s.agent)) this.notifyOwner(d, s.agent);
     } else {
       this.applyAccepted(rec, s);
     }
@@ -520,7 +520,7 @@ export class ReferenceCoordinator {
             symbol: key,
             message: `You use ${key}, whose ${strong.w.kind === "deleted" ? "declaration was removed" : "signature changed"} in #${strong.r.seq} by ${strong.r.agent ?? strong.r.actor.id} after your base #${e.base_seq}.`,
             suggestion: this.continueMode
-              ? `Keep working on your other tasks. Do not adapt this call site to ${strong.r.agent ?? strong.r.actor.id}'s new ${key} (event #${strong.r.seq}) or adopt their partial work: ${strong.r.agent ?? strong.r.actor.id} owns the conflict and is told about it, and you may finish with this open.`
+              ? `Keep working on your other tasks. Do not adapt this call site to ${strong.r.agent ?? strong.r.actor.id}'s new ${key} (event #${strong.r.seq}) or adopt their partial work: ${strong.r.agent ?? strong.r.actor.id} owns the conflict; you may finish with this open.`
               : `Read the new ${key} (event #${strong.r.seq}) and update this call site, or negotiate with ${strong.r.agent ?? strong.r.actor.id}.`,
             ...cause(strong.r),
           });
@@ -671,10 +671,10 @@ export class ReferenceCoordinator {
   }
 
   /** Tell the owner of the change that caused a conflict (informational; never blocks the owner). */
-  private notifyOwner(d: Diagnostic, editor: Session): void {
+  private notifyOwner(d: Diagnostic, editor: string): void {
     const cause = this.record(d.caused_by_seq);
     if (!cause?.change) return;
-    for (const os of this.sessionsOf({ change: cause.change })) this.push(os, { seq: d.caused_by_seq, kind: "diagnostic", diagnostic: ownerNotice(d, editor.agent) });
+    for (const os of this.sessionsOf({ change: cause.change })) this.push(os, { seq: d.caused_by_seq, kind: "diagnostic", diagnostic: ownerNotice(d, editor) });
   }
 
   private sessionsOf(t: { agent?: string; change?: string }): Session[] {
@@ -1095,6 +1095,8 @@ export class ReferenceCoordinator {
       status,
       ...(change ? { agent: change.agent, change: change.id, ...(change.task ? { task: change.task } : {}) } : {}),
     });
+    // A landing blocked by another agent's change tells that change's owner (continue mode only).
+    if (status === "rejected" && this.continueMode && change) for (const x of diagnostics) if (ownedElsewhere(x, change.agent)) this.notifyOwner(x, change.agent);
     if (status === "accepted") this.applyAccepted(rec);
     return rec;
   }

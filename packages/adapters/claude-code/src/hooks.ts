@@ -330,7 +330,7 @@ export class ClaudeAdapter {
     const lines = [
       `[weft] This checkout is coordinated by Weft (repo ${config.repo}; you are agent ${config.agent}, task ${config.task.id}${config.task.title ? ` "${config.task.title}"` : ""}, change ${config.change}). ` +
         `Other agents edit the same codebase concurrently in their own checkouts. Every edit you make is checked against their work: ` +
-        `lines like "[weft error] <code> <file>:<line>: …" are multi-agent compiler diagnostics. An edit with errors is blocked, and you cannot finish while errors are open — fix the cited code (or retreat from it) instead of retrying the same edit.` +
+        `lines like "[weft error] <code> <file>:<line>: …" are multi-agent compiler diagnostics. An edit with errors is blocked. Fix the errors you caused (the cited code, or retreat from it) instead of retrying the same edit. For an error caused by another agent's change, do not rebase onto it or adapt to its partial work: keep working on your other tasks; whether you may stop with it open depends on the deployment's conflict policy, and the stop gate says so when it applies.` +
         (this.deps.cli
           ? ` When another agent's change is in your way you may also negotiate with it (\`${this.deps.cli} negotiate propose|accept|reject|counter|escalate …\`, see \`${this.deps.cli} negotiate --help\`); proposals addressed to you arrive as "[weft negotiation]" lines and must be answered before you finish. \`${this.deps.cli} inbox\` shows what is waiting for you.`
           : ""),
