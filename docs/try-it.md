@@ -103,8 +103,11 @@ claude -p "In src/cart.ts, also show the cart total computed with calcTotal(item
   --permission-mode acceptEdits
 ```
 
-Claude's first edit is denied with the `stale_assumption` diagnostic and agent-a's diff; it then
-adapts the call (for example `calcTotal(items, { taxRate: 0 })`) and that edit is accepted.
+Claude's first edit is denied with the `stale_assumption` diagnostic and agent-a's diff. Usually
+it adapts the call (for example `calcTotal(items, { taxRate: 0 })`) and that edit is accepted.
+Sometimes it negotiates instead (`.weft/bin/weft negotiate propose overload ...` to agent-a); with
+nobody running as agent-a the proposal is never answered, and the stop gate keeps Claude working
+while the error is open, so give it enough turns (`--max-turns 20`) to fall back to adapting.
 
 ### 4b. Your own repository
 
@@ -189,6 +192,9 @@ Found while walking this guide on a clean Mac without a Cloudflare account.
 - **An accepted adaptation may not compile yet.** After a `stale_assumption`, the agent codes
   against the other agent's new signature, which its checkout does not have until that change is
   merged. Weft accepts the edit (it matches the log); the type checker will not until you merge.
+- **Negotiation needs a live counterpart.** A proposal to an agent that is not running is never
+  answered; the asking agent's open error keeps its stop gate shut until it adapts (or until the
+  runaway guard lets it stop after five refusals).
 - **Fail open.** If the gateway is down or slow (5 s timeout), edits run uncoordinated and the
   agent is told so; nothing is blocked.
 - **Hooks load at session start**, so an install into a running Claude Code session has no effect
