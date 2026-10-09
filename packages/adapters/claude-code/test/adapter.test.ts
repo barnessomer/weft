@@ -240,7 +240,7 @@ describe("installer, git hooks and the bundled CLI", () => {
     const out = execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "claude-b", "--task", "T-2", "--title", "cart total"], { cwd: root, env, encoding: "utf8" });
     expect(out).toContain("installed Claude Code adapter");
     const settings = JSON.parse(readFileSync(join(root, ".claude/settings.local.json"), "utf8"));
-    expect(Object.keys(settings.hooks).sort()).toEqual(["PostToolUse", "PreToolUse", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"]);
+    expect(Object.keys(settings.hooks).sort()).toEqual(["PostToolUse", "PostToolUseFailure", "PreToolUse", "SessionEnd", "SessionStart", "Stop", "UserPromptSubmit"]);
     expect(readFileSync(join(root, ".git/info/exclude"), "utf8")).toContain(".weft/\n.claude/settings.local.json\n");
     const cfg = JSON.parse(readFileSync(join(root, ".weft/claude.json"), "utf8"));
     expect(cfg.change).toMatch(/^I[0-9a-f]{40}$/);
@@ -301,6 +301,43 @@ describe("installer, git hooks and the bundled CLI", () => {
     expect(configStarts(at(join(nested, "src/cart.ts")), true)).toEqual([parent]);
     expect(configStarts(at("/tmp/outside-any-checkout.ts"), true)).toEqual([parent]);
     expect(configStarts({ ...at(""), tool_input: { command: "ls" } } as HookInput, true)).toEqual([parent]);
+  });
+
+  it("Bash fixes: two files in one call are two events; an edit committed in the same call is caught (real bundle)", async () => {
+    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const { url, server } = await serve(coord);
+    servers.push(server);
+    const wt = checkout("bashfix");
+    const parent = checkout("bashfixparent");
+    execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "worker-3", "--task", "T-8"], { cwd: wt, env: { ...process.env, WEFT_TOKEN: "t" } });
+    const run = (input: object) =>
+      new Promise<string>((res, rej) => {
+        const child = execFile(process.execPath, [BUNDLE, "hook", "--by-path"], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout)));
+        child.stdin!.end(JSON.stringify(input));
+      });
+    const base = { session_id: "parent-s", agent_id: "sub-3", cwd: parent, tool_name: "Bash" };
+    // one call writes two files
+    const two = `cd ${wt} && printf 'export function fa(n: number) { return n; }\n' > src/fa.ts && printf 'export function fb(n: number) { return n; }\n' > src/fb.ts`;
+    await run({ ...base, tool_input: { command: two }, hook_event_name: "PreToolUse", tool_use_id: "two1" });
+    execFileSync("sh", ["-c", two]);
+    await run({ ...base, tool_input: { command: two }, hook_event_name: "PostToolUse", tool_use_id: "two1", tool_response: {} });
+    const keys = coord.log.filter((r) => r.kind === "edit" && r.agent === "worker-3").flatMap((r) => r.writes.map((w) => w.key));
+    expect(keys).toEqual(expect.arrayContaining(["src/fa.ts#fa", "src/fb.ts#fb"]));
+    // a file edited and committed inside one call is still coordinated
+    const both = `cd ${wt} && printf 'export function fc(n: number) { return n; }\n' > src/fc.ts && git add src/fc.ts && git -c user.email=t@t -c user.name=t commit -qm fc`;
+    await run({ ...base, tool_input: { command: both }, hook_event_name: "PreToolUse", tool_use_id: "two2" });
+    execFileSync("sh", ["-c", both]);
+    await run({ ...base, tool_input: { command: both }, hook_event_name: "PostToolUse", tool_use_id: "two2", tool_response: {} });
+    expect(coord.log.filter((r) => r.kind === "edit" && r.agent === "worker-3").flatMap((r) => r.writes.map((w) => w.key))).toContain("src/fc.ts#fc");
+  }, 30_000);
+
+  it("bashTargetDir expands ~ and $VAR; an unknown variable is unknown, not cwd", () => {
+    const home = process.env.HOME ?? "";
+    process.env.WEFT_TEST_WT = "/wt/vars";
+    expect(bashTargetDir("cd ~/wt && ls", "/repo")).toBe(join(home, "wt"));
+    expect(bashTargetDir(`cd "$WEFT_TEST_WT" && ls`, "/repo")).toBe("/wt/vars");
+    expect(bashTargetDir(`cd $WEFT_NOT_SET_ANYWHERE && ls`, "/repo")).toBeUndefined();
+    delete process.env.WEFT_TEST_WT;
   });
 
   it("bashTargetDir: cd or git -C names the directory a command works in", () => {

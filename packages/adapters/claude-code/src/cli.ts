@@ -180,6 +180,8 @@ export function mergeSettings(settings: Record<string, unknown>, command: string
     UserPromptSubmit: ours(),
     PreToolUse: ours("Edit|Write|MultiEdit|Bash"),
     PostToolUse: ours("*"),
+    // A failed Bash call can still have written files: reconcile it like a successful one.
+    PostToolUseFailure: ours("Bash"),
     Stop: ours(),
     SessionEnd: ours(),
   };
@@ -288,6 +290,12 @@ hooks:
           timeout: 30
   PostToolUse:
     - matcher: "${edits}"
+      hooks:
+        - type: command
+          command: ${q}
+          timeout: 30
+  PostToolUseFailure:
+    - matcher: "Bash"
       hooks:
         - type: command
           command: ${q}

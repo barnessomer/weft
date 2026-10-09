@@ -22,7 +22,7 @@
 // Fail open: any coordinator/transport failure lets the tool run (logged, and noted to the
 // model) — an unreachable coordinator must never wedge the agent.
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, renameSync } from "node:fs";
+import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync, renameSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { AgentRef, Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, NegotiateCommand, NegotiationDue, Verdict } from "@weft/protocol";
 import { WcpError, PROTOCOL, type Transport } from "./client";
@@ -137,6 +137,11 @@ export class ClaudeAdapter {
 
   private readText(abs: string): string | null {
     try {
+      // Never follow a link: a symlink inside the checkout can point at a file outside it.
+      if (lstatSync(abs).isSymbolicLink()) return null;
+      const real = realpathSync(abs);
+      const root = realpathSync(this.root);
+      if (real !== root && !real.startsWith(root + sep)) return null;
       if (statSync(abs).size > MAX_FILE_BYTES) return null;
       return readFileSync(abs, "utf8");
     } catch {
@@ -312,6 +317,8 @@ export class ClaudeAdapter {
       case "PostToolUse":
         if (EDIT_TOOLS.has(input.tool_name ?? "")) return this.postEdit(input, st);
         return this.postOther(input, st);
+      case "PostToolUseFailure":
+        return input.tool_name === "Bash" ? this.postOther(input, st) : undefined;
       case "Stop":
       case "SubagentStop":
         return this.stop(input, st);
@@ -394,7 +401,7 @@ export class ClaudeAdapter {
     const command = typeof input.tool_input?.command === "string" ? input.tool_input.command : "";
     st.head = this.git(["rev-parse", "HEAD"])?.trim() ?? st.head;
     // What the checkout looked like before this command ran; PostToolUse(Bash) diffs against it.
-    if (input.tool_use_id) st.pending[input.tool_use_id] = { tool: "Bash", before: this.dirtySnapshot(), shown: [], at: this.now() };
+    if (input.tool_use_id) st.pending[input.tool_use_id] = { tool: "Bash", before: this.dirtySnapshot(), shown: [], head: st.head, at: this.now() };
     if (!isGitCommit(command) || !st.wcpSession || !this.enforce) return undefined;
     const result = await this.call(st, (s) => this.deps.transport.gate(s, "commit"));
     if (result.allow) return undefined;
@@ -455,7 +462,9 @@ export class ClaudeAdapter {
       ...(diff ? { diff } : {}),
       tool: { name: tool, call_id: (callId || `anon-${this.now()}`).slice(0, 200), harness_event: "PostToolUse" },
     });
-    const verdict = await this.submit(st, "commit", event, callId || `anon-${this.now()}`);
+    // One Bash call can change several files: each file needs its own key, or the coordinator
+    // answers the second file with the first file's verdict and appends nothing.
+    const verdict = await this.submit(st, "commit", event, callId ? `${callId}:${rel}` : `anon-${this.now()}`);
     st.lastContact = this.now();
     this.log(`commit ${rel} base #${event.base_seq} -> ${verdict.verdict} #${verdict.seq} (${verdict.diagnostics.map((d) => d.code).join(",") || "clean"})`);
     const full = await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx({ rel, before, after }));
@@ -496,12 +505,17 @@ export class ClaudeAdapter {
     const pend = st.pending[callId];
     delete st.pending[callId];
     const before0 = pend?.before ?? {};
-    const rels = new Set([...Object.keys(before0), ...this.dirtyFiles()]);
+    const baseHead = pend?.head;
+    const head = this.git(["rev-parse", "HEAD"])?.trim();
+    // Files the call committed are clean now, so they are found through the commits it made.
+    const committed = baseHead && head && baseHead !== head ? (this.git(["diff", "--name-only", "-z", baseHead, head]) ?? "").split("\0").filter(Boolean) : [];
+    const rels = new Set([...Object.keys(before0), ...this.dirtyFiles(), ...committed]);
     let text = "";
     for (const rel of rels) {
       const t = this.target(rel);
       if (!t) continue;
-      const before: string | null = rel in before0 ? (before0[rel] as string | null) : (this.git(["show", `HEAD:${rel}`]) ?? null);
+      const beforeRef = baseHead ?? "HEAD";
+      const before: string | null = rel in before0 ? (before0[rel] as string | null) : (this.git(["show", `${beforeRef}:${rel}`]) ?? null);
       const after = existsSync(t.abs) ? this.readText(t.abs) : null;
       const res = await this.commitChange(st, rel, before, after, "Bash", callId, []);
       if (res?.text) text += (text ? "\n" : "") + res.text;
@@ -520,7 +534,8 @@ export class ClaudeAdapter {
         const verdict = await this.submit(st, "commit", this.draft(st, "checkpoint", { payload: { sha: head }, tool: { name: "Bash", harness_event: "PostToolUse" } }), `checkpoint-${head}`);
         this.log(`checkpoint ${head.slice(0, 10)} -> #${verdict.seq}`);
         if (st.rebaseFloor && !st.rebaseFloor.sha) st.rebaseFloor = undefined; // assume the new commit is rebased
-        checkpointText = this.delivered(st, await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx()), verdict.delivered_through, verdict.inbox);
+        const cp = this.delivered(st, await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx()), verdict.delivered_through, verdict.inbox);
+        checkpointText = [bashText, cp].filter(Boolean).join("\n");
       } else if (head) st.head = head;
     }
     if (!checkpointText && this.now() - st.lastContact < DRAIN_MIN_INTERVAL_MS) return undefined;

@@ -2,6 +2,7 @@
 // (excluded from git by the installer). Hook processes are short-lived and may run
 // concurrently (parallel tool calls), so state is a JSON file guarded by a lock dir.
 import { existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, readdirSync } from "node:fs";
+import { homedir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { editPath } from "./edits";
 import type { HookInput } from "./hooks";
@@ -49,8 +50,12 @@ export function bashTargetDir(command: string, cwd: string): string | undefined 
   const re = /(?:^|[;&|]\s*)cd\s+("([^"]+)"|'([^']+)'|([^\s;&|]+))|\bgit\s+-C\s+("([^"]+)"|'([^']+)'|([^\s;&|]+))/;
   const m = re.exec(command);
   if (!m) return undefined;
-  const dir = m[2] ?? m[3] ?? m[4] ?? m[6] ?? m[7] ?? m[8];
-  return dir ? resolve(cwd, dir) : undefined;
+  const raw = m[2] ?? m[3] ?? m[4] ?? m[6] ?? m[7] ?? m[8];
+  if (!raw) return undefined;
+  // A leading ~ and $VAR / ${VAR} come from the environment; an unknown variable means unknown, not cwd.
+  const dir = raw.replace(/^~(?=\/|$)/, homedir()).replace(/\$\{?(\w+)\}?/g, (_, v: string) => process.env[v] ?? "\u0000");
+  if (dir.includes("\u0000")) return undefined;
+  return resolve(cwd, dir);
 }
 
 /**
@@ -104,6 +109,8 @@ export type PendingEdit = {
   before: Record<string, string | null>;
   /** Context already shown to the model by PreToolUse for this call (avoid repeats). */
   shown: string[];
+  /** HEAD before the call ran: a file the call both edited and committed is compared with it. */
+  head?: string;
   at: number;
 };
 
