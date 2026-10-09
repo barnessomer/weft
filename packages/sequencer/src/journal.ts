@@ -86,12 +86,19 @@ export class JournaledCoordinator {
 
 /**
  * Replay a journal into an empty database. Returns the rebuilt coordinator and the
- * result (or protocol error) of every entry.
+ * result (or protocol error) of every entry. `enforcement` must be the mode the journal was
+ * written under: the journal does not record it, and a block-mode verdict replays differently
+ * in advise mode.
  */
-export function replay(sql: Sql, init: CoordinatorInit, entries: JournalEntry[]): { coord: SqlCoordinator; results: unknown[] } {
+export function replay(
+  sql: Sql,
+  init: CoordinatorInit,
+  entries: JournalEntry[],
+  enforcement: EnforcementMode = "advise",
+): { coord: SqlCoordinator; results: unknown[] } {
   let t = 0;
   SqlCoordinator.init(sql, init);
-  const coord = new SqlCoordinator(sql, () => t);
+  const coord = new SqlCoordinator(sql, () => t, enforcement);
   const results: unknown[] = [];
   for (const e of entries) {
     t = e.at;

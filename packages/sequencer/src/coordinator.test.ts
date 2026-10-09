@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import {
   ReferenceCoordinator,
   runScenario,
@@ -12,6 +12,7 @@ import {
   type Scenario,
 } from "@weft/protocol";
 import { SqlCoordinator } from "./coordinator";
+import { enforcementFrom } from "./enforcement";
 import { JournaledCoordinator, replay } from "./journal";
 import { nodeSql } from "./node-sqlite";
 
@@ -276,5 +277,40 @@ describe("enforcement mode (deployment-wide, SQLite coordinator)", () => {
     const r = overlap("block");
     expect(r.verdict).toBe("reject");
     expect(r.diagnostics).toMatchObject([{ code: "claim_wait", severity: "error" }]);
+  });
+  it("replay reproduces a block-mode verdict only when told the journal's mode", () => {
+    // Rebuild the same scenario, keeping its journal, then replay it under each mode.
+    const clock = scenarioClock("2026-10-05T14:00:00.000Z");
+    const sql = nodeSql();
+    SqlCoordinator.init(sql, { repo: "demo" });
+    const j = new JournaledCoordinator(sql, clock.now, "block");
+    const a = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "claude-a", harness: "claude-code" }, capabilities: caps, task: { id: "T-1" }, change: "I-a" });
+    const b = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "codex-b", harness: "codex" }, capabilities: caps, task: { id: "T-2" }, change: "I-b" });
+    const edit = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key, kind: "body" }] } };
+    j.call("submit", a.session, edit);
+    const live = j.call<{ verdict: string }>("submit", b.session, edit);
+    expect(live.verdict).toBe("reject");
+    const entries = j.journal();
+    const init = { repo: "demo" };
+    const asBlock = replay(nodeSql(), init, entries, "block");
+    expect(JSON.stringify(asBlock.coord.dump())).toBe(JSON.stringify(j.coord.dump()));
+    // Replayed as advise, the same overlap is accepted: the caller must pass the mode.
+    const asAdvise = replay(nodeSql(), init, entries);
+    expect(JSON.stringify(asAdvise.coord.dump())).not.toBe(JSON.stringify(j.coord.dump()));
+  });
+});
+
+describe("WEFT_ENFORCEMENT parsing (deployment value)", () => {
+  it("block in any case and padding enables blocking; unset and advise mean advise", () => {
+    expect(enforcementFrom("block")).toBe("block");
+    expect(enforcementFrom("  BLOCK ")).toBe("block");
+    expect(enforcementFrom(undefined)).toBe("advise");
+    expect(enforcementFrom("advise")).toBe("advise");
+  });
+  it("a near-miss value falls back to advise and warns", () => {
+    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
+    expect(enforcementFrom("blok")).toBe("advise");
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining("WEFT_ENFORCEMENT"));
+    warn.mockRestore();
   });
 });
