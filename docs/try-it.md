@@ -51,7 +51,7 @@ From a second terminal, `curl -s http://localhost:8787/v1/health` should print
 
 - **Port 8787 already in use?** Wrangler stops with
   `bind(): Address already in use (os error 48)`. Use another port and pass the same URL to every
-  command below: `pnpm dev:local --port 8788`, then `--url http://localhost:8788`.
+  command below: `pnpm dev:local --port 8797`, then `--url http://localhost:8797`.
   (`lsof -iTCP:8787 -sTCP:LISTEN` shows what holds 8787.)
 - Wrangler warns that `env.test` does not inherit `vars`, `workflows`, `queues` and `artifacts`.
   That is intended: the local gateway runs without them (see Known limitations).
@@ -66,7 +66,7 @@ From a second terminal, `curl -s http://localhost:8787/v1/health` should print
 From the repository root, in the second terminal:
 
 ```sh
-node scripts/local-quickstart.mjs --demo        # add --url http://localhost:8788 if you changed the port
+node scripts/local-quickstart.mjs --demo        # add --url http://localhost:8797 if you changed the port
 ```
 
 It creates a tiny TypeScript repo (`shop`, in a temp dir; `--dir DIR` to choose) with two git

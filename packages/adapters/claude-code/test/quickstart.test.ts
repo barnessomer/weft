@@ -92,8 +92,8 @@ describe("parseArgs", () => {
     expect(o.dirs).toEqual([resolve("a"), resolve("b")]);
   });
   it("takes --url (trailing slash trimmed), --repo, --agents, --demo, --dir", () => {
-    const o = Q.parseArgs(["--url", "http://localhost:8788/", "--repo", "r", "--agents", "x, y", "p", "q"]);
-    expect(o).toMatchObject({ url: "http://localhost:8788", repo: "r", agents: ["x", "y"] });
+    const o = Q.parseArgs(["--url", "http://localhost:8797/", "--repo", "r", "--agents", "x, y", "p", "q"]);
+    expect(o).toMatchObject({ url: "http://localhost:8797", repo: "r", agents: ["x", "y"] });
     expect(Q.parseArgs(["--demo", "--dir", "/tmp/d"])).toMatchObject({ demo: true, dir: "/tmp/d" });
   });
   it("explains bad input", () => {
@@ -126,11 +126,11 @@ describe("adminToken", () => {
 describe("gateway errors say what to do", () => {
   it("nothing listening -> start dev:local (and how to pick another port)", async () => {
     const api = Q.client("http://127.0.0.1:9", () => Promise.reject(Object.assign(new TypeError("fetch failed"), { cause: { code: "ECONNREFUSED" } })));
-    await expect(api.health()).rejects.toThrow(/ECONNREFUSED[\s\S]*pnpm dev:local[\s\S]*--port 8788/);
+    await expect(api.health()).rejects.toThrow(/ECONNREFUSED[\s\S]*pnpm dev:local[\s\S]*--port 8797/);
   });
   it("another program on the port -> run the gateway on a free port and pass --url", async () => {
     const api = Q.client("http://localhost:8787", async () => new Response("<html>hi</html>", { status: 404 }));
-    await expect(api.health()).rejects.toThrow(/not a Weft gateway[\s\S]*dev:local --port 8788[\s\S]*--url http:\/\/localhost:8788/);
+    await expect(api.health()).rejects.toThrow(/not a Weft gateway[\s\S]*dev:local --port 8797[\s\S]*--url http:\/\/localhost:8797/);
   });
   it("admin 401 / admin disabled -> restart dev:local after writing .dev.vars.test", async () => {
     const reply = (status: number, message: string) => async () =>

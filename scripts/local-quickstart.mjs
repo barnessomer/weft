@@ -22,7 +22,7 @@ export const BUNDLE = join(WEFT_ROOT, "packages/adapters/claude-code/dist/weft-c
 const DEV_VARS = join(WEFT_ROOT, "apps/gateway/.dev.vars.test");
 const START_HINT =
   "Start the local gateway first, in another terminal:\n" +
-  "  cd apps/gateway && pnpm dev:local            # add `--port 8788` (and pass --url here) if 8787 is taken";
+  "  cd apps/gateway && pnpm dev:local            # add `--port 8797` (and pass --url here) if 8787 is taken";
 
 export class QuickstartError extends Error {}
 
@@ -115,7 +115,7 @@ export function client(url, fetchImpl = fetch) {
       if (!r.ok || j?.service !== "weft-gateway")
         throw new QuickstartError(
           `${url} answers, but it is not a Weft gateway (HTTP ${r.status}). Another program probably owns that port.\n` +
-            `Run the gateway on a free port and point this script at it:\n  cd apps/gateway && pnpm dev:local --port 8788\n  node scripts/local-quickstart.mjs --url http://localhost:8788 ...`,
+            `Run the gateway on a free port and point this script at it:\n  cd apps/gateway && pnpm dev:local --port 8797\n  node scripts/local-quickstart.mjs --url http://localhost:8797 ...`,
         );
       return j;
     },
