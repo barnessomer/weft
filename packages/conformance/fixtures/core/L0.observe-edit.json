@@ -1,0 +1,33 @@
+{
+  "id": "L0.observe-edit",
+  "level": 0,
+  "required": true,
+  "spec": "\u00a74.2, \u00a74.3",
+  "title": "an applied edit is observed and recorded (tool.pre does not block a harmless edit)",
+  "steps": [
+    {
+      "event": "session.start"
+    },
+    {
+      "tool": {
+        "kind": "edit",
+        "path": "src/cart.ts",
+        "old_text": "  return `${items.length} items`;",
+        "new_text": "  return `${items.length} item(s)`;"
+      },
+      "expect_pre": {
+        "decision": "not-deny"
+      },
+      "expect_applied": true
+    },
+    {
+      "expect_log": {
+        "agent": "$SELF",
+        "kind": "edit",
+        "status": "accepted",
+        "files_include": "src/cart.ts",
+        "min": 1
+      }
+    }
+  ]
+}

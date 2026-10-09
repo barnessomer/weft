@@ -1,0 +1,50 @@
+{
+  "id": "L1.inject-after-tool",
+  "level": 1,
+  "required": true,
+  "spec": "\u00a75.2 advise",
+  "title": "a peer's signature change to a symbol this agent uses reaches the model as advise context at the next tool call",
+  "steps": [
+    {
+      "event": "session.start"
+    },
+    {
+      "tool": {
+        "kind": "edit",
+        "path": "src/cart.ts",
+        "old_text": "  return `${items.length} items`;",
+        "new_text": "  return `${items.length} items, total ${calcTotal(items)}`;"
+      },
+      "expect_pre": {
+        "decision": "not-deny"
+      },
+      "expect_applied": true
+    },
+    {
+      "expect_log": {
+        "agent": "$SELF",
+        "kind": "edit",
+        "status": "accepted",
+        "reads_include": "src/pricing.ts#calcTotal",
+        "min": 1
+      }
+    },
+    {
+      "peer": "change_signature"
+    },
+    {
+      "tool": {
+        "kind": "write",
+        "path": "src/notes.ts",
+        "content": "export const note = \"conformance\";\n"
+      },
+      "expect_any": {
+        "decision": "advise",
+        "explanation": [
+          "contract_changed|signature",
+          "calcTotal"
+        ]
+      }
+    }
+  ]
+}

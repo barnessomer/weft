@@ -1,0 +1,47 @@
+{
+  "id": "L2.allow-after-adapting",
+  "level": 2,
+  "required": true,
+  "spec": "\u00a75.2",
+  "title": "after a deny, the adapted edit is allowed and recorded",
+  "steps": [
+    {
+      "event": "session.start"
+    },
+    {
+      "peer": "change_signature"
+    },
+    {
+      "tool": {
+        "kind": "edit",
+        "path": "src/cart.ts",
+        "old_text": "  return `${items.length} items`;",
+        "new_text": "  return `${items.length} items, total ${calcTotal(items)}`;"
+      },
+      "expect_pre": {
+        "decision": "deny"
+      }
+    },
+    {
+      "tool": {
+        "kind": "edit",
+        "path": "src/cart.ts",
+        "old_text": "  return `${items.length} items`;",
+        "new_text": "  return `${items.length} items, total ${calcTotal(items, { taxRate: 0 })}`;"
+      },
+      "expect_pre": {
+        "decision": "not-deny"
+      },
+      "expect_applied": true
+    },
+    {
+      "expect_log": {
+        "agent": "$SELF",
+        "kind": "edit",
+        "status": "accepted",
+        "files_include": "src/cart.ts",
+        "min": 1
+      }
+    }
+  ]
+}

@@ -1,0 +1,39 @@
+{
+  "id": "F.coordinator-unreachable",
+  "level": null,
+  "required": false,
+  "failure": true,
+  "spec": "\u00a77",
+  "title": "plugin backend unreachable: every hook still answers in time with valid output (observed failure policy)",
+  "steps": [
+    {
+      "oracle": "down"
+    },
+    {
+      "event": "session.start",
+      "expect": {
+        "decision": "any"
+      }
+    },
+    {
+      "tool": {
+        "kind": "edit",
+        "path": "src/cart.ts",
+        "old_text": "  return `${items.length} items`;",
+        "new_text": "  return `${items.length} item(s)`;"
+      },
+      "expect_pre": {
+        "decision": "any"
+      },
+      "expect_post": {
+        "decision": "any"
+      }
+    },
+    {
+      "event": "agent.stop",
+      "expect": {
+        "decision": "any"
+      }
+    }
+  ]
+}

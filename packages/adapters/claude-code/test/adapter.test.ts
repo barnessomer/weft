@@ -7,7 +7,7 @@ import { existsSync, readFileSync, writeFileSync } from "node:fs";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeChanges, unifiedDiff, importReads } from "../src/analysis";
-import { ClaudeAdapter, type HookInput } from "../src/hooks";
+import { ADVISORY_CAPABILITIES, CAPABILITIES, ClaudeAdapter, type HookInput } from "../src/hooks";
 import { proposedText, isGitCommit } from "../src/edits";
 import { locateUse, locateDeclaration, quoteDiff } from "../src/render";
 import { mergeSettings } from "../src/cli";
@@ -188,6 +188,25 @@ describe("Claude Code hooks against the reference coordinator", () => {
     expect(pre.hookSpecificOutput.permissionDecision).toBeUndefined();
     expect(pre.hookSpecificOutput.additionalContext).toContain("coordinator unavailable");
     expect(await A.handle(hook("s", root, { hook_event_name: "Stop" }))).toBeUndefined();
+  });
+
+  it("declares L1, not L3, in hello when configured advisory (Agent Hooks Core §3.3)", async () => {
+    const seen: Record<string, unknown> = {};
+    for (const mode of ["enforce", "advise"] as const) {
+      const root = checkout(`caps-${mode}`);
+      const rec: Transport = new Proxy({} as Transport, {
+        get: (_t, k) => (msg: any) => {
+          if (k === "hello") seen[mode] = msg.capabilities;
+          return Promise.reject(new Error("ECONNREFUSED"));
+        },
+      });
+      const a = adapter(root, "claude-a", "T-1", rec);
+      (a as any).loaded.config.mode = mode;
+      await a.handle(hook("s", root, { tool_name: "Write", tool_input: { file_path: join(root, "src/x.ts"), content: "export const x = 1;\n" }, tool_use_id: "t1" }));
+    }
+    expect(seen.enforce).toEqual(CAPABILITIES);
+    expect(seen.advise).toEqual(ADVISORY_CAPABILITIES);
+    expect(ADVISORY_CAPABILITIES).toMatchObject({ level: 1, deny_edit: false, refuse_stop: false, commit_gate: false });
   });
 
   it("ignores files outside the checkout and inside .weft/.claude/node_modules", async () => {

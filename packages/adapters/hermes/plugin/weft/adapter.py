@@ -86,6 +86,26 @@ CAPABILITIES = {
     "refuse_stop": True,
     "commit_gate": "tool_interception",
 }
+# Advise repos never block (denials become advise text, gates stay open): they deliver L1 and
+# MUST NOT declare L2/L3 (Agent Hooks Core §3.3). Deferred advise (async_advise) also never
+# makes the agent wait and its verdicts reach the model with a later tool result.
+ADVISORY_CAPABILITIES = {
+    "level": 1,
+    "observe": "sync",
+    "inject": "immediate",
+    "deny_edit": False,
+    "refuse_stop": False,
+    "commit_gate": False,
+}
+
+
+def capabilities_for(mode: str, async_advise: bool) -> dict:
+    if mode == "enforce":
+        return dict(CAPABILITIES)
+    caps = dict(ADVISORY_CAPABILITIES)
+    if async_advise:
+        caps.update(observe="async", inject="delayed")
+    return caps
 
 DEFAULT_ROOTS: List[dict] = []          # explicit {path, prefix, repo} overrides (legacy: weft only)
 DEFAULT_PROJECT_DIRS = ["~/github", "~/code"]
@@ -699,7 +719,8 @@ class WeftAdapter:
                      "adapter": f"@weft/adapter-hermes@{ADAPTER_VERSION}"}
             if os.environ.get("HERMES_MODEL"):
                 agent["model"] = os.environ["HERMES_MODEL"]
-            welcome = self.client.hello(agent, CAPABILITIES, task=self.task, change=self.change)
+            welcome = self.client.hello(agent, capabilities_for(self.cfg.mode, self.cfg.async_advise),
+                                        task=self.task, change=self.change)
             self.session = welcome["session"]
             self.welcome = welcome
             # A fresh session's events cannot claim to account for more than it was delivered.

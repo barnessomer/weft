@@ -1,0 +1,53 @@
+{
+  "id": "L3.refuse-stop-while-open",
+  "level": 3,
+  "required": true,
+  "spec": "\u00a75.4 gates",
+  "title": "agent.stop is refused (deny + explanation) while an error is open, and allowed once it is resolved",
+  "steps": [
+    {
+      "event": "session.start"
+    },
+    {
+      "peer": "change_signature"
+    },
+    {
+      "tool": {
+        "kind": "edit",
+        "path": "src/cart.ts",
+        "old_text": "  return `${items.length} items`;",
+        "new_text": "  return `${items.length} items, total ${calcTotal(items)}`;"
+      },
+      "expect_pre": {
+        "decision": "deny"
+      }
+    },
+    {
+      "event": "agent.stop",
+      "expect": {
+        "decision": "deny",
+        "explanation": [
+          "calcTotal|stale_assumption|open"
+        ]
+      }
+    },
+    {
+      "tool": {
+        "kind": "edit",
+        "path": "src/cart.ts",
+        "old_text": "  return `${items.length} items`;",
+        "new_text": "  return `${items.length} items, total ${calcTotal(items, { taxRate: 0 })}`;"
+      },
+      "expect_pre": {
+        "decision": "not-deny"
+      },
+      "expect_applied": true
+    },
+    {
+      "event": "agent.stop",
+      "expect": {
+        "decision": "not-deny"
+      }
+    }
+  ]
+}

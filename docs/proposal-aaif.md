@@ -1,12 +1,14 @@
 # Proposal: standardizing coding-agent hooks through WCP
 
-**To:** Agentic AI Foundation (AAIF), Agent Plugins working group
+**To:** Agentic AI Foundation (AAIF): a working-group discussion (Workflows & Process Integration, with Security & Privacy), and, in parallel, the Agent Plugins maintainers. Agent Plugins is an independently governed specification, not an AAIF project, and AAIF has no Agent Plugins working group.
+
+**Now concrete:** the minimal layer proposed here is drafted as [Agent Hooks Core v0.1](protocol/hooks-core-v0.md), with a standalone [conformance suite](../packages/conformance/README.md) and [reports](standardization/reports/README.md); summary in the [one-pager](standardization/one-pager.md).
 
 **Status:** Discussion proposal. Weft Coordination Protocol (WCP) v0.1 is an implementation draft, not a ratified or published standard.
 
 ## Summary
 
-AAIF's Agent Plugins 1.0 establishes a portable plugin package model, but intentionally leaves the semantics of agent hooks unstandardized. This proposal recommends an AAIF work item for a small, runtime-neutral protocol for coding-agent lifecycle and tool hooks. Weft Coordination Protocol (WCP) is offered as an implementation-informed starting point—not a request to adopt Weft's server, data model, or product.
+Agent Plugins 1.0 (announced on the AAIF blog, August 2026) establishes a portable plugin package model, but intentionally leaves the semantics of agent hooks unstandardized. This proposal recommends an AAIF work item for a small, runtime-neutral protocol for coding-agent lifecycle and tool hooks. Weft Coordination Protocol (WCP) is offered as an implementation-informed starting point—not a request to adopt Weft's server, data model, or product.
 
 A common hook protocol would let a plugin declare which lifecycle events it observes, what context it can inject, whether it can block a tool call or stop, and how it reports diagnostics. Host-specific plugins could then translate their native APIs to common semantics, making coordination, policy, and audit plugins more portable across agent runtimes.
 
@@ -57,6 +59,7 @@ The desired outcome is a small, vendor-neutral interoperability layer that makes
 ## References
 
 - [Agentic AI Foundation](https://aaif.io/)
-- [Agent Plugins](https://github.com/agentplugins/agent-plugins)
+- [Agent Plugins 1.0](https://agent-plugins.org/specification) and [the announcement](https://aaif.io/blog/from-skills-and-tools-to-portable-agent-plugins)
+- [Agent Hooks Core v0.1](protocol/hooks-core-v0.md)
 - [Weft Coordination Protocol v0.1](protocol/wcp-v0.md)
 - [Weft design](design.md)

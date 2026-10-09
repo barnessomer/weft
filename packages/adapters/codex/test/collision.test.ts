@@ -3,7 +3,7 @@ import { ReferenceCoordinator, parseNegotiate } from "@weft/protocol";
 import { readFileSync, writeFileSync } from "node:fs";
 import { join, resolve } from "node:path";
 import { analyzeChanges, unifiedDiff } from "../src/analysis";
-import { CodexAdapter, type HookInput } from "../src/hooks";
+import { ADVISORY_CAPABILITIES, CAPABILITIES, CodexAdapter, type HookInput } from "../src/hooks";
 import { applyChunks, parsePatch, patchPaths, proposedFiles, shellPatch } from "../src/edits";
 import type { Loaded } from "../src/config";
 import type { Transport } from "../src/client";
@@ -193,5 +193,25 @@ describe("Codex negotiation from the shell (spec §7.4, §8.4)", () => {
     expect(inbox.text).toContain(`/w/a/.weft/bin/weft negotiate accept ${p.seq}`);
     expect((await A.negotiate("sa", parseNegotiate(["accept", String(p.seq)]))).code).toBe(0);
     expect(coord.log.at(-1)).toMatchObject({ kind: "negotiate.accept", agent: "codex-a", payload: { reply_to: p.seq } });
+  });
+});
+
+describe("capability declaration", () => {
+  it("declares L1, not L2, in hello when configured advisory (Agent Hooks Core §3.3)", async () => {
+    const seen: Record<string, unknown> = {};
+    for (const mode of ["enforce", "advise"] as const) {
+      const root = checkout(`caps-${mode}`);
+      const rec: Transport = new Proxy({} as Transport, {
+        get: (_t, k) => (msg: any) => {
+          if (k === "hello") seen[mode] = msg.capabilities;
+          return Promise.reject(new Error("ECONNREFUSED"));
+        },
+      });
+      const a = adapter(root, "codex-a", "T-1", rec);
+      (a as any).loaded.config.mode = mode;
+      await a.handle(hook("s", root, { tool_name: "apply_patch", tool_input: { command: "*** Begin Patch\n*** Add File: src/x.ts\n+export const x = 1;\n*** End Patch" }, tool_use_id: "t1" }));
+    }
+    expect(seen.enforce).toEqual(CAPABILITIES);
+    expect(seen.advise).toEqual(ADVISORY_CAPABILITIES);
   });
 });

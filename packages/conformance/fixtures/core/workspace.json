@@ -1,0 +1,32 @@
+{
+  "description": "Files committed in the throwaway git workspace every fixture starts from, and the peer agent's change the oracle applies on `peer` steps. The peer is another agent on the same repository; its change goes straight to the oracle coordinator (it is not a hook under test).",
+  "files": {
+    "src/pricing.ts": "export type Item = { price: number; qty: number };\n\nexport function calcTotal(items: Item[]): number {\n  return items.reduce((sum, i) => sum + i.price * i.qty, 0);\n}\n",
+    "src/cart.ts": "import { calcTotal, type Item } from \"./pricing\";\n\nexport function cartSummary(items: Item[]): string {\n  return `${items.length} items`;\n}\n"
+  },
+  "peers": {
+    "change_signature": {
+      "agent": "peer-a",
+      "harness": "claude-code",
+      "task": "T-1",
+      "files": [
+        "src/pricing.ts"
+      ],
+      "writes": [
+        {
+          "key": "src/pricing.ts#calcTotal",
+          "kind": "signature"
+        },
+        {
+          "key": "src/pricing.ts#PriceOptions",
+          "kind": "new"
+        }
+      ],
+      "reads": [],
+      "intent": "calcTotal takes a tax option",
+      "after": {
+        "src/pricing.ts": "export type Item = { price: number; qty: number };\nexport type PriceOptions = { taxRate: number };\n\nexport function calcTotal(items: Item[], opts: PriceOptions): number {\n  const net = items.reduce((sum, i) => sum + i.price * i.qty, 0);\n  return net * (1 + opts.taxRate);\n}\n"
+      }
+    }
+  }
+}
