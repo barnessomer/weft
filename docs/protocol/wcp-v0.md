@@ -294,7 +294,7 @@ keys appear in E (`writes` for R1/R3, `reads` for R2).
 - **R3 claim overlap** (`edit`, `claim`): for each write key k with active claims, apply
   arbitration (§7). Predicted claims never arbitrate (§7.5).
 - `land` drafts (system) are checked with R1 only, against committed records in W: this
-  is the trunk compare-and-swap; a rejected land MUST be retried after rebase.
+  is the trunk compare-and-swap. A rejected land (`stale_overwrite`) is reported to the owner of the change, which decides how to rework it; the coordinator does not require, and the diagnostic does not instruct, a rebase onto trunk (see §7).
 - Other kinds produce no diagnostics.
 
 **Verdict:** `reject` iff at least one diagnostic for E has severity `error`; else
