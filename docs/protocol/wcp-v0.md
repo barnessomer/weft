@@ -433,6 +433,13 @@ two tasks — §7.6).
 
 - Sources: `edit` (implicit, soft), `explicit` (`claim` with `source:"explicit"`, may be
   `firm`), `predicted` (planner, never firm).
+- Firmness: a claim is soft unless its payload sets `firm:true`. When a junior change writes a
+  key a senior change holds, the junior gets `claim_wait` as a **warning** for a soft claim
+  and as an **error** (the edit is blocked) for a firm one; the holder only gets info either
+  way. Only an explicit `claim` event can be firm; implicit edit claims are always soft, so
+  default behavior never blocks on claims alone. (Conformance: `arbitration-wound-wait`.)
+  The Claude Code adapter exposes this as an opt-in shell command:
+  `.weft/bin/weft claim --keys path#symbol[,…] [--firm] [--ttl MS]`.
 - TTL: `claim.ttl_ms` or `welcome.claim_ttl_ms` (default 30 min). Any accepted event or
   heartbeat from the change extends its non-predicted claims to `now + claim_ttl_ms`.
 - Expiry: the coordinator MUST release expired claims by appending a `release` record

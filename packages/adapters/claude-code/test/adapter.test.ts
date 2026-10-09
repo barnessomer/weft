@@ -10,7 +10,7 @@ import { analyzeChanges, unifiedDiff, importReads } from "../src/analysis";
 import { ADVISORY_CAPABILITIES, CAPABILITIES, ClaudeAdapter, type HookInput } from "../src/hooks";
 import { proposedText, isGitCommit } from "../src/edits";
 import { locateUse, locateDeclaration, quoteDiff } from "../src/render";
-import { mergeSettings } from "../src/cli";
+import { mergeSettings, parseClaim } from "../src/cli";
 import type { Loaded } from "../src/config";
 import { CART_V1, PRICING_V1, PRICING_V2, checkout, refTransport, serve } from "./helpers";
 import type { Transport } from "../src/client";
@@ -407,5 +407,45 @@ export function calcTotal(items: Item[], opts: PriceOptions = { taxRate: 0 }): n
     });
     expect(() => parseNegotiate(["propose", "bribe", "x"])).toThrow(/terms kind/);
     expect(() => parseNegotiate(["accept", "x"])).toThrow(/event number/);
+  });
+});
+
+describe("explicit claims from the agent's shell (spec §7.5)", () => {
+  async function race(firm: boolean) {
+    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const t = refTransport(coord);
+    const rootA = checkout(firm ? "fa" : "sa");
+    const rootB = checkout(firm ? "fb" : "sb");
+    const A = adapter(rootA, "claude-a", "T-1", t, 1);
+    const B = adapter(rootB, "claude-b", "T-2", t, 0);
+    await A.handle(hook("sa", rootA, { hook_event_name: "SessionStart" }));
+    await B.handle(hook("sb", rootB, { hook_event_name: "SessionStart" }));
+    const claimed = await A.claim("sa", parseClaim(["--keys", "src/pricing.ts#calcTotal", ...(firm ? ["--firm"] : [])]));
+    expect(claimed.code).toBe(0);
+    expect(claimed.text).toContain("claimed");
+    const rec = coord.log.find((r) => r.kind === "claim")!;
+    expect(rec).toBeDefined();
+    writeFileSync(join(rootB, "src/pricing.ts"), PRICING_V1);
+    const b = await edit(B, "sb", rootB, "b1", "src/pricing.ts", PRICING_V1, PRICING_V2);
+    return { b, text: JSON.stringify(b.pre) + JSON.stringify(b.post) };
+  }
+
+  it("a firm claim blocks a junior agent's overlapping edit", async () => {
+    const { b, text } = await race(true);
+    expect(b.applied).toBe(false);
+    expect(text).toContain("firmly claimed");
+  });
+
+  it("a non-firm claim only warns; the overlapping edit goes through", async () => {
+    const { b, text } = await race(false);
+    expect(b.applied).toBe(true);
+    expect(text).toContain("being edited");
+  });
+
+  it("parseClaim validates keys and ttl; firm is opt-in", () => {
+    expect(parseClaim(["--keys", "src/a.ts#f,src/b.ts#g"])).toEqual({ keys: ["src/a.ts#f", "src/b.ts#g"], firm: false });
+    expect(parseClaim(["--keys", "src/a.ts#f", "--firm", "--ttl", "60000"])).toEqual({ keys: ["src/a.ts#f"], firm: true, ttl_ms: 60000 });
+    expect(() => parseClaim([])).toThrow(/--keys/);
+    expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl", "0"])).toThrow(/ttl/);
   });
 });

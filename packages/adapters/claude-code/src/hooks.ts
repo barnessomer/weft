@@ -95,6 +95,8 @@ export type AdapterDeps = {
 };
 
 export type CliResult = { text: string; code: number };
+/** `weft claim --keys k1,k2 [--firm] [--ttl MS]` (see claim()). */
+export type ClaimCommand = { keys: string[]; firm: boolean; ttl_ms?: number };
 
 type Target = { abs: string; rel: string };
 
@@ -628,6 +630,41 @@ export class ClaudeAdapter {
     if (out.code !== 0 || !wait || sent === null) return out;
     const reply = await this.waitFor(claudeSession, wait, (i) => i.kind === "negotiation" && Number(i.record?.payload?.reply_to) === sent);
     return { text: `${out.text}\n${reply.text}`, code: reply.code };
+  }
+
+  /**
+   * `weft claim …` run by the model through its shell: an explicit claim on symbols it intends
+   * to write (spec §7.5). `firm` makes an overlapping junior edit an error instead of a warning.
+   * Opt-in: nothing claims unless the agent runs this. Never throws.
+   */
+  async claim(claudeSession: string, cmd: ClaimCommand): Promise<CliResult> {
+    try {
+      return await withLock(this.root, claudeSession, async () => {
+        const st = readState(this.root, claudeSession);
+        try {
+          const batch = await this.call(st, (s) => this.deps.transport.drain(s, this.ack(st)));
+          const pre = this.delivered(st, await renderForModel([], batch.items, this.ctx()), batch.delivered_through, batch.items);
+          const event = this.draft(st, "claim", {
+            writes: cmd.keys.map((key) => ({ key, kind: "body" as const })),
+            payload: { firm: cmd.firm, source: "explicit", ...(cmd.ttl_ms ? { ttl_ms: cmd.ttl_ms } : {}) },
+            tool: { name: "weft-cli", harness_event: "Bash" },
+          });
+          const verdict = await this.submit(st, "commit", event, `claim-${this.now()}`);
+          this.log(`claim ${cmd.keys.join(",")}${cmd.firm ? " (firm)" : ""} -> #${verdict.seq} ${verdict.verdict}`);
+          const after = this.delivered(st, await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx()), verdict.delivered_through, verdict.inbox);
+          const head = `[weft] ${verdict.verdict === "reject" ? "claim refused" : "claimed"} #${verdict.seq}${cmd.firm ? " (firm)" : ""}: ${verdict.summary ?? cmd.keys.join(", ")}`;
+          return { text: [pre, head, after].filter(Boolean).join("\n"), code: verdict.verdict === "reject" ? 1 : 0 };
+        } catch (err) {
+          if (err instanceof WcpError) return { text: `weft: ${err.code}: ${err.message}`, code: 1 };
+          throw err;
+        } finally {
+          writeState(this.root, st);
+        }
+      });
+    } catch (err) {
+      this.log(`claim failed: ${err instanceof Error ? err.stack ?? err.message : String(err)}`);
+      return { text: `weft: coordinator unavailable (${err instanceof Error ? err.message : String(err)})`, code: 1 };
+    }
   }
 
   /** Poll the inbox (lock released between polls) until `match` or the deadline. */
