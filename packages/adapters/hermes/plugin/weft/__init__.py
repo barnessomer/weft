@@ -35,8 +35,18 @@ def _pre_verify(**kwargs: Any) -> Optional[dict]:
     return adapter.pre_verify(**kwargs) if adapter else None
 
 
+def _flush(**_: Any) -> None:
+    """End of a turn / session: give deferred (advise) submissions a bounded chance to land.
+    One-shot and kanban runs may leave via ``os._exit``, which skips atexit."""
+    adapter = get_adapter()
+    if adapter:
+        adapter.flush(3.0)
+
+
 def register(ctx: Any) -> None:
     ctx.register_hook("pre_tool_call", _pre_tool_call)
     ctx.register_hook("post_tool_call", _post_tool_call)
     ctx.register_hook("transform_tool_result", _transform_tool_result)
     ctx.register_hook("pre_verify", _pre_verify)
+    ctx.register_hook("on_session_end", _flush)
+    ctx.register_hook("on_session_finalize", _flush)

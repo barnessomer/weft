@@ -2,7 +2,8 @@
 
 WCP v0.1 adapter for [Hermes Agent](https://hermes-agent.nousresearch.com/docs): a Python plugin
 that puts Hermes' tool calls on the Weft log and Weft's diagnostics back into the agent's run.
-It is how Weft's own build (Hermes kanban workers on the `weft` board) is coordinated by Weft.
+It is how Weft's own build (Hermes kanban workers on the `weft` board) is coordinated by Weft, and
+how every edit by every Hermes profile in every one of John's projects reaches the Weft change log.
 
 Declared capability: **L3** (`observe: sync`, `inject: immediate`, `deny_edit`, `refuse_stop`,
 `commit_gate: tool_interception`).
@@ -24,7 +25,7 @@ was actually passed to the model (block message or tool-result injection), and t
 up to the ids injected. A `trunk` item with `requires_rebase` caps the base below the landing until
 the worktree gets a new commit.
 
-Identity: agent `hermes-<profile>` (one repo-scoped token per profile), change
+Identity: agent `hermes-<profile>` (one repo-scoped token per profile and repo), change
 `hermes-<profile>/<kanban task id>` (`adhoc-<session>` outside kanban), task title/priority read
 from the kanban DB (`HERMES_KANBAN_DB`) and used as `intent` / `summary_hint`.
 
@@ -32,52 +33,76 @@ Keys: `.ts/.tsx/.js…` files go through `@weft/analyzer` (bundled to `analyze.m
 persistent `node … --serve` child per Hermes process) plus cross-file reads from relative imports
 (`src/analyze-cli.ts#importReads`). Other files get a whole-file key `path#*`.
 
-### Scope guard
+### Projects and scope
 
-The `default`, `backend` and `arq` profiles also work on other boards, so every hook is a no-op
-unless the target path (or the terminal's `workdir`, else `HERMES_KANBAN_WORKSPACE`) is inside a
-configured root. Defaults:
+Every Hermes profile reports edits in **every project**, one Weft repo per project:
 
-| root | key prefix |
-|---|---|
-| `~/github/weft` (incl. `.worktrees/*`; paths are worktree-relative, so all worktrees share keys) | — |
-| `~/code/hermes-ios/.worktrees/weft-feed` | `ios/` |
+- a project is a git repo directly under `~/github` or `~/code`; its Weft repo is the directory
+  name (sanitized to `[A-Za-z0-9._-]`, e.g. `~/github/cto` → `cto`);
+- its `.worktrees/*` (kanban worktrees) and any linked `git worktree` elsewhere whose common git
+  dir is the project resolve to the same repo, with worktree-relative paths (all worktrees share keys);
+- explicit `roots` (`{path, prefix, repo}`) override discovery;
+- never reported: anything under `~/.hermes` (kanban scratch workspaces, skills, config),
+  `.git`, `node_modules`, caches and build outputs (`dist`, `build`, `.next`, `target`,
+  `DerivedData`, `.venv`, …), and paths outside a project.
 
-`node_modules`, `.git`, `.wrangler`, `.turbo` are ignored. No session is opened until the first
-in-scope tool call; completion gates only apply to processes that have one.
+`WeftRouter` keeps one `WeftAdapter` (= one WCP session) per repo, created on the first in-scope
+tool call. A project that has no token for the profile (no Weft repo yet) is a no-op with one log
+line per process; `install.py --sync` adds it.
+
+### Modes
+
+Per repo: `modes` in the config (`{"weft": "enforce"}`), everything else `default_mode`
+(`advise`). `WEFT_HERMES_MODE` forces one mode for all repos.
+
+- **enforce**: the full L2/L3 behaviour above (pre-check can block an edit, gates refuse `git
+  commit` / completion while errors are open).
+- **advise**: never blocks and never waits on the gateway. No pre-check; the commit (analysis +
+  submit) runs on a per-repo background worker, and its verdict/diagnostics are injected into a
+  later tool result. On process exit the worker gets at most 5 s to flush.
 
 ### Failure behaviour
 
 Fail open: transport errors, timeouts (4 s HTTP, 6 s analyzer) and bugs let the tool run; they are
 logged to `~/.cache/weft-hermes/<profile>.log`. (Hermes fails a *timed-out* `pre_tool_call` closed,
-which is why everything is bounded well under `plugins.hook_callback_timeout`.) Expired sessions are
-re-opened transparently (`410` → new `hello`); a daemon thread heartbeats while the session lives.
+which is why everything is bounded well under `plugins.hook_callback_timeout`.) A **circuit
+breaker** per gateway URL (shared by all repo sessions in the process) opens on a transport error
+or 5xx: for `breaker_cooldown_s` (default 300) every call fails instantly, then one trial call is
+let through. A dead or hung gateway therefore costs at most one timeout per 5 minutes, and in
+advise repos not even that lands on the tool-call path. Expired sessions are re-opened
+transparently (`410` → new `hello`); a daemon thread heartbeats while a session lives.
 
-Escape hatches: `WEFT_HERMES_MODE=advise` (or `"mode": "advise"` in the config) never blocks — it
-only injects. A completion refused for the same open errors twice is treated as a deliberate retreat
-on the third attempt: the adapter submits a `release` for those keys (visible in the feed) and lets
-it through, so a worker can never be wedged by an error it chose not to fix.
+A completion refused for the same open errors twice is treated as a deliberate retreat on the
+third attempt: the adapter submits a `release` for those keys (visible in the feed) and lets it
+through, so a worker can never be wedged by an error it chose not to fix.
 
-## Install / remove
+## Install / sync / remove
 
 ```sh
-python3 packages/adapters/hermes/scripts/install.py              # default, backend, arq
+python3 packages/adapters/hermes/scripts/install.py              # all profiles, all projects
+python3 packages/adapters/hermes/scripts/install.py --sync       # new projects/profiles: repos + tokens only
 python3 packages/adapters/hermes/scripts/install.py --status
 python3 packages/adapters/hermes/scripts/install.py --uninstall  # reverses everything below
 ```
 
-Install (idempotent): builds `dist/analyze.mjs`; registers repo `weft` on the gateway
-(`POST /v1/admin/repos`, admin token from `~/.config/weft/preview-admin-token`); issues one agent
-token per profile (`POST /v1/admin/tokens`, agent `hermes-<profile>`); writes
-`~/.config/weft/hermes-adapter.json` (mode 600: url, repo, roots, mode, per-profile token + id);
-copies `plugin/weft/*` + `analyze.mjs` to `<profile home>/plugins/weft/` with an `INSTALLED.json`
-manifest; runs `hermes [-p <profile>] plugins enable weft --no-allow-tool-override` (adds `weft` to
-`plugins.enabled` in the profile's `config.yaml`).
+Install (idempotent): builds `dist/analyze.mjs`; **sync** — discovers projects, creates each
+missing Weft repo (`POST /v1/admin/repos`, admin token from `~/.config/weft/preview-admin-token`)
+and issues one agent token per (profile, repo) (`POST /v1/admin/tokens`, agent
+`hermes-<profile>`; agent tokens are single-repo by protocol §3); writes
+`~/.config/weft/hermes-adapter.json` (mode 600: url, projects map, modes, per-profile tokens);
+backs up every profile's `config.yaml` to `~/.hermes/cache/backups/weft-plugins-<date>/`; copies
+`plugin/weft/*` + `analyze.mjs` to `<profile home>/plugins/weft/` with an `INSTALLED.json`
+manifest; runs `hermes [-p <profile>] plugins enable weft --no-allow-tool-override`.
+
+The admin token never enters an agent process: the plugin only reads its own tokens. A project
+created after install is skipped until someone runs `install.py --sync` (John, or the PM); the
+plugin re-reads the config in every new Hermes process, so no restart is needed for kanban
+workers or CLI sessions. Long-running gateway processes load the plugin and config once at start.
 
 Uninstall: `hermes plugins disable weft` per profile, deletes `<profile home>/plugins/weft/`,
-revokes the profile's token (`DELETE /v1/admin/tokens/<id>`), removes it from the config file
-(and the file when empty). Manual equivalent: `hermes [-p P] plugins disable weft && rm -rf
-<home>/plugins/weft`, then `rm ~/.config/weft/hermes-adapter.json`.
+revokes the profile's tokens (`DELETE /v1/admin/tokens/<id>`), removes it from the config file
+(and the file when empty). Weft repos are kept. Manual equivalent: `hermes [-p P] plugins disable
+weft && rm -rf <home>/plugins/weft`, then `rm ~/.config/weft/hermes-adapter.json`.
 
 Overrides: `WEFT_HERMES_CONFIG`, `WEFT_HERMES_URL`, `WEFT_HERMES_TOKEN`, `WEFT_HERMES_MODE`,
 `WEFT_HERMES_CACHE`.
@@ -85,7 +110,7 @@ Overrides: `WEFT_HERMES_CONFIG`, `WEFT_HERMES_URL`, `WEFT_HERMES_TOKEN`, `WEFT_H
 ## Tests
 
 ```sh
-pnpm --filter @weft/adapter-hermes test        # bundle + vitest (analyzer bridge) + python unittest (hooks, fake WCP)
+pnpm --filter @weft/adapter-hermes test        # bundle + vitest (analyzer bridge) + python unittest (hooks, project resolution, modes, breaker; fake WCP)
 python3 packages/adapters/hermes/scripts/verify_live.py   # two adapters vs the deployed gateway (throwaway smoke-hermes-* repo)
 ```
 

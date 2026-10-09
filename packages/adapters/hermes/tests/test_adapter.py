@@ -219,6 +219,20 @@ class EditTests(AdapterTestCase):
 
     def test_advise_mode_never_blocks(self):
         self.cfg.mode = "advise"
+        self.client.script["commit"] = [{"verdict": "reject", "diagnostics": [], "inbox": [], "context": "[weft error] x"}]
+        path = self.repo / "docs" / "notes.md"
+        block, first = self.run_edit("write_file", {"path": str(path), "content": "z\n"},
+                                     apply=lambda: path.write_text("z\n"))
+        self.assertIsNone(block)
+        self.assertEqual(self.client.submits("check"), [], "advise repos skip the pre-check round trip")
+        self.assertTrue(self.adapter.flush(5))
+        self.assertEqual(len(self.client.submits("commit")), 1, "the commit still reaches the log")
+        later = self.adapter.transform_tool_result(tool_name="read_file", result='{"ok": true}')
+        out = first or later  # this result, or the next one if the worker finished afterwards
+        self.assertIn("[weft error] x", json.loads(out)["weft_diagnostics"])
+
+    def test_advise_sync_mode_still_prechecks(self):
+        self.cfg.mode, self.cfg.async_advise = "advise", False
         self.client.script["check"] = [{"verdict": "reject", "diagnostics": [], "inbox": [], "context": "[weft error] x"}]
         path = self.repo / "docs" / "notes.md"
         block, out = self.run_edit("write_file", {"path": str(path), "content": "z\n"},
@@ -348,7 +362,9 @@ class ConfigTests(unittest.TestCase):
                                      "agents": {"backend": {"agent": "hermes-backend", "token": "tok"}}}))
             cfg = Config.load(p, profile="backend")
             self.assertEqual((cfg.agent, cfg.token, cfg.repo), ("hermes-backend", "tok", "weft"))
-            self.assertEqual(len(cfg.roots), 2)
+            self.assertEqual(cfg.roots, [], "projects are discovered; no explicit roots by default")
+            self.assertEqual(cfg.tokens, {"weft": "tok"})
+            self.assertEqual(cfg.mode, "advise", "no mode configured -> advise")
             self.assertIsNone(Config.load(p, profile="money"), "profiles without an agent are disabled")
             self.assertIsNone(Config.load(Path(d) / "missing.json", profile="backend"))
 

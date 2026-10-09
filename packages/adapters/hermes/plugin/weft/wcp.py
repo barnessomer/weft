@@ -8,9 +8,11 @@ Every call has a short timeout because Hermes bounds ``pre_tool_call`` hooks and
 from __future__ import annotations
 
 import json
+import threading
+import time
 import urllib.error
 import urllib.request
-from typing import Any, Dict, Optional
+from typing import Any, Callable, Dict, Optional
 
 PROTOCOL = "wcp/0.1"
 WCP_VERSION = "0.1"
@@ -27,19 +29,87 @@ class WcpError(Exception):
         self.details = details or {}
 
 
+class CircuitBreaker:
+    """Fail fast while the gateway is unreachable: a dead or slow gateway costs at most one
+    timeout per ``cooldown`` seconds (shared by every repo session of the process).
+
+    Closed -> a transport failure / 5xx opens it for ``cooldown`` s; every call in that window
+    raises ``WcpError("circuit_open")`` without touching the network. After the window ONE
+    trial call goes through (the window is re-armed first, so concurrent callers keep failing
+    fast); success closes the breaker, failure keeps it open for another window.
+    """
+
+    def __init__(self, cooldown: float = 300.0, clock: Callable[[], float] = time.monotonic):
+        self.cooldown = cooldown
+        self.clock = clock
+        self.open_until = 0.0
+        self.failures = 0
+        self.lock = threading.Lock()
+
+    @property
+    def is_open(self) -> bool:
+        return self.open_until > self.clock()
+
+    def before(self) -> None:
+        with self.lock:
+            if not self.failures:
+                return
+            now = self.clock()
+            if now < self.open_until:
+                raise WcpError("circuit_open", f"gateway unreachable; retrying in {int(self.open_until - now)}s")
+            self.open_until = now + self.cooldown  # half-open: this caller is the trial
+
+    def success(self) -> None:
+        with self.lock:
+            self.failures, self.open_until = 0, 0.0
+
+    def failure(self) -> None:
+        with self.lock:
+            self.failures += 1
+            self.open_until = self.clock() + self.cooldown
+
+
+_BREAKERS: Dict[str, CircuitBreaker] = {}
+_BREAKERS_LOCK = threading.Lock()
+
+
+def breaker_for(base_url: str, cooldown: float = 300.0) -> CircuitBreaker:
+    with _BREAKERS_LOCK:
+        b = _BREAKERS.get(base_url)
+        if b is None:
+            b = _BREAKERS[base_url] = CircuitBreaker(cooldown)
+        return b
+
+
 class WcpClient:
-    def __init__(self, base_url: str, token: str, repo: str, timeout: float = 4.0):
+    def __init__(self, base_url: str, token: str, repo: str, timeout: float = 4.0,
+                 breaker: Optional[CircuitBreaker] = None, breaker_cooldown: float = 300.0):
         self.base = base_url.rstrip("/")
         if not self.base.endswith("/v1"):
             self.base += "/v1"
         self.token = token
         self.repo = repo
         self.timeout = timeout
+        self.breaker = breaker or breaker_for(self.base, breaker_cooldown)
 
     # -- transport -------------------------------------------------------------------------
 
     def _request(self, method: str, path: str, body: Any = None,
                  headers: Optional[Dict[str, str]] = None) -> Any:
+        self.breaker.before()
+        try:
+            out = self._send(method, path, body, headers)
+        except WcpError as err:
+            if err.code == "transport" or err.status >= 500:
+                self.breaker.failure()
+            else:
+                self.breaker.success()  # the gateway answered: it is up
+            raise
+        self.breaker.success()
+        return out
+
+    def _send(self, method: str, path: str, body: Any = None,
+              headers: Optional[Dict[str, str]] = None) -> Any:
         data = None if body is None else json.dumps(body).encode("utf-8")
         req = urllib.request.Request(self.base + path, data=data, method=method)
         req.add_header("Authorization", f"Bearer {self.token}")

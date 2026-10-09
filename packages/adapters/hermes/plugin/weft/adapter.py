@@ -15,13 +15,23 @@ Hermes hook                            WCP
 ``pre_verify``                          ``gate stop`` -> ``{"action":"continue"}`` (L3)
 =====================================  ===========================================================
 
-SCOPE GUARD. The same Hermes profiles work on many boards, so every hook is a no-op unless the
-tool's target path (or the terminal's working directory) is inside one of the configured roots
-(by default ``~/github/weft`` incl. ``.worktrees/*`` and ``~/code/hermes-ios/.worktrees/weft-feed``).
-No WCP session is opened, and nothing is sent, until the first in-scope tool call.
+PROJECTS (0.2). Every git repo directly under ``~/github`` and ``~/code`` is a project and its own
+Weft repo (named after the dir). Its ``.worktrees/*`` and any linked git worktree elsewhere whose
+common git dir is the project map to the same repo. Explicit ``roots`` ({path, prefix, repo})
+override discovery. ``~/.hermes``, dependencies, caches and build outputs are never reported.
+One ``WeftAdapter`` (= one WCP session) per repo, created by ``WeftRouter`` on the first
+in-scope tool call. A project with no token for this profile (no Weft repo yet) is a no-op with
+one log line; ``scripts/install.py --sync`` creates repos + tokens for new projects.
+
+MODES. Per repo (``modes`` in the config, default ``advise``). ``enforce``: pre-checks can block
+edits and gates can refuse ``git commit`` / completion. ``advise``: never blocks and never waits:
+no pre-check, and the commit (analysis + submit) runs on a background worker; its verdict reaches
+the model with a later tool result.
 
 FAIL OPEN. Hermes fails a ``pre_tool_call`` *closed* when it times out, so every network call is
-short and every error lets the tool run (and is logged to ``~/.cache/weft-hermes/<profile>.log``).
+short, every error lets the tool run (and is logged to ``~/.cache/weft-hermes/<profile>.log``),
+and a circuit breaker (wcp.py) makes a dead or hung gateway cost at most one timeout per
+``breaker_cooldown_s`` (default 300 s) for the whole process.
 """
 
 from __future__ import annotations
@@ -31,13 +41,14 @@ import difflib
 import hashlib
 import json
 import os
+import queue
 import re
 import select
 import sqlite3
 import subprocess
 import threading
 import time
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from pathlib import Path
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
@@ -46,11 +57,17 @@ try:  # package import inside Hermes; flat import in tests
 except ImportError:  # pragma: no cover
     from wcp import WcpClient, WcpError  # type: ignore
 
-ADAPTER_VERSION = "0.1.0"
+ADAPTER_VERSION = "0.2.0"
 EDIT_TOOLS = {"write_file", "patch"}
 TERMINAL_TOOLS = {"terminal"}
 COMPLETION_TOOLS = {"kanban_complete", "kanban_request_review"}
-SKIP_PARTS = {".git", "node_modules", ".wrangler", ".turbo", "__pycache__", ".pnpm-store"}
+# Never reported: VCS internals, dependencies, caches and build outputs.
+SKIP_PARTS = {
+    ".git", "node_modules", ".wrangler", ".turbo", "__pycache__", ".pnpm-store",
+    "dist", "build", ".build", ".next", ".nuxt", ".svelte-kit", ".output", ".vercel", ".expo",
+    "DerivedData", "Pods", "target", "coverage", ".venv", "venv", ".cache", ".parcel-cache",
+    ".pytest_cache", ".mypy_cache", ".gradle",
+}
 ANALYZABLE = re.compile(r"\.(?:[cm]?ts|tsx|[cm]?js|jsx)$")
 MAX_FILE_BYTES = 512 * 1024
 MAX_SNAPSHOT_FILES = 300
@@ -70,10 +87,49 @@ CAPABILITIES = {
     "commit_gate": "tool_interception",
 }
 
-DEFAULT_ROOTS = [
-    {"path": "~/github/weft", "prefix": ""},
-    {"path": "~/code/hermes-ios/.worktrees/weft-feed", "prefix": "ios/"},
-]
+DEFAULT_ROOTS: List[dict] = []          # explicit {path, prefix, repo} overrides (legacy: weft only)
+DEFAULT_PROJECT_DIRS = ["~/github", "~/code"]
+DEFAULT_EXCLUDES = ["~/.hermes"]
+REPO_NAME = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$")
+
+
+def sanitize_repo(name: str) -> str:
+    """Weft repo name for a project dir basename (gateway rule ^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$)."""
+    s = re.sub(r"[^A-Za-z0-9._-]+", "-", name).lstrip("._-")[:64].rstrip("-")
+    return s or "project"
+
+
+def _real(p: str) -> str:
+    return os.path.realpath(os.path.expanduser(p))
+
+
+def discover_projects(dirs: List[str], explicit: Optional[Dict[str, str]] = None) -> Dict[str, str]:
+    """{project dir (realpath): weft repo} for every top-level git repo in ``dirs``.
+
+    A project is a direct child of a projects dir that is a git checkout (``.git`` dir or file).
+    Names come from the basename; a later dir's duplicate gets ``<dirbasename>-<name>``.
+    ``explicit`` (path -> repo) wins over discovery.
+    """
+    out: Dict[str, str] = {}
+    taken: Dict[str, str] = {}
+    for d in dirs:
+        base = _real(d)
+        try:
+            children = sorted(os.listdir(base))
+        except OSError:
+            continue
+        for name in children:
+            full = os.path.join(base, name)
+            if name.startswith(".") or not os.path.isdir(full) or not os.path.exists(os.path.join(full, ".git")):
+                continue
+            repo = sanitize_repo(name)
+            if repo in taken and taken[repo] != full:
+                repo = sanitize_repo(f"{os.path.basename(base)}-{name}")
+            taken[repo] = full
+            out[full] = repo
+    for path, repo in (explicit or {}).items():
+        out[_real(path)] = repo
+    return out
 
 
 # ------------------------------------------------------------------------------------------
@@ -98,6 +154,7 @@ def default_config_path() -> Path:
 class Root:
     path: str  # absolute, realpath'd
     prefix: str
+    repo: str = ""  # "" = the config's default repo (legacy single-repo roots)
 
 
 @dataclass
@@ -113,6 +170,31 @@ class Config:
     analyzer: Optional[str] = None
     timeout: float = 4.0
     log_path: Optional[Path] = None
+    # multi-repo (0.2): every project under ``project_dirs`` is its own Weft repo
+    tokens: Dict[str, str] = field(default_factory=dict)   # repo -> agent token
+    modes: Dict[str, str] = field(default_factory=dict)    # repo -> enforce|advise
+    default_mode: str = "advise"
+    project_dirs: List[str] = field(default_factory=list)  # realpath'd
+    projects: Dict[str, str] = field(default_factory=dict)  # project dir -> repo (from install sync)
+    excludes: List[str] = field(default_factory=list)      # realpath'd, never reported
+    breaker_cooldown: float = 300.0
+    async_advise: bool = True  # advise repos: skip the pre-check, commit off the tool-call path
+
+    def mode_for(self, repo: str) -> str:
+        forced = os.environ.get("WEFT_HERMES_MODE")
+        if forced:
+            return forced
+        return self.modes.get(repo) or self.default_mode
+
+    def for_repo(self, repo: str) -> Optional["Config"]:
+        token = self.tokens.get(repo) or (self.token if repo == self.repo else "")
+        if not token:
+            return None
+        return replace(self, repo=repo, token=token, mode=self.mode_for(repo))
+
+    def scope(self) -> "Scope":
+        return Scope(self.roots, projects=self.projects, project_dirs=self.project_dirs,
+                     excludes=self.excludes, default_repo=self.repo)
 
     @staticmethod
     def load(path: Optional[Path] = None, profile: Optional[str] = None) -> Optional["Config"]:
@@ -126,28 +208,47 @@ class Config:
         if raw.get("enabled") is False:
             return None
         agents = raw.get("agents") or {}
-        entry = agents.get(profile)
-        token = os.environ.get("WEFT_HERMES_TOKEN") or (entry or {}).get("token")
-        agent = (entry or {}).get("agent") or f"hermes-{profile}"
+        entry = agents.get(profile) or {}
+        repo = str(raw.get("repo") or "")
+        tokens: Dict[str, str] = {}
+        for r, t in (entry.get("tokens") or {}).items():
+            tok = t.get("token") if isinstance(t, dict) else t
+            if tok:
+                tokens[str(r)] = str(tok)
+        token = os.environ.get("WEFT_HERMES_TOKEN") or entry.get("token") or tokens.get(repo) or ""
+        if repo and token:
+            tokens.setdefault(repo, str(token))
+        agent = entry.get("agent") or f"hermes-{profile}"
         url = os.environ.get("WEFT_HERMES_URL") or raw.get("url")
-        if not (token and url and raw.get("repo")):
+        if not (url and tokens):
             return None
         roots = []
-        for r in raw.get("roots") or DEFAULT_ROOTS:
-            p = os.path.realpath(os.path.expanduser(str(r.get("path", ""))))
+        for r in raw.get("roots") if raw.get("roots") is not None else DEFAULT_ROOTS:
+            p = _real(str(r.get("path", "")))
             if p and p != "/":
-                roots.append(Root(p, str(r.get("prefix", ""))))
+                roots.append(Root(p, str(r.get("prefix", "")), str(r.get("repo") or "")))
+        proj = raw.get("projects") or {}
+        project_dirs = [_real(d) for d in (proj.get("dirs") or DEFAULT_PROJECT_DIRS)]
+        projects = {_real(p): str(r) for p, r in (proj.get("repos") or {}).items()}
+        excludes = [_real(x) for x in (raw.get("exclude") or DEFAULT_EXCLUDES)]
         analyzer = raw.get("analyzer")
         if not analyzer:
             here = Path(__file__).resolve().parent / "analyze.mjs"
             analyzer = str(here) if here.exists() else None
         cache = Path(os.environ.get("WEFT_HERMES_CACHE", "~/.cache/weft-hermes")).expanduser()
-        return Config(
-            url=url, repo=str(raw["repo"]), token=str(token), agent=str(agent), profile=profile,
-            roots=roots, mode=os.environ.get("WEFT_HERMES_MODE") or str(raw.get("mode", "enforce")),
-            node=str(raw.get("node") or _find_node()), analyzer=analyzer,
+        modes = {str(k): str(v) for k, v in (raw.get("modes") or {}).items()}
+        if repo and raw.get("mode") and repo not in modes:  # legacy single-repo "mode"
+            modes[repo] = str(raw["mode"])
+        cfg = Config(
+            url=url, repo=repo, token=str(tokens.get(repo, "")), agent=str(agent), profile=profile,
+            roots=roots, node=str(raw.get("node") or _find_node()), analyzer=analyzer,
             timeout=float(raw.get("timeout", 4.0)), log_path=cache / f"{profile}.log",
+            tokens=tokens, modes=modes, default_mode=str(raw.get("default_mode") or "advise"),
+            project_dirs=project_dirs, projects=projects, excludes=excludes,
+            breaker_cooldown=float(raw.get("breaker_cooldown_s", 300.0)),
         )
+        cfg.mode = cfg.mode_for(repo) if repo else cfg.default_mode
+        return cfg
 
 
 def _find_node() -> str:
@@ -166,16 +267,107 @@ class Target:
     abs: str        # absolute path of the file
     worktree: str   # git worktree root containing it
     rel: str        # repo-relative POSIX path used in symbol keys (prefix included)
+    repo: str = ""  # Weft repo the file belongs to
+
+
+def _under(path: str, root: str) -> bool:
+    return path == root or path.startswith(root.rstrip(os.sep) + os.sep)
 
 
 class Scope:
-    def __init__(self, roots: List[Root]):
-        self.roots = roots
+    """Maps a path to (Weft repo, root). Order: excludes -> explicit roots (longest first) ->
+    projects (direct children of ``project_dirs``, incl. their ``.worktrees/*``) -> git worktrees
+    living elsewhere whose common git dir belongs to a project."""
+
+    def __init__(self, roots: List[Root], projects: Optional[Dict[str, str]] = None,
+                 project_dirs: Optional[List[str]] = None, excludes: Optional[List[str]] = None,
+                 default_repo: str = ""):
+        self.roots = sorted(roots, key=lambda r: len(r.path), reverse=True)
+        self.projects = dict(projects or {})
+        self.project_dirs = list(project_dirs or [])
+        self.excludes = list(excludes or [])
+        self.default_repo = default_repo
+        self._ext: Dict[str, Optional[Root]] = {}  # external worktree dir -> root (cache)
+
+    def repo_of(self, root: Root) -> str:
+        return root.repo or self.default_repo
+
+    def _project_root(self, path: str) -> Optional[Root]:
+        for d in self.project_dirs:
+            if path.startswith(d + os.sep):
+                name = path[len(d) + 1:].split(os.sep, 1)[0]
+                proj = os.path.join(d, name)
+                if proj in self.projects:
+                    return Root(proj, "", self.projects[proj])
+                if os.path.exists(os.path.join(proj, ".git")):
+                    return Root(proj, "", sanitize_repo(name))  # unknown until `install.py --sync`
+                return None
+        return None
+
+    def _external_root(self, path: str) -> Optional[Root]:
+        """A linked git worktree outside the project dirs (``git worktree add /tmp/x``)."""
+        d = path if os.path.isdir(path) else os.path.dirname(path)
+        seen = []
+        while True:
+            if d in self._ext:
+                hit = self._ext[d]
+                break
+            seen.append(d)
+            dotgit = os.path.join(d, ".git")
+            if os.path.isfile(dotgit):
+                hit = self._linked_root(d, dotgit)
+                break
+            if os.path.isdir(dotgit):
+                hit = None
+                break
+            parent = os.path.dirname(d)
+            if parent == d:
+                hit = None
+                break
+            d = parent
+        if len(self._ext) > 4096:
+            self._ext.clear()
+        for s in seen:
+            self._ext[s] = hit if hit and _under(s, hit.path) else None
+        return hit
+
+    def _linked_root(self, worktree: str, dotgit: str) -> Optional[Root]:
+        try:
+            with open(dotgit) as f:
+                line = f.read(4096).strip()
+            if not line.startswith("gitdir:"):
+                return None
+            gitdir = os.path.join(worktree, line[len("gitdir:"):].strip())
+            common = gitdir
+            cd = os.path.join(gitdir, "commondir")
+            if os.path.isfile(cd):
+                with open(cd) as f:
+                    common = os.path.join(gitdir, f.read().strip())
+            common = os.path.realpath(common)
+        except OSError:
+            return None
+        if os.path.basename(common) != ".git":
+            return None
+        main = os.path.dirname(common)
+        owner = self._explicit_root(main) or self._project_root(main)
+        if not owner or main != owner.path:
+            return None
+        return Root(worktree, owner.prefix, self.repo_of(owner))
+
+    def _explicit_root(self, path: str) -> Optional[Root]:
+        for root in self.roots:
+            if _under(path, root.path):
+                return root
+        return None
 
     def root_for(self, path: str) -> Optional[Root]:
-        for root in self.roots:
-            if path == root.path or path.startswith(root.path + os.sep):
-                return root
+        if any(_under(path, x) for x in self.excludes):
+            return None
+        root = self._explicit_root(path) or self._project_root(path)
+        if root:
+            return root
+        if self.project_dirs or self.projects:
+            return self._external_root(path)
         return None
 
     def resolve(self, path: Any, base_dir: Optional[str] = None) -> Optional[Target]:
@@ -203,17 +395,24 @@ class Scope:
             parts = parts[2:]
         if any(part in SKIP_PARTS for part in parts):
             return None
-        return Target(p, worktree, root.prefix + "/".join(parts))
+        return Target(p, worktree, root.prefix + "/".join(parts), self.repo_of(root))
 
-    def resolve_dir(self, directory: Any) -> Optional[str]:
-        """Worktree root for an in-scope directory (terminal workdir), else None."""
+    def locate_dir(self, directory: Any) -> Optional[Tuple[str, str]]:
+        """(worktree root, repo) for an in-scope directory (terminal workdir), else None."""
         if not isinstance(directory, str) or not directory:
             return None
         d = os.path.realpath(os.path.expanduser(directory))
-        root = self.root_for(d)
-        if not root or not os.path.isdir(d):
+        if not os.path.isdir(d):
             return None
-        return self.worktree_of(d, root.path)
+        root = self.root_for(d)
+        if not root:
+            return None
+        return self.worktree_of(d, root.path), self.repo_of(root)
+
+    def resolve_dir(self, directory: Any) -> Optional[str]:
+        """Worktree root for an in-scope directory (terminal workdir), else None."""
+        hit = self.locate_dir(directory)
+        return hit[0] if hit else None
 
     def prefix_for(self, worktree: str) -> str:
         root = self.root_for(worktree)
@@ -389,12 +588,17 @@ class Pending:
 
 class WeftAdapter:
     def __init__(self, config: Config, client: Optional[WcpClient] = None,
-                 analyzer: Optional[Analyzer] = None, heartbeat: bool = True):
+                 analyzer: Optional[Analyzer] = None, heartbeat: bool = True,
+                 scope: Optional[Scope] = None):
         self.cfg = config
-        self.scope = Scope(config.roots)
-        self.client = client or WcpClient(config.url, config.token, config.repo, config.timeout)
+        self.scope = scope or config.scope()
+        self.client = client or WcpClient(config.url, config.token, config.repo, config.timeout,
+                                          breaker_cooldown=config.breaker_cooldown)
         self.analyzer = analyzer or Analyzer(config.node, config.analyzer, log=self.log)
+        self._work: "queue.Queue[Callable[[], None]]" = queue.Queue()
+        self._worker: Optional[threading.Thread] = None
         self.lock = threading.RLock()
+        self.hello_lock = threading.RLock()
         self.session: Optional[str] = None
         self.welcome: Dict[str, Any] = {}
         self.base_seq = 0                # last delivered_through passed to the model
@@ -412,6 +616,39 @@ class WeftAdapter:
         self._closed = False
 
     # -- infra -----------------------------------------------------------------------------
+
+    @property
+    def deferred(self) -> bool:
+        """Advise repos never make the agent wait on the gateway: no pre-check, and the commit
+        (analysis + submit) runs on a background worker; its verdict reaches the model with a
+        later tool result."""
+        return self.cfg.mode != "enforce" and self.cfg.async_advise
+
+    def _defer(self, fn: Callable[[], None]) -> None:
+        if not self.deferred:
+            fn()
+            return
+        self._work.put(fn)
+        if not (self._worker and self._worker.is_alive()):
+            self._worker = threading.Thread(target=self._work_loop, name=f"weft-{self.cfg.repo}", daemon=True)
+            self._worker.start()
+
+    def _work_loop(self) -> None:
+        while True:
+            fn = self._work.get()
+            try:
+                fn()
+            except Exception as err:
+                self.log(f"[{self.cfg.repo}] deferred submit failed open: {err!r}")
+            finally:
+                self._work.task_done()
+
+    def flush(self, timeout: float = 5.0) -> bool:
+        """Wait (bounded) for deferred submissions; True when the queue drained."""
+        deadline = time.monotonic() + timeout
+        while self._work.unfinished_tasks and time.monotonic() < deadline:
+            time.sleep(0.02)
+        return not self._work.unfinished_tasks
 
     def log(self, message: str) -> None:
         path = self.cfg.log_path
@@ -453,7 +690,9 @@ class WeftAdapter:
     # -- session ---------------------------------------------------------------------------
 
     def ensure_session(self) -> Optional[str]:
-        with self.lock:
+        # hello_lock, not self.lock: a slow hello on the background worker must never stall the
+        # tool-call thread, which only needs self.lock for in-memory bookkeeping.
+        with self.hello_lock:
             if self.session:
                 return self.session
             agent = {"id": self.cfg.agent, "harness": "hermes",
@@ -480,7 +719,7 @@ class WeftAdapter:
         except WcpError as err:
             if err.code not in ("session_expired",):
                 raise
-            with self.lock:
+            with self.hello_lock:
                 self.log("session expired; re-hello")
                 self.session = None
             result = fn(self.ensure_session())  # type: ignore[arg-type]
@@ -507,14 +746,16 @@ class WeftAdapter:
         self._hb_thread = threading.Thread(target=loop, name="weft-heartbeat", daemon=True)
         self._hb_thread.start()
 
-    def close(self) -> None:
+    def close(self, close_analyzer: bool = True) -> None:
+        self.flush(5.0)
         self._closed = True
         if self.session:
             try:
                 self.client.bye(self.session, "hermes process exit")
             except Exception:
                 pass
-        self.analyzer.close()
+        if close_analyzer:
+            self.analyzer.close()
 
     # -- base / inbox bookkeeping ----------------------------------------------------------
 
@@ -595,17 +836,11 @@ class WeftAdapter:
 
     def _edit_targets(self, name: str, args: dict) -> List[Target]:
         base = self._base_dir()
-        paths: List[str] = []
-        if name == "write_file" or (name == "patch" and args.get("mode", "replace") == "replace"):
-            paths = [args.get("path")]  # type: ignore[list-item]
-        elif name == "patch":
-            patch = str(args.get("patch") or "")
-            paths = re.findall(r"^\*\*\* (?:Update|Add|Delete) File: (.+?)\s*$", patch, re.M)
-            paths += re.findall(r"^\*\*\* Move to: (.+?)\s*$", patch, re.M)
+        paths = edit_paths(name, args)
         out = []
         for p in paths:
             t = self.scope.resolve(p, base)
-            if t and t not in out:
+            if t and t.repo == self.cfg.repo and t not in out:
                 out.append(t)
         return out
 
@@ -630,8 +865,8 @@ class WeftAdapter:
             pend.before[t.abs] = read_text(t.abs) if os.path.exists(t.abs) else None
         with self.lock:
             self.pending[pend.call_id] = pend
-        if len(targets) != 1:
-            return None
+        if len(targets) != 1 or self.deferred:
+            return None  # advise repos: no pre-check round trip (the commit verdict still advises)
         t = targets[0]
         after = self._proposed(name, args, pend.before[t.abs])
         if after is None or after == pend.before[t.abs]:
@@ -661,9 +896,10 @@ class WeftAdapter:
 
     def _pre_terminal(self, name: str, args: dict, call_id: str) -> Optional[dict]:
         workdir = args.get("workdir") or self._base_dir()
-        worktree = self.scope.resolve_dir(workdir)
-        if not worktree:
+        hit = self.scope.locate_dir(workdir)
+        if not hit or hit[1] != self.cfg.repo:
             return None  # SCOPE GUARD
+        worktree = hit[0]
         command = str(args.get("command") or "")
         if self.session and re.search(r"\bgit\b[^|;&]*\bcommit\b", command):
             block = self._gate("commit", "git commit")
@@ -772,12 +1008,13 @@ class WeftAdapter:
                         break
         try:
             if pend and pend.kind == "edit":
-                self._commit_changes([(t, pend.before.get(t.abs), self._current(t.abs)) for t in pend.targets],
-                                     name, pend.call_id)
+                changes = [(t, pend.before.get(t.abs), self._current(t.abs)) for t in pend.targets]
+                self._defer(lambda: self._commit_changes(changes, name, pend.call_id))
             elif pend and pend.kind == "terminal":
                 self._post_terminal(pend)
             elif self.session and time.monotonic() - self.last_drain > DRAIN_EVERY_S:
-                self._drain()
+                self.last_drain = time.monotonic()
+                self._defer(self._drain)
         except Exception as err:
             self.log(f"post_tool_call {name} failed: {err!r}")
 
@@ -825,20 +1062,27 @@ class WeftAdapter:
             if before_text == after_text:
                 continue
             changes.append((Target(os.path.join(worktree, rel), worktree, prefix + rel), before_text, after_text))
-        if changes:
-            self._commit_changes(changes, pend.tool, pend.call_id)
-        if head and pend.head and head != pend.head:
-            event = {"kind": "checkpoint", "base_seq": self._effective_base(), "payload": {"sha": head},
-                     "tool": {"name": pend.tool, "harness_event": "post_tool_call"}}
-            if self.task.get("title"):
-                event["summary_hint"] = self.task["title"][:100]
-            verdict = self._submit("commit", event, f"{pend.call_id}:checkpoint")
-            self._queue(verdict)
-            # A new commit on the worktree: assume it is rebased. Cleared after _queue, because
-            # this verdict repeats any still-unacked trunk item and would re-set the floor.
-            self.rebase_floor = None
-        elif self.session and time.monotonic() - self.last_drain > DRAIN_EVERY_S:
-            self._drain()
+        moved = bool(head and pend.head and head != pend.head)
+        if not changes and not moved:
+            if self.session and time.monotonic() - self.last_drain > DRAIN_EVERY_S:
+                self.last_drain = time.monotonic()
+                self._defer(self._drain)
+            return
+
+        def send() -> None:
+            if changes:
+                self._commit_changes(changes, pend.tool, pend.call_id)
+            if moved:
+                event = {"kind": "checkpoint", "base_seq": self._effective_base(), "payload": {"sha": head},
+                         "tool": {"name": pend.tool, "harness_event": "post_tool_call"}}
+                if self.task.get("title"):
+                    event["summary_hint"] = self.task["title"][:100]
+                verdict = self._submit("commit", event, f"{pend.call_id}:checkpoint")
+                self._queue(verdict)
+                # A new commit on the worktree: assume it is rebased. Cleared after _queue, because
+                # this verdict repeats any still-unacked trunk item and would re-set the floor.
+                self.rebase_floor = None
+        self._defer(send)
 
     def _drain(self) -> None:
         batch = self._call(lambda s: self.client.drain(s, ack=self.acked or None))
@@ -866,22 +1110,151 @@ class WeftAdapter:
 
 
 # ------------------------------------------------------------------------------------------
+# multi-repo router: one WeftAdapter (= one WCP session) per Weft repo, opened lazily
+# ------------------------------------------------------------------------------------------
+
+class WeftRouter:
+    """Routes each hook to the per-repo adapter(s) its paths resolve to.
+
+    A project without a token for this profile (no Weft repo yet: ``install.py --sync`` creates
+    them) is a no-op with one log line per process. Gates (completion / pre_verify) ask every
+    adapter that has a session; only ``enforce`` repos can refuse.
+    """
+
+    def __init__(self, config: Config, client_factory: Optional[Callable[[Config], Any]] = None,
+                 analyzer: Optional[Analyzer] = None, heartbeat: bool = True):
+        self.cfg = config
+        self.scope = config.scope()
+        self.adapters: Dict[str, WeftAdapter] = {}
+        self.unknown: set = set()
+        self.client_factory = client_factory
+        self.heartbeat = heartbeat
+        self.lock = threading.RLock()
+        self._analyzer = analyzer
+
+    def log(self, message: str) -> None:
+        WeftAdapter.log(self, message)  # type: ignore[arg-type]
+
+    @property
+    def analyzer(self) -> Analyzer:
+        if self._analyzer is None:
+            self._analyzer = Analyzer(self.cfg.node, self.cfg.analyzer, log=self.log)
+        return self._analyzer
+
+    def adapter_for(self, repo: str) -> Optional[WeftAdapter]:
+        if not repo:
+            return None
+        with self.lock:
+            hit = self.adapters.get(repo)
+            if hit:
+                return hit
+            if repo in self.unknown:
+                return None
+            cfg = self.cfg.for_repo(repo)
+            if not cfg:
+                self.unknown.add(repo)
+                self.log(f"project '{repo}' has no Weft repo/token for profile {self.cfg.profile}; "
+                         "skipping (run `install.py --sync` to add it)")
+                return None
+            client = self.client_factory(cfg) if self.client_factory else None
+            adapter = WeftAdapter(cfg, client=client, analyzer=self.analyzer, heartbeat=self.heartbeat,
+                                  scope=self.scope)
+            self.adapters[repo] = adapter
+            return adapter
+
+    def _repos(self, name: str, args: dict) -> List[str]:
+        base = os.environ.get("HERMES_KANBAN_WORKSPACE") or os.getcwd()
+        repos: List[str] = []
+        if name in EDIT_TOOLS:
+            for p in edit_paths(name, args):
+                t = self.scope.resolve(p, base)
+                if t and t.repo not in repos:
+                    repos.append(t.repo)
+        elif name in TERMINAL_TOOLS:
+            hit = self.scope.locate_dir(args.get("workdir") or base)
+            if hit:
+                repos.append(hit[1])
+        return repos
+
+    def _live(self) -> List[WeftAdapter]:
+        with self.lock:
+            return list(self.adapters.values())
+
+    def pre_tool_call(self, tool_name: str = "", args: Optional[dict] = None, **kw: Any) -> Optional[dict]:
+        name = normalize_tool(tool_name)
+        args = args if isinstance(args, dict) else {}
+        try:
+            if name in COMPLETION_TOOLS:
+                targets = self._live()
+            else:
+                targets = [a for a in (self.adapter_for(r) for r in self._repos(name, args)) if a]
+        except Exception as err:  # fail open
+            self.log(f"route {name} failed open: {err!r}")
+            return None
+        for adapter in targets:
+            block = adapter.pre_tool_call(tool_name=tool_name, args=args, **kw)
+            if block:
+                return block
+        return None
+
+    def post_tool_call(self, **kw: Any) -> None:
+        for adapter in self._live():
+            adapter.post_tool_call(**kw)
+
+    def transform_tool_result(self, result: Any = None, **kw: Any) -> Optional[str]:
+        out, changed = result, False
+        for adapter in self._live():
+            r = adapter.transform_tool_result(result=out, **kw)
+            if r is not None:
+                out, changed = r, True
+        return out if changed else None
+
+    def pre_verify(self, **kw: Any) -> Optional[dict]:
+        for adapter in self._live():
+            r = adapter.pre_verify(**kw)
+            if r:
+                return r
+        return None
+
+    def flush(self, timeout: float = 5.0) -> bool:
+        deadline = time.monotonic() + timeout
+        return all(a.flush(max(0.0, deadline - time.monotonic())) for a in self._live())
+
+    def close(self) -> None:
+        for adapter in self._live():
+            adapter.close(close_analyzer=False)
+        if self._analyzer:
+            self._analyzer.close()
+
+
+def edit_paths(name: str, args: dict) -> List[str]:
+    if name == "write_file" or (name == "patch" and args.get("mode", "replace") == "replace"):
+        p = args.get("path")
+        return [p] if isinstance(p, str) else []
+    if name == "patch":
+        patch = str(args.get("patch") or "")
+        return re.findall(r"^\*\*\* (?:Update|Add|Delete) File: (.+?)\s*$", patch, re.M) + \
+            re.findall(r"^\*\*\* Move to: (.+?)\s*$", patch, re.M)
+    return []
+
+
+# ------------------------------------------------------------------------------------------
 # process-wide singleton used by the Hermes plugin entry point
 # ------------------------------------------------------------------------------------------
 
-_ADAPTER: Optional[WeftAdapter] = None
+_ADAPTER: Optional[WeftRouter] = None
 _ADAPTER_LOCK = threading.Lock()
 _LOADED = False
 
 
-def get_adapter() -> Optional[WeftAdapter]:
+def get_adapter() -> Optional[WeftRouter]:
     global _ADAPTER, _LOADED
     if _LOADED:
         return _ADAPTER
     with _ADAPTER_LOCK:
         if not _LOADED:
             cfg = Config.load()
-            _ADAPTER = WeftAdapter(cfg) if cfg else None
+            _ADAPTER = WeftRouter(cfg) if cfg else None
             if _ADAPTER:
                 atexit.register(_ADAPTER.close)
             _LOADED = True
