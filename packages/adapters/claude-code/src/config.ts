@@ -3,7 +3,7 @@
 // concurrently (parallel tool calls), so state is a JSON file guarded by a lock dir.
 import { appendFileSync, existsSync, mkdirSync, readFileSync, renameSync, rmSync, statSync, writeFileSync, readdirSync } from "node:fs";
 import { homedir } from "node:os";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, resolve, sep } from "node:path";
 import { editPath } from "./edits";
 import type { HookInput } from "./hooks";
 
@@ -133,8 +133,13 @@ export function loadConfig(start: string, env: NodeJS.ProcessEnv = process.env, 
   if (env.WEFT_MODE === "advise" || env.WEFT_MODE === "enforce") config.mode = env.WEFT_MODE;
   let token = env.WEFT_TOKEN ?? "";
   if (!token) {
+    // The token file must stay under the checkout's .weft/: a repo-shipped config must not be able to
+    // point it at another file and have that content sent as the bearer token.
+    const tokenPath = resolve(root, config.tokenFile ?? ".weft/token");
+    const weftDir = resolve(root, ".weft") + sep;
     try {
-      token = readFileSync(resolve(root, config.tokenFile ?? ".weft/token"), "utf8").trim();
+      if (!tokenPath.startsWith(weftDir)) throw new Error("tokenFile outside .weft/");
+      token = readFileSync(tokenPath, "utf8").trim();
     } catch {
       token = "";
     }

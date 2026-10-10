@@ -189,3 +189,14 @@ describe("default (non-by-path) path is unchanged (issue #8c)", () => {
     expect(logOf(root)).not.toMatch(/ hello | commit | check /);
   });
 });
+
+describe("token file location (issue #8c, review)", () => {
+  it("a tokenFile outside .weft/ is not read: the config does not load", async () => {
+    const { loadConfig } = await import("../src/config");
+    const root = checkout("token-outside");
+    const cfg = { url: "http://localhost:1", repo: "demo", agent: "a", change: "I" + "0".repeat(40), task: { id: "T" }, tokenFile: "../../../../../../../etc/hosts" };
+    mkdirSync(join(root, ".weft"), { recursive: true });
+    writeFileSync(join(root, ".weft", "claude.json"), JSON.stringify(cfg));
+    expect(loadConfig(root, { WEFT_ROOT: root } as NodeJS.ProcessEnv)).toBeUndefined();
+  });
+});
