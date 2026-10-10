@@ -41,11 +41,12 @@ async function readStdin(): Promise<string> {
   return text;
 }
 
-function adapterFor(loaded: Loaded, calls?: Call[]): ClaudeAdapter {
+function adapterFor(loaded: Loaded, calls?: Call[], byPath = false): ClaudeAdapter {
   const http = new HttpTransport(loaded.config.url, loaded.token, loaded.config.repo, loaded.config.timeoutMs ?? 8000);
   const transport = calls ? timed(http, calls) : http;
   return new ClaudeAdapter(loaded, {
     transport,
+    byPath,
     analyze: async (changes, root, prefix) => (await import("./analysis")).analyzeChanges(changes, root, prefix),
     diff: async (rel, before, after) => (await import("./analysis")).unifiedDiff(rel, before, after),
     cli: cliFor(loaded.root),
@@ -116,7 +117,7 @@ async function hook(byPath: boolean, args: string[] = []): Promise<void> {
         break;
       }
     }
-    if (loaded && input) out = await adapterFor(loaded, calls).handle(input);
+    if (loaded && input) out = await adapterFor(loaded, calls, byPath).handle(input);
   } catch {
     out = undefined; // fail open: malformed input or a bug must not block the harness
   }
@@ -321,7 +322,7 @@ The task message gives you its absolute path.
 - Edit only files under that worktree, always by absolute path. Weft checks each edit as that
   worktree's agent; edits elsewhere are not coordinated.
 - Start every Bash command with \`cd <worktree> && …\` (or use \`git -C <worktree> …\`). Weft finds
-  the worktree from that; a command without it is attributed to the session's own checkout. Its
+  the worktree from that; a command without it is denied (Bash target not recognized), so every command must start with it. Its
   git \`pre-commit\` hook refuses commits while Weft has open errors.
 - If an edit is denied with \`[weft error]\`, do not retry it. When the cause is another agent's
   change, stop and report it (the diagnostic names the agent and event) instead of adopting their work.

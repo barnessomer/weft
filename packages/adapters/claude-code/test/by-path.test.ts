@@ -177,3 +177,15 @@ describe("--by-path coordinates only the pinned checkout (issue #8c, real bundle
     expect(edits.map((e) => e.files)).toEqual([["src/new.ts"]]);
   }, 30_000);
 });
+
+describe("default (non-by-path) path is unchanged (issue #8c)", () => {
+  it("a Bash shell edit with no session is not coordinated: no output, no hello/check/commit", async () => {
+    const { url } = await coordinator();
+    const root = await joined(url, "main-path-bash", "solo");
+    await hook([], root, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_use_id: "b1", tool_input: { command: "sed -i s/a/b/ f.ts" } });
+    writeFileSync(join(root, "f.ts"), "export const q = 1;\n");
+    const out = await hook([], root, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_use_id: "b1", tool_input: { command: "sed -i s/a/b/ f.ts" } });
+    expect(out).toBeUndefined();
+    expect(logOf(root)).not.toMatch(/ hello | commit | check /);
+  });
+});

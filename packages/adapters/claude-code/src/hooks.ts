@@ -77,6 +77,8 @@ export type HookOutput = Record<string, unknown> | undefined;
 
 export type AdapterDeps = {
   transport: Transport;
+  /** Set by `hook --by-path`: a subagent has no SessionStart, so its Bash calls are tracked without a session. */
+  byPath?: boolean;
   /** Analyzer entry (lazy so non-edit hooks never load the TypeScript compiler). */
   analyze: (changes: FileChange[], root: string, prefix: string) => Promise<Sets> | Sets;
   diff: (rel: string, before: string | null, after: string | null) => Promise<string> | string;
@@ -425,7 +427,7 @@ export class ClaudeAdapter {
     st.head = this.git(["rev-parse", "HEAD"])?.trim() ?? st.head;
     // What the checkout looked like before this command ran; PostToolUse(Bash) diffs against it.
     // Taken without a session too: a subagent has no SessionStart, and its first call may be a shell edit.
-    if (input.tool_use_id) st.pending[input.tool_use_id] = { tool: "Bash", before: this.dirtySnapshot(), shown: [], head: st.head, at: this.now() };
+    if (input.tool_use_id && (st.wcpSession || this.deps.byPath)) st.pending[input.tool_use_id] = { tool: "Bash", before: this.dirtySnapshot(), shown: [], head: st.head, at: this.now() };
     if (!isGitCommit(command) || !st.wcpSession || !this.enforce) return undefined;
     const result = await this.call(st, (s) => this.deps.transport.gate(s, "commit"));
     if (result.allow) return undefined;
@@ -560,7 +562,7 @@ export class ClaudeAdapter {
 
   private async postOther(input: HookInput, st: SessionState, hookEvent: "PostToolUse" | "PostToolUseFailure" = "PostToolUse"): Promise<HookOutput> {
     // A Bash call's shell edits are coordinated here, whether or not the command itself succeeded.
-    const bashText = input.tool_name === "Bash" ? await this.reconcileBash(input, st) : "";
+    const bashText = input.tool_name === "Bash" && (st.wcpSession || this.deps.byPath) ? await this.reconcileBash(input, st) : "";
     if (!st.wcpSession) return undefined; // nothing coordinated yet in this conversation
     let checkpointText = bashText;
     if (input.tool_name === "Bash") {
