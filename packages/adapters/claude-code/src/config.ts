@@ -67,6 +67,8 @@ export type PendingEdit = {
   before: Record<string, string | null>;
   /** Context already shown to the model by PreToolUse for this call (avoid repeats). */
   shown: string[];
+  /** Bash only: HEAD before the call ran (files it committed are compared with it). */
+  head?: string;
   at: number;
 };
 
