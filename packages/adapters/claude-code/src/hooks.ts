@@ -40,6 +40,19 @@ export const CAPABILITIES: Capabilities = {
   refuse_stop: true,
   commit_gate: "tool_interception",
 };
+/**
+ * Declared when the loaded config is advisory (`mode: "advise"` / WEFT_MODE=advise): denials
+ * become advise text and the stop/commit gates stay open, so the adapter delivers L1 and,
+ * per Agent Hooks Core §3.3, MUST NOT declare L2/L3.
+ */
+export const ADVISORY_CAPABILITIES: Capabilities = {
+  level: 1,
+  observe: "sync",
+  inject: "immediate",
+  deny_edit: false,
+  refuse_stop: false,
+  commit_gate: false,
+};
 const SKIP_PARTS = new Set([".git", ".weft", ".claude", ".cursor", ".opencode", ".gemini", "node_modules", ".wrangler", "dist", ".turbo"]);
 const DRAIN_MIN_INTERVAL_MS = 2000;
 const MAX_FILE_BYTES = 1 << 20;
@@ -180,7 +193,7 @@ export class ClaudeAdapter {
       ...(this.deps.model ? { model: this.deps.model } : {}),
     };
     const task = { id: config.task.id, ...(config.task.title ? { title: config.task.title } : {}), ...(config.task.priority !== undefined ? { priority: config.task.priority } : {}) };
-    const welcome = await t.hello({ type: "hello", protocol: PROTOCOL, agent, capabilities: this.deps.identity?.capabilities ?? CAPABILITIES, task, change: config.change });
+    const welcome = await t.hello({ type: "hello", protocol: PROTOCOL, agent, capabilities: this.enforce ? (this.deps.identity?.capabilities ?? CAPABILITIES) : ADVISORY_CAPABILITIES, task, change: config.change });
     // A new session cannot claim more than it was delivered; an older base (what this
     // Claude conversation actually saw) is kept so stale knowledge stays visible to R1/R2.
     st.base = st.wcpSession === undefined && st.base === 0 ? welcome.delivered_through : Math.min(st.base || welcome.delivered_through, welcome.delivered_through);
@@ -330,7 +343,7 @@ export class ClaudeAdapter {
     const lines = [
       `[weft] This checkout is coordinated by Weft (repo ${config.repo}; you are agent ${config.agent}, task ${config.task.id}${config.task.title ? ` "${config.task.title}"` : ""}, change ${config.change}). ` +
         `Other agents edit the same codebase concurrently in their own checkouts. Every edit you make is checked against their work: ` +
-        `lines like "[weft error] <code> <file>:<line>: …" are multi-agent compiler diagnostics. An edit with errors is blocked. Fix the errors you caused (the cited code, or retreat from it) instead of retrying the same edit. For an error caused by another agent's change, do not rebase onto it or adapt to its partial work: keep working on your other tasks; whether you may stop with it open depends on the deployment's conflict policy, and the stop gate says so when it applies.` +
+        `lines like "[weft error] <code> <file>:<line>: …" are multi-agent compiler diagnostics. An edit with errors is blocked, and you cannot finish while errors are open — fix the cited code (or retreat from it) instead of retrying the same edit.` +
         (this.deps.cli
           ? ` When another agent's change is in your way you may also negotiate with it (\`${this.deps.cli} negotiate propose|accept|reject|counter|escalate …\`, see \`${this.deps.cli} negotiate --help\`); proposals addressed to you arrive as "[weft negotiation]" lines and must be answered before you finish. \`${this.deps.cli} inbox\` shows what is waiting for you.`
           : ""),

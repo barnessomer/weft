@@ -537,7 +537,7 @@ Adapters SHOULD inject it verbatim so squiggles look the same in every harness.
 `gate:"stop"` only — negotiations are **due**.
 
 **Deployment option `conflicts`** (default `hold`, the behaviour above). With `continue`
-(`WEFT_CONFLICTS=continue` in the gateway), open errors caused by **another agent's change**
+(`conflicts: "continue"` in the repo's config, set when the repo is created; it is recorded in the journal's config, so replay is exact), open errors caused by **another agent's change**
 (`caused_by_agent` differs from the session's agent) do not hold a `gate:"stop"`: the agent may
 stop and finish its other work with them open, and the owner of the causing change receives a
 `warning` diagnostic (never an error, so the owner is not blocked); a rejected landing notifies the owner of the change that blocked it the same way. `gate:"commit"` refuses on

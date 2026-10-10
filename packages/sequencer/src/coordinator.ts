@@ -57,6 +57,8 @@ import { all, migrate, one, run, type Sql } from "./sql";
 export type CoordinatorConfig = {
   repo: string;
   policy: ArbitrationPolicy;
+  /** Cross-agent conflicts (spec §8.4). Absent = `hold`, so configs written before this option are unchanged. */
+  conflicts?: ConflictMode;
   /** Absent in configs written before B11: treated as `auto`. */
   escalation?: EscalationPolicy;
   claim_ttl_ms: number;
@@ -68,6 +70,7 @@ export type CoordinatorConfig = {
 export type CoordinatorInit = {
   repo: string;
   policy?: ArbitrationPolicy;
+  conflicts?: ConflictMode;
   escalation?: EscalationPolicy;
   claim_ttl_ms?: number;
   session_ttl_ms?: number;
@@ -82,6 +85,7 @@ export function configFrom(o: CoordinatorInit): CoordinatorConfig {
     repo: o.repo,
     policy: o.policy ?? "wound-wait",
     escalation: o.escalation ?? "auto",
+    ...(o.conflicts ? { conflicts: o.conflicts } : {}),
     claim_ttl_ms: o.claim_ttl_ms ?? 30 * 60_000,
     session_ttl_ms: o.session_ttl_ms ?? 5 * 60_000,
     heartbeat_interval_ms: o.heartbeat_interval_ms ?? 30_000,
@@ -199,7 +203,6 @@ export class SqlCoordinator {
   constructor(
     private readonly sql: Sql,
     private readonly now: () => number = () => Date.now(),
-    private readonly conflicts: ConflictMode = "hold",
   ) {
     migrate(sql);
     const c = one<{ v: string }>(sql, `SELECT v FROM meta WHERE k = 'config'`);
@@ -225,6 +228,10 @@ export class SqlCoordinator {
   }
   get policy(): ArbitrationPolicy {
     return this.config.policy;
+  }
+  /** Per-repo, recorded in the config at init (so replay is exact): `hold` unless the repo opted in. */
+  get conflicts(): ConflictMode {
+    return this.config.conflicts ?? "hold";
   }
   get escalation(): EscalationPolicy {
     return this.config.escalation ?? "auto";

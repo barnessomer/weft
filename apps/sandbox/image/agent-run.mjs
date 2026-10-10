@@ -70,7 +70,7 @@ export function buildPrompt(spec) {
       "## How to finish",
       "- Work in this checkout. Commit your work with `git commit` (trailers are added automatically).",
       `- You may push checkpoints with \`git push origin HEAD:${branch}\`; the runner pushes your final commits when you exit.`,
-      "- Weft may report conflicts with other agents as diagnostics. Fix the errors you caused; for a conflict caused by another agent's change, do not adapt to their partial work, keep working on your other tasks, and say in your final message which conflict is open.",
+      "- Weft may report conflicts with other agents as diagnostics; resolve them before you stop.",
     ].join("\n"),
   );
   return parts.join("\n\n");

@@ -2,7 +2,7 @@
 // ran under, then dispatched. Replaying the journal into an empty database reproduces the
 // log, every verdict and all derived state byte-for-byte (spec §5.1: replay determinism).
 
-import { WcpProtocolError, type Actor, type ConflictMode, type EventDraft, type Gate, type Hello, type HumanAction, type Submit } from "@weft/protocol";
+import { WcpProtocolError, type Actor, type EventDraft, type Gate, type Hello, type HumanAction, type Submit } from "@weft/protocol";
 import { SqlCoordinator, type CoordinatorInit, type QueueEntry } from "./coordinator";
 import { all, run, type Sql } from "./sql";
 
@@ -58,9 +58,8 @@ export class JournaledCoordinator {
   constructor(
     private readonly sql: Sql,
     private readonly now: () => number,
-    conflicts: ConflictMode = "hold",
   ) {
-    this.coord = new SqlCoordinator(sql, () => this.frozen ?? now(), conflicts);
+    this.coord = new SqlCoordinator(sql, () => this.frozen ?? now());
   }
 
   call<T = unknown>(op: JournalOp, ...args: unknown[]): T {
@@ -92,11 +91,10 @@ export function replay(
   sql: Sql,
   init: CoordinatorInit,
   entries: JournalEntry[],
-  conflicts: ConflictMode = "hold",
 ): { coord: SqlCoordinator; results: unknown[] } {
   let t = 0;
   SqlCoordinator.init(sql, init);
-  const coord = new SqlCoordinator(sql, () => t, conflicts);
+  const coord = new SqlCoordinator(sql, () => t);
   const results: unknown[] = [];
   for (const e of entries) {
     t = e.at;

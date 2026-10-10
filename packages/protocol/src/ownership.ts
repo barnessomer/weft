@@ -6,7 +6,7 @@ import type { Diagnostic } from "./types";
 
 /**
  * `hold` (default, today's behaviour): a conflict on the agent's own symbols holds its stop, and the
- * owner is not told. `continue` (deployment opt-in, WEFT_CONFLICTS=continue): another agent's
+ * owner is not told. `continue` (per-repo opt-in: `conflicts: "continue"` in the repo's config): another agent's
  * conflict does not hold the stop, the owner is told, and the wording says to keep working.
  */
 export type ConflictMode = "hold" | "continue";
