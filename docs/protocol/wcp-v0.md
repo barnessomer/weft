@@ -536,14 +536,19 @@ Adapters SHOULD inject it verbatim so squiggles look the same in every harness.
 `gate.result.allow` is false iff the session has open errors (§6.5), or — for
 `gate:"stop"` only — negotiations are **due**.
 
-**Deployment option `conflicts`** (default `hold`, the behaviour above). With `continue`
-(`conflicts: "continue"` in the repo's config, set when the repo is created; it is recorded in the journal's config, so replay is exact), open errors caused by **another agent's change**
-(`caused_by_agent` differs from the session's agent) do not hold a `gate:"stop"`: the agent may
-stop and finish its other work with them open, and the owner of the causing change receives a
-`warning` diagnostic (never an error, so the owner is not blocked); a rejected landing notifies the owner of the change that blocked it the same way. `gate:"commit"` refuses on
-every open error in both modes, so a conflicting symbol cannot be committed while it is open
-(see `ownership.ts`). Under `continue`, the diagnostics' suggestions say to keep working on
-other tasks instead of rebasing or adapting to the other agent's change. `reason` renders both, and
+**Repo policy `conflicts`** (default `hold`, the behaviour above). It is a field of the repo's
+config, set when the repo is created (`CoordinatorInit.conflicts`, validated by the gateway
+registry as `hold` or `continue`). An absent field means `hold`, so existing configs are unchanged.
+It is not read from the environment. It is recorded in the repo's config, so a journal replayed
+with the same init reproduces every verdict exactly. With `continue`, open errors caused by
+**another agent's change** (`caused_by_agent` differs from the session's agent) do not hold a
+`gate:"stop"`: the agent may stop and finish its other work with them open, and the owner of the
+causing change receives a `warning` diagnostic (never an error, so the owner is not blocked). A
+rejected landing notifies the owner of the change that blocked it the same way. `gate:"commit"`
+refuses on every open error in both modes, so a conflicting symbol cannot be committed while it
+is open (see `ownership.ts`). Under `continue`, the diagnostics' suggestions say to keep working on
+other tasks instead of rebasing or adapting to the other agent's change; under `hold` the
+suggestions are unchanged from today. `reason` renders the blocking errors and dues, and
 `gate.result.negotiations` lists the dues `{seq, due, record, keys}`:
 
 - `due:"reply"`: an accepted `negotiate.propose`/`negotiate.counter` addressed to the session
