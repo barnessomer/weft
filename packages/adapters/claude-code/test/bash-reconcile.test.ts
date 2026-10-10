@@ -61,6 +61,18 @@ async function bash(b: Bed, id: string, command: string): Promise<void> {
   await hook(b.root, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command }, tool_use_id: id, tool_response: {} });
 }
 
+/** A Bash tool call that fails: Pre hook, the shell command (non-zero exit), PostToolUseFailure. */
+async function bashFails(b: Bed, id: string, command: string): Promise<void> {
+  await hook(b.root, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command }, tool_use_id: id });
+  await run("sh", ["-c", command], { cwd: b.root }).then(
+    () => {
+      throw new Error("expected the command to fail");
+    },
+    () => undefined,
+  );
+  await hook(b.root, { hook_event_name: "PostToolUseFailure", tool_name: "Bash", tool_input: { command }, tool_use_id: id, error: "Command exited with non-zero status code 1" });
+}
+
 /** Edit events the coordinator recorded for this checkout. */
 function edits(b: Bed): Ev[] {
   return (b.coord.events(0, 1000).events as Ev[]).filter((e) => e.kind === "edit");
@@ -129,5 +141,23 @@ describe("Bash reconciliation: files a shell command changes are coordinated (is
     await hook(b.root, { hook_event_name: "PostToolUse", tool_name: "Edit", tool_input: input, tool_use_id: "e1", tool_response: {} });
     expect(logOf(b.root)).toContain("unreadable src/link.ts");
     expect(edits(b).some((e) => e.files.includes("src/link.ts"))).toBe(false);
+  }, 30_000);
+});
+
+describe("Bash failures are reconciled too (issue #8b)", () => {
+  it("a Bash call that writes a file and then fails still produces an edit event for it", async () => {
+    const b = await bed("bash-fail");
+    await start(b);
+    const v2 = join(b.outside, "pricing-v2.ts");
+    writeFileSync(v2, PRICING_V2);
+    await bashFails(b, "bash-f1", `cp ${v2} src/pricing.ts && false`);
+    expect(edits(b).map((e) => e.files)).toContainEqual(["src/pricing.ts"]);
+  }, 30_000);
+
+  it("install registers the failure hook for Bash", async () => {
+    const b = await bed("bash-settings");
+    const settings = JSON.parse(readFileSync(join(b.root, ".claude/settings.local.json"), "utf8")) as { hooks: Record<string, Array<{ matcher?: string; hooks: Array<{ command: string }> }>> };
+    const entry = settings.hooks.PostToolUseFailure?.find((e) => e.hooks.some((h) => h.command.includes("weft-claude")));
+    expect(entry?.matcher).toBe("Bash");
   }, 30_000);
 });

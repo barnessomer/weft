@@ -12,6 +12,7 @@
 //                      inject verdict + inbox as additionalContext           (L1)
 //   PostToolUse (other) drain inbox (throttled); Bash: reconcile the files it changed (shell
 //                      writes, redirects, committed edits) and HEAD move -> checkpoint
+//   PostToolUseFailure Bash only: the same reconcile (a failed command may still have written)
 //   Stop               gate stop -> decision "block" while errors are open   (L3)
 //   SessionEnd         bye (unless errors are open: then the session stays for the git gate)
 //
@@ -339,6 +340,9 @@ export class ClaudeAdapter {
       case "PostToolUse":
         if (EDIT_TOOLS.has(input.tool_name ?? "")) return this.postEdit(input, st);
         return this.postOther(input, st);
+      case "PostToolUseFailure":
+        // A failed Bash call can still have written files (`printf x > f && false`).
+        return input.tool_name === "Bash" ? this.postOther(input, st, "PostToolUseFailure") : undefined;
       case "Stop":
       case "SubagentStop":
         return this.stop(input, st);
@@ -562,7 +566,7 @@ export class ClaudeAdapter {
     return text;
   }
 
-  private async postOther(input: HookInput, st: SessionState): Promise<HookOutput> {
+  private async postOther(input: HookInput, st: SessionState, hookEvent: "PostToolUse" | "PostToolUseFailure" = "PostToolUse"): Promise<HookOutput> {
     // A Bash call's shell edits are coordinated here, whether or not the command itself succeeded.
     const bashText = input.tool_name === "Bash" ? await this.reconcileBash(input, st) : "";
     if (!st.wcpSession) return undefined; // nothing coordinated yet in this conversation
@@ -584,7 +588,7 @@ export class ClaudeAdapter {
       const batch = await this.call(st, (s) => this.deps.transport.drain(s, this.ack(st)));
       text = this.delivered(st, await renderForModel([], batch.items, this.ctx()), batch.delivered_through, batch.items);
     }
-    return text ? { hookSpecificOutput: { hookEventName: "PostToolUse", additionalContext: `[weft diagnostics]\n${text}` } } : undefined;
+    return text ? { hookSpecificOutput: { hookEventName: hookEvent, additionalContext: `[weft diagnostics]\n${text}` } } : undefined;
   }
 
   private async stop(input: HookInput, st: SessionState): Promise<HookOutput> {
