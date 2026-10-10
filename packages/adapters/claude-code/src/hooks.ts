@@ -24,11 +24,11 @@
 // Fail open: any coordinator/transport failure lets the tool run (logged, and noted to the
 // model) — an unreachable coordinator must never wedge the agent.
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, statSync, renameSync } from "node:fs";
+import { existsSync, lstatSync, readFileSync, statSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { AgentRef, Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, NegotiateCommand, NegotiationDue, Verdict } from "@weft/protocol";
 import { WcpError, PROTOCOL, type Transport } from "./client";
-import { readState, withLock, writeState, type Loaded, type SessionState } from "./config";
+import { appendAdapterLog, readState, withLock, writeState, type Loaded, type SessionState } from "./config";
 import { EDIT_TOOLS, editPath, isGitCommit, proposedText } from "./edits";
 import { renderDues, renderForModel, type EditedFile, type RenderCtx } from "./render";
 import type { Sets, FileChange } from "./analysis";
@@ -124,15 +124,7 @@ export class ClaudeAdapter {
   // ------------------------------------------------------------------ infra
 
   log(message: string): void {
-    try {
-      const dir = join(this.root, ".weft", "log");
-      mkdirSync(dir, { recursive: true });
-      const path = join(dir, "adapter.log");
-      if (existsSync(path) && statSync(path).size > 2_000_000) renameSync(path, `${path}.1`);
-      appendFileSync(path, `${new Date(this.now()).toISOString()} ${message}\n`);
-    } catch {
-      /* logging must never break a hook */
-    }
+    appendAdapterLog(this.root, message, this.now());
   }
 
   git(args: string[]): string | undefined {
@@ -432,7 +424,8 @@ export class ClaudeAdapter {
     const command = typeof input.tool_input?.command === "string" ? input.tool_input.command : "";
     st.head = this.git(["rev-parse", "HEAD"])?.trim() ?? st.head;
     // What the checkout looked like before this command ran; PostToolUse(Bash) diffs against it.
-    if (input.tool_use_id && st.wcpSession) st.pending[input.tool_use_id] = { tool: "Bash", before: this.dirtySnapshot(), shown: [], head: st.head, at: this.now() };
+    // Taken without a session too: a subagent has no SessionStart, and its first call may be a shell edit.
+    if (input.tool_use_id) st.pending[input.tool_use_id] = { tool: "Bash", before: this.dirtySnapshot(), shown: [], head: st.head, at: this.now() };
     if (!isGitCommit(command) || !st.wcpSession || !this.enforce) return undefined;
     const result = await this.call(st, (s) => this.deps.transport.gate(s, "commit"));
     if (result.allow) return undefined;
@@ -543,7 +536,6 @@ export class ClaudeAdapter {
     const callId = input.tool_use_id ?? "";
     const pend = st.pending[callId];
     delete st.pending[callId];
-    if (!st.wcpSession) return "";
     const before0 = pend?.before ?? {};
     const baseHead = pend?.head;
     const head = this.git(["rev-parse", "HEAD"])?.trim();

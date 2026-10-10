@@ -40,6 +40,8 @@ concurrently); the adapter log is `.weft/log/adapter.log`.
 | `PreToolUse` Bash `git commit …` | `gate commit` → deny while errors are open (`commit_gate: tool_interception`) | L3 |
 | `PostToolUse` Edit / Write / MultiEdit | real before (stashed at PreToolUse) / after (disk) → `submit mode:"commit"` with a unified diff; inject verdict + inbox (minus what PreToolUse already showed) | L0/L1 |
 | `PostToolUse` other tools | drain (throttled to one per 2 s); Bash that moved `HEAD` → `checkpoint {sha}` | L1 |
+| `PreToolUse` / `PostToolUse` Bash (reconcile) | `PreToolUse` snapshots the dirty files and `HEAD`; `PostToolUse` compares the checkout with that snapshot and submits each file a shell command changed (redirects, `cp`, `sed`, heredocs, files it committed) as its own `commit` event, idempotency key `<call>:<file>`. A symlink on a checkout path is **unreadable**: logged `unreadable <file>`, never submitted | L1 |
+| `PostToolUseFailure` Bash | the same reconcile: a failed command can still have written files (`printf x > f && false`) | L1 |
 | `Stop` | `gate stop` → `decision:"block"` with the open errors; after 5 refusals for the same errors Claude may stop (runaway guard; errors stay in the feed) | L3 |
 | `SessionEnd` | `bye` — unless errors are open: then the session stays alive (detached heartbeat loop, 30 min idle limit) so the pre-commit gate and a resumed conversation still see them | |
 
@@ -76,6 +78,46 @@ Fail open: a transport/coordinator error lets the tool run (`additionalContext` 
 edit was not coordinated) and is logged. Files outside the checkout, and under `.git`, `.weft`,
 `.claude`, `node_modules`, `dist`, are ignored. Edits whose analysis yields no writes
 (comment/import-only) are not submitted.
+
+## Subagents: `install-agent` and `hook --by-path`
+
+A subagent (for example `weft-worker`) runs in the parent session's cwd but edits inside its own
+joined worktree, and has no SessionStart of its own. In the orchestrating session's project:
+
+```sh
+# in each worktree the subagents will work in
+WEFT_TOKEN=... node …/weft-claude.mjs install --url … --repo my-repo --agent worker-1 --task T-1
+# once, in the orchestrating session's project (then start a new session so it loads)
+node …/weft-claude.mjs install-agent [--name weft-worker]
+```
+
+`install-agent` writes `.claude/agents/weft-worker.md` (added to `.git/info/exclude`: it holds
+absolute paths), a subagent whose own frontmatter hooks run `hook --by-path` on Edit, Write,
+MultiEdit, Bash and on Bash failures. `--by-path` looks for the config in the edited file's own
+checkout first (stopping at the first directory holding `.git`; for Bash, the `cd`/`git -C` target),
+then in the cwd, so each subagent acts as the agent of the worktree it works in. Plain `hook` is unchanged.
+
+**Pinned coordinator.** A checkout can ship its own `.weft/claude.json`, so `--by-path` does not
+trust one by location alone. `install-agent` pins the coordinator URL and repo of the parent
+session's own config (or `--url` and `--repo` when the parent has none) into the worker definition
+as `hook --by-path --url U --repo R`. A `--by-path` hook coordinates only a checkout whose config
+has exactly that url and repo. Any other checkout is logged (`hook --by-path refused`) and not
+coordinated, and an unpinned `--by-path` hook trusts nothing. Re-run `install-agent` after changing
+the coordinator. Plain `hook` does not read the pin.
+
+**Bash target.** Under `--by-path`, a Bash command is attributed only through a target it names in
+one of these forms, and is otherwise denied before it runs:
+
+- a leading `cd <dir> && ...`, where `<dir>` is an absolute path or `~` / `~/...` (bare, `"…"` or `'…'`);
+- a leading `git -C <dir> ...`, with the same `<dir>` forms.
+
+Relative paths (`cd src && ...`), `$VAR` or `${VAR}`, a `cd` that is not the first command, and a
+bare `cd <dir>` without `&&` are refused. The deny tells the agent to start the command with
+`cd <worktree> &&`. Plain `hook` does not deny Bash.
+
+Not covered yet: the in-session commit and Stop gates still use the parent's checkout for a
+subagent's commands; the worktree's git `pre-commit` hook still refuses commits while that worktree
+has open errors.
 
 ## Negotiation from the shell (spec §7.4, §7.6, §8.4)
 
