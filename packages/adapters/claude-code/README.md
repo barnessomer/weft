@@ -43,6 +43,24 @@ MultiEdit. `--by-path` looks for the config in the edited file's own checkout fi
 the first directory holding `.git`), then in the cwd, so each subagent acts as the agent of the
 worktree it edits. Give each subagent the absolute worktree path. Plain `hook` is unchanged.
 
+**Pinned coordinator.** A checkout can ship its own `.weft/claude.json`, so `--by-path` does not
+trust one by location alone. `install-agent` pins the coordinator URL and repo of the parent
+session's own config (or `--url` and `--repo` when the parent has none) into the worker definition
+as `hook --by-path --url U --repo R`. A `--by-path` hook coordinates only a checkout whose config
+has exactly that url and repo. Any other checkout is logged (`hook --by-path refused`) and not
+coordinated, and an unpinned `--by-path` hook trusts nothing. Re-run `install-agent` after changing
+the coordinator. Plain `hook` does not read the pin.
+
+**Bash target.** Under `--by-path`, a Bash command is attributed only through a target it names in
+one of these forms, and is otherwise denied before it runs:
+
+- a leading `cd <dir> && ...`, where `<dir>` is an absolute path or `~` / `~/...` (bare, `"…"` or `'…'`);
+- a leading `git -C <dir> ...`, with the same `<dir>` forms.
+
+Relative paths (`cd src && ...`), `$VAR` or `${VAR}`, a `cd` that is not the first command, and a
+bare `cd <dir>` without `&&` are refused. The deny tells the agent to start the command with
+`cd <worktree> &&`. Plain `hook` does not deny Bash.
+
 Not covered yet (#10): a subagent's Bash commands and Stop are not routed by path, so the
 in-session commit and stop gates use the parent's checkout; the worktree's git `pre-commit` hook
 still refuses commits while that worktree has open errors.

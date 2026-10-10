@@ -3,8 +3,11 @@
 //   install        configure a checkout: .weft/claude.json (+ token file), .claude/settings.json
 //                  hooks, git commit-msg (Change-Id/Task-Id/Agent-Id trailers) + pre-commit gate
 //   hook           Claude Code hook entry: JSON on stdin -> JSON on stdout (always exit 0);
-//                  --by-path: find the checkout from the edited file first (weft-worker subagents)
-//   install-agent  write .claude/agents/weft-worker.md: a subagent whose own hooks run `hook --by-path`
+//                  --by-path --url U --repo R: find the checkout from the edited file first
+//                  (weft-worker subagents). Only a checkout whose config has exactly that url and
+//                  repo is trusted; a Bash command with no accepted cd/git -C target is denied.
+//   install-agent  write .claude/agents/weft-worker.md: a subagent whose own hooks run
+//                  `hook --by-path --url U --repo R`, pinned to the parent session's config
 //   commit-msg F   git commit-msg hook
 //   pre-commit     git pre-commit hook (last gate: refuses while the session has open errors)
 //   heartbeat-loop keep a WCP session alive between hooks (spawned detached by SessionStart)
@@ -18,7 +21,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { NEGOTIATE_USAGE, parseNegotiate } from "@weft/protocol";
 import { HttpTransport, type Transport } from "./client";
-import { CONFIG_REL, configStarts, currentSession, loadConfig, readState, stateDir, type AdapterConfig, type Loaded } from "./config";
+import { BASH_TARGET_FORMS, CONFIG_REL, appendAdapterLog, bashTargetDir, configStarts, currentSession, findRoot, loadConfig, pinMatches, readConfigFile, readState, stateDir, type AdapterConfig, type Loaded, type Pin } from "./config";
 import { ClaudeAdapter, type HookInput } from "./hooks";
 
 const SELF = fileURLToPath(import.meta.url);
@@ -93,16 +96,37 @@ export function injectedText(out: unknown): string {
   return [o.reason, o.hookSpecificOutput?.additionalContext, o.hookSpecificOutput?.permissionDecisionReason].filter((x): x is string => typeof x === "string").join("\n");
 }
 
-async function hook(byPath: boolean): Promise<void> {
+/** The one denial `--by-path` gives a Bash command that names no accepted target. */
+export const BASH_NEEDS_TARGET =
+  `[weft] This Bash command names no checkout Weft can coordinate. Start the command with \`cd <worktree> &&\` (or \`git -C <worktree> ...\`), using the absolute worktree path. Accepted forms: ${BASH_TARGET_FORMS}.`;
+
+async function hook(byPath: boolean, args: string[] = []): Promise<void> {
   let out: unknown;
   let input: HookInput | undefined;
   let loaded: Loaded | undefined;
   const calls: Call[] = [];
   const handleStart = performance.now();
+  const pin: Pin | undefined = arg(args, "url") && arg(args, "repo") ? { url: arg(args, "url")!, repo: arg(args, "repo")! } : undefined;
   try {
     input = JSON.parse(await readStdin()) as HookInput;
-    for (const start of configStarts(input, byPath)) if ((loaded = loadConfig(start))) break;
-    if (loaded) out = await adapterFor(loaded, calls).handle(input);
+    const denyBash = byPath && input.hook_event_name === "PreToolUse" && input.tool_name === "Bash" && !bashTargetDir(typeof input.tool_input?.command === "string" ? input.tool_input.command : "", input.cwd ?? process.env.CLAUDE_PROJECT_DIR ?? process.cwd());
+    if (denyBash) {
+      // Fail closed: a command with no accepted target is not run, and no checkout is coordinated for it.
+      out = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: BASH_NEEDS_TARGET } };
+    } else {
+      for (const start of configStarts(input, byPath)) {
+        const found = loadConfig(start);
+        if (!found) continue;
+        if (byPath && !pinMatches(found.root, pin)) {
+          // A checkout whose config does not match the pinned coordinator is not coordinated.
+          appendAdapterLog(found.root, `hook --by-path refused: ${found.root}/${CONFIG_REL} url/repo do not match the pinned coordinator`);
+          break;
+        }
+        loaded = found;
+        break;
+      }
+    }
+    if (loaded && input) out = await adapterFor(loaded, calls).handle(input);
   } catch {
     out = undefined; // fail open: malformed input or a bug must not block the harness
   }
@@ -321,9 +345,16 @@ function installAgent(args: string[]): void {
   const root = git(dir, ["rev-parse", "--show-toplevel"]);
   const name = arg(args, "name") ?? "weft-worker";
   if (!/^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$/.test(name)) throw new Error(`install-agent: --name must be letters, digits, - or _ (got ${JSON.stringify(name)})`);
+  // The coordinator the subagent may act for: the parent session's own config when it has one,
+  // else --url and --repo. Every by-path hook must match it (config.ts pinMatches).
+  const parentRoot = findRoot(dir);
+  const parent = parentRoot ? readConfigFile(parentRoot) : undefined;
+  const pin: Pin | undefined = parent?.url && parent.repo ? { url: parent.url, repo: parent.repo } : arg(args, "url") && arg(args, "repo") ? { url: arg(args, "url")!, repo: arg(args, "repo")! } : undefined;
+  if (!pin) throw new Error("install-agent: no coordinator to pin: the parent session has no .weft/claude.json; pass --url and --repo");
   const path = join(root, ".claude", "agents", `${name}.md`);
   mkdirSync(dirname(path), { recursive: true });
-  writeFileSync(path, workerAgent(`${shellQuote(process.execPath)} ${shellQuote(SELF)} hook --by-path`, name));
+  const pinned = `--url ${shellQuote(pin.url)} --repo ${shellQuote(pin.repo)}`;
+  writeFileSync(path, workerAgent(`${shellQuote(process.execPath)} ${shellQuote(SELF)} hook --by-path ${pinned}`, name));
   // absolute machine paths: keep it out of git, like settings.local.json
   const exclude = resolve(root, git(root, ["rev-parse", "--git-path", "info/exclude"]));
   const rel = `.claude/agents/${name}.md`;
@@ -438,7 +469,7 @@ async function main(): Promise<void> {
   const [cmd, ...args] = process.argv.slice(2);
   switch (cmd) {
     case "hook":
-      return hook(args.includes("--by-path"));
+      return hook(args.includes("--by-path"), args);
     case "install":
       return install(args);
     case "install-agent":

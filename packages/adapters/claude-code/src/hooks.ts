@@ -22,11 +22,11 @@
 // Fail open: any coordinator/transport failure lets the tool run (logged, and noted to the
 // model) — an unreachable coordinator must never wedge the agent.
 import { execFileSync } from "node:child_process";
-import { appendFileSync, existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync, renameSync } from "node:fs";
+import { existsSync, lstatSync, mkdirSync, readFileSync, realpathSync, statSync, renameSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
 import type { AgentRef, Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, NegotiateCommand, NegotiationDue, Verdict } from "@weft/protocol";
 import { WcpError, PROTOCOL, type Transport } from "./client";
-import { readState, withLock, writeState, type Loaded, type SessionState } from "./config";
+import { appendAdapterLog, readState, withLock, writeState, type Loaded, type SessionState } from "./config";
 import { EDIT_TOOLS, editPath, isGitCommit, proposedText } from "./edits";
 import { renderDues, renderForModel, type EditedFile, type RenderCtx } from "./render";
 import type { Sets, FileChange } from "./analysis";
@@ -107,15 +107,7 @@ export class ClaudeAdapter {
   // ------------------------------------------------------------------ infra
 
   log(message: string): void {
-    try {
-      const dir = join(this.root, ".weft", "log");
-      mkdirSync(dir, { recursive: true });
-      const path = join(dir, "adapter.log");
-      if (existsSync(path) && statSync(path).size > 2_000_000) renameSync(path, `${path}.1`);
-      appendFileSync(path, `${new Date(this.now()).toISOString()} ${message}\n`);
-    } catch {
-      /* logging must never break a hook */
-    }
+    appendAdapterLog(this.root, message, this.now());
   }
 
   git(args: string[]): string | undefined {

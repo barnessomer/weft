@@ -4,6 +4,7 @@ import { analyzeDiff } from "@weft/analyzer";
 import { execFileSync, execFile } from "node:child_process";
 import { promisify } from "node:util";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { homedir } from "node:os";
 import { join, dirname } from "node:path";
 import { fileURLToPath } from "node:url";
 import { analyzeChanges, unifiedDiff, importReads } from "../src/analysis";
@@ -312,7 +313,7 @@ describe("installer, git hooks and the bundled CLI", () => {
     execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "worker-3", "--task", "T-8"], { cwd: wt, env: { ...process.env, WEFT_TOKEN: "t" } });
     const run = (input: object) =>
       new Promise<string>((res, rej) => {
-        const child = execFile(process.execPath, [BUNDLE, "hook", "--by-path"], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout)));
+        const child = execFile(process.execPath, [BUNDLE, "hook", "--by-path", "--url", url, "--repo", "demo"], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout)));
         child.stdin!.end(JSON.stringify(input));
       });
     const base = { session_id: "parent-s", agent_id: "sub-3", cwd: parent, tool_name: "Bash" };
@@ -331,22 +332,32 @@ describe("installer, git hooks and the bundled CLI", () => {
     expect(coord.log.filter((r) => r.kind === "edit" && r.agent === "worker-3").flatMap((r) => r.writes.map((w) => w.key))).toContain("src/fc.ts#fc");
   }, 30_000);
 
-  it("bashTargetDir expands ~ and $VAR; an unknown variable is unknown, not cwd", () => {
-    const home = process.env.HOME ?? "";
-    process.env.WEFT_TEST_WT = "/wt/vars";
-    expect(bashTargetDir("cd ~/wt && ls", "/repo")).toBe(join(home, "wt"));
-    expect(bashTargetDir(`cd "$WEFT_TEST_WT" && ls`, "/repo")).toBe("/wt/vars");
-    expect(bashTargetDir(`cd $WEFT_NOT_SET_ANYWHERE && ls`, "/repo")).toBeUndefined();
-    delete process.env.WEFT_TEST_WT;
-  });
-
-  it("bashTargetDir: cd or git -C names the directory a command works in", () => {
+  it("bashTargetDir accepts only a leading `cd <abs|~> &&` or `git -C <abs|~>`", () => {
+    const home = homedir();
     expect(bashTargetDir("cd /wt/a && npm test", "/repo")).toBe("/wt/a");
     expect(bashTargetDir(`cd "/wt/a b" && sed -i s/x/y/ f`, "/repo")).toBe("/wt/a b");
-    expect(bashTargetDir("echo hi; cd ../wt && ls", "/repo/sub")).toBe("/repo/wt");
+    expect(bashTargetDir(`cd '/wt/q' && ls`, "/repo")).toBe("/wt/q");
+    expect(bashTargetDir("cd ~/wt && ls", "/repo")).toBe(join(home, "wt"));
+    expect(bashTargetDir("cd ~ && ls", "/repo")).toBe(home);
     expect(bashTargetDir("git -C /wt/c commit -m x", "/repo")).toBe("/wt/c");
-    expect(bashTargetDir("ls -la", "/repo")).toBeUndefined();
-    expect(bashTargetDir("echo cd /not/this", "/repo")).toBeUndefined();
+    expect(bashTargetDir("git -C ~/wt status", "/repo")).toBe(join(home, "wt"));
+  });
+
+  it("bashTargetDir refuses every other form (relative, $VAR, not leading, no &&): fail closed", () => {
+    for (const cmd of [
+      "ls -la",
+      "echo cd /not/this",
+      "echo hi; cd /wt && ls", // cd not leading
+      "cd /wt", // no &&
+      "cd ../wt && ls", // relative
+      "cd src && ls",
+      `cd "$WEFT_TEST_WT" && ls`, // variable
+      "cd $HOME/wt && ls",
+      "cd ${HOME}/wt && ls",
+      "git -C ../wt status",
+      "git -C $HOME status",
+      "git status", // no -C
+    ]) expect(bashTargetDir(cmd, "/repo"), cmd).toBeUndefined();
   });
 
   it("configStarts for Bash --by-path: the cd target's checkout, else cwd", () => {
@@ -369,7 +380,7 @@ describe("installer, git hooks and the bundled CLI", () => {
     execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "worker-2", "--task", "T-7"], { cwd: wt, env: { ...process.env, WEFT_TOKEN: "t" } });
     const run = (input: object) =>
       new Promise<string>((res, rej) => {
-        const child = execFile(process.execPath, [BUNDLE, "hook", "--by-path"], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout)));
+        const child = execFile(process.execPath, [BUNDLE, "hook", "--by-path", "--url", url, "--repo", "demo"], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout)));
         child.stdin!.end(JSON.stringify(input));
       });
     const command = `cd ${wt} && printf 'export function newFn(n: number) { return n; }\\n' > src/new.ts`;
@@ -400,6 +411,76 @@ describe("installer, git hooks and the bundled CLI", () => {
     expect(existsSync(join(root, ".claude"))).toBe(false);
   });
 
+  it("install-agent pins the parent session's coordinator; with no config to pin it needs --url and --repo", () => {
+    const parent = checkout("pinagent");
+    expect(() => execFileSync(process.execPath, [BUNDLE, "install-agent"], { cwd: parent, stdio: "pipe" })).toThrow();
+    execFileSync(process.execPath, [BUNDLE, "install-agent", "--url", "https://weft.example.test", "--repo", "demo"], { cwd: parent });
+    expect(readFileSync(join(parent, ".claude/agents/weft-worker.md"), "utf8")).toContain("hook --by-path --url https://weft.example.test --repo demo");
+    // a joined parent: its own config wins over flags
+    const joined = checkout("pinjoined");
+    execFileSync(process.execPath, [BUNDLE, "install", "--url", "https://weft.example.test", "--repo", "demo", "--agent", "parent-a", "--task", "T-12"], { cwd: joined, env: { ...process.env, WEFT_TOKEN: "t" } });
+    execFileSync(process.execPath, [BUNDLE, "install-agent", "--url", "https://other.example.test", "--repo", "demo"], { cwd: joined });
+    const md = readFileSync(join(joined, ".claude/agents/weft-worker.md"), "utf8");
+    expect(md).toContain("--url https://weft.example.test --repo demo");
+    expect(md).not.toContain("other.example.test");
+  });
+
+  it("--by-path: a checkout whose config has another url or repo is not coordinated; the pinned one is (real bundle)", async () => {
+    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const { url, server } = await serve(coord);
+    servers.push(server);
+    const good = checkout("pinned");
+    const evil = checkout("redirect");
+    const parent = checkout("pinparent");
+    const env = { ...process.env, WEFT_TOKEN: "t" };
+    execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "worker-pin", "--task", "T-10"], { cwd: good, env });
+    // a repo that ships its own config, pointing at a server of its choosing
+    execFileSync(process.execPath, [BUNDLE, "install", "--url", "https://attacker.example.test", "--repo", "demo", "--agent", "worker-evil", "--task", "T-11"], { cwd: evil, env });
+    const run = (args: string[], input: object) =>
+      new Promise<string>((res, rej) => {
+        const child = execFile(process.execPath, [BUNDLE, ...args], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout)));
+        child.stdin!.end(JSON.stringify(input));
+      });
+    const write = (wt: string, name: string) => ({ hook_event_name: "PreToolUse", session_id: "parent-p", agent_id: "sub-p", cwd: parent, tool_name: "Write", tool_use_id: `w-${name}`, tool_input: { file_path: join(wt, `src/${name}.ts`), content: `export function ${name}(n: number) { return n; }\n` } });
+    const pinned = ["hook", "--by-path", "--url", url, "--repo", "demo"];
+    expect(await run(pinned, write(evil, "fe"))).toBe("");
+    expect(coord.log.some((r) => r.agent === "worker-evil")).toBe(false);
+    expect(readFileSync(join(evil, ".weft/log/adapter.log"), "utf8")).toContain("do not match the pinned coordinator");
+    await run(pinned, write(good, "fg"));
+    expect(coord.log.some((r) => r.kind === "join" && r.agent === "worker-pin")).toBe(true);
+    // without a pin, nothing is trusted under --by-path
+    expect(await run(["hook", "--by-path"], write(good, "fh"))).toBe("");
+    expect(coord.log.some((r) => r.agent === "worker-pin" && r.kind === "edit" && r.writes.some((w) => w.key === "src/fh.ts#fh"))).toBe(false);
+  }, 30_000);
+
+  it("--by-path Bash: accepted target forms are attributed; any other form is denied before it runs (real bundle)", async () => {
+    const coord = new ReferenceCoordinator({ repo: "demo" });
+    const { url, server } = await serve(coord);
+    servers.push(server);
+    const wt = checkout("bashforms");
+    const parent = checkout("bashformsparent");
+    execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "worker-bf", "--task", "T-13"], { cwd: wt, env: { ...process.env, WEFT_TOKEN: "t" } });
+    const pre = async (command: string): Promise<{ hookSpecificOutput?: { permissionDecision?: string; permissionDecisionReason?: string } }> =>
+      new Promise((res, rej) => {
+        const child = execFile(process.execPath, [BUNDLE, "hook", "--by-path", "--url", url, "--repo", "demo"], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout ? JSON.parse(stdout) : {})));
+        child.stdin!.end(JSON.stringify({ hook_event_name: "PreToolUse", session_id: "parent-bf", agent_id: "sub-bf", cwd: parent, tool_name: "Bash", tool_use_id: "bf", tool_input: { command } }));
+      });
+    for (const command of [`cd ${wt} && ls`, `cd "${wt}" && npm test`, `git -C ${wt} status`]) {
+      expect((await pre(command)).hookSpecificOutput?.permissionDecision, command).toBeUndefined();
+    }
+    for (const command of ["ls -la", "cd src && ls", "cd $HOME/x && ls", `echo hi; cd ${wt} && ls`, `cd ${wt}`, "git -C src status"]) {
+      const out = await pre(command);
+      expect(out.hookSpecificOutput?.permissionDecision, command).toBe("deny");
+      expect(out.hookSpecificOutput?.permissionDecisionReason, command).toContain("cd <worktree> &&");
+    }
+    // plain hook is unchanged: no Bash deny
+    const plain = await new Promise<string>((res, rej) => {
+      const child = execFile(process.execPath, [BUNDLE, "hook"], { cwd: parent, encoding: "utf8" }, (err, stdout) => (err ? rej(err) : res(stdout)));
+      child.stdin!.end(JSON.stringify({ hook_event_name: "PreToolUse", session_id: "parent-bf", cwd: parent, tool_name: "Bash", tool_input: { command: "ls -la" } }));
+    });
+    expect(plain).toBe("");
+  }, 60_000);
+
   it("hook --by-path from a session outside the worktree acts as the worktree's agent; plain hook stays a no-op (real bundle)", async () => {
     const coord = new ReferenceCoordinator({ repo: "demo" });
     const { url, server } = await serve(coord);
@@ -407,9 +488,9 @@ describe("installer, git hooks and the bundled CLI", () => {
     const wt = checkout("wt");
     const parent = checkout("parent"); // the orchestrating session's cwd: not joined
     execFileSync(process.execPath, [BUNDLE, "install", "--url", url, "--repo", "demo", "--agent", "worker-1", "--task", "T-9"], { cwd: wt, env: { ...process.env, WEFT_TOKEN: "t" } });
-    const out = execFileSync(process.execPath, [BUNDLE, "install-agent"], { cwd: parent, encoding: "utf8" });
+    const out = execFileSync(process.execPath, [BUNDLE, "install-agent", "--url", url, "--repo", "demo"], { cwd: parent, encoding: "utf8" });
     expect(out).toContain("weft-worker.md");
-    expect(readFileSync(join(parent, ".claude/agents/weft-worker.md"), "utf8")).toContain("hook --by-path");
+    expect(readFileSync(join(parent, ".claude/agents/weft-worker.md"), "utf8")).toContain(`hook --by-path --url ${url} --repo demo`);
     expect(readFileSync(join(parent, ".git/info/exclude"), "utf8")).toContain(".claude/agents/weft-worker.md");
 
     const other = coord.hello({ type: "hello", protocol: "wcp/0.1", agent: { id: "claude-a", harness: "claude-code" }, capabilities: { level: 3, observe: "sync", inject: "immediate", deny_edit: true, refuse_stop: true, commit_gate: "tool_interception" }, task: { id: "T-1" } });
@@ -423,7 +504,7 @@ describe("installer, git hooks and the bundled CLI", () => {
     // a subagent: parent's session id and cwd, no SessionStart of its own, editing in the worktree
     const edit = { hook_event_name: "PreToolUse", session_id: "parent-s", agent_id: "sub-1", cwd: parent, tool_name: "Edit", tool_use_id: "y1", tool_input: { file_path: join(wt, "src/cart.ts"), old_string: "return `${items.length} items`;", new_string: "return `${calcTotal(items)}`;" } };
     expect(await run(["hook"], edit)).toBe("");
-    const pre = JSON.parse(await run(["hook", "--by-path"], edit));
+    const pre = JSON.parse(await run(["hook", "--by-path", "--url", url, "--repo", "demo"], edit));
     expect(pre.hookSpecificOutput.permissionDecision).toBe("deny");
     expect(pre.hookSpecificOutput.permissionDecisionReason).toContain("[weft error] stale_assumption src/cart.ts");
     expect(coord.log.some((r) => r.kind === "join" && r.agent === "worker-1")).toBe(true);
