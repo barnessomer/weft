@@ -73,6 +73,45 @@ describe("default (no conflicts field): hold, suggestion text unchanged", () => 
     expect(r.diagnostics.find((d) => d.code === "stale_overwrite")?.suggestion).toBe("Rebase onto trunk at or after #4, then redo the edit.");
   });
 
+  it("hold: landing rejected by a trunk change says 'rebase and retry the landing.'", () => {
+    const { j } = repo({ repo: "r" });
+    const a = j.call<{ session: string; delivered_through: number }>("hello", hello("claude-a", "I-a"));
+    const ea = j.call<{ seq: number }>("submit", a.session, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: a.delivered_through, writes: [{ key: "src/x.ts#f", kind: "body" }] } });
+    j.call("system", { kind: "land", base_seq: ea.seq, change: "I-a", payload: { sha: "a".repeat(40), op_id: "op-1" } });
+    const b = j.call<{ session: string; delivered_through: number }>("hello", hello("claude-b", "I-b"));
+    j.call("submit", b.session, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: b.delivered_through, writes: [{ key: "src/x.ts#f", kind: "body" }] } });
+    const landing = j.call<{ status: string; diagnostics: Array<{ message: string }> }>("system", { kind: "land", base_seq: ea.seq, change: "I-b", payload: { sha: "b".repeat(40), op_id: "op-2" } });
+    expect(landing.status).toBe("rejected");
+    expect(landing.diagnostics.map((d) => d.message)).toEqual(["Trunk changed src/x.ts#f in #3 after the landing base #2; rebase and retry the landing."]);
+  });
+
+  it("hold: the stale stop gate result is the full object (reason and open_errors)", () => {
+    const { j } = repo({ repo: "r" });
+    const { b } = staleCall(j);
+    expect(j.call("gate", b.session, { type: "gate", gate: "stop" })).toEqual({
+      type: "gate.result",
+      gate: "stop",
+      allow: false,
+      reason:
+        "1 open Weft error(s) must be resolved first:\n" +
+        "[weft error] stale_assumption src/pricing.ts#calcTotal: You use src/pricing.ts#calcTotal, whose signature changed in #3 by claude-a after your base #1. " +
+        "(caused by claude-a · task T-claude-a · event #3). Suggestion: Read the new src/pricing.ts#calcTotal (event #3) and update this call site, or negotiate with claude-a.",
+      open_errors: [
+        {
+          severity: "error",
+          code: "stale_assumption",
+          file: "src/pricing.ts",
+          symbol: "src/pricing.ts#calcTotal",
+          message: "You use src/pricing.ts#calcTotal, whose signature changed in #3 by claude-a after your base #1.",
+          suggestion: "Read the new src/pricing.ts#calcTotal (event #3) and update this call site, or negotiate with claude-a.",
+          caused_by_seq: 3,
+          caused_by_agent: "claude-a",
+          caused_by_task: "T-claude-a",
+        },
+      ],
+    });
+  });
+
   it("hold: the stale agent's stop is refused and the owner gets no diagnostic", () => {
     const { j } = repo({ repo: "r" });
     const { a, b } = staleCall(j);
@@ -84,14 +123,14 @@ describe("default (no conflicts field): hold, suggestion text unchanged", () => 
 describe("conflicts: continue (repo config)", () => {
   const init: CoordinatorInit = { repo: "r", conflicts: "continue" };
 
-  it("stop is allowed with the cross-agent conflict open, commit is refused, the owner gets a warning", () => {
+  it("stop and commit are refused with the cross-agent conflict open (as in hold); the owner gets a warning", () => {
     const { j } = repo(init);
     const { a, b, r } = staleCall(j);
     expect(r.verdict).toBe("reject");
     expect(r.diagnostics.map((d) => d.code)).toContain("stale_assumption");
 
     const stop = j.call<{ allow: boolean; open_errors: unknown[] }>("gate", b.session, { type: "gate", gate: "stop" });
-    expect(stop.allow).toBe(true);
+    expect(stop.allow).toBe(false);
     expect(stop.open_errors.length).toBeGreaterThan(0);
     expect(j.call<{ allow: boolean }>("gate", b.session, { type: "gate", gate: "commit" }).allow).toBe(false);
 

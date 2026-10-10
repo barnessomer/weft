@@ -95,6 +95,32 @@ describe("edit tools", () => {
 });
 
 describe("Claude Code hooks against the reference coordinator", () => {
+  it("stop cap (default 5): refusals 1-5 block; from the 6th Stop for the same open error the stop is allowed, the error stays open, and commit is still refused", async () => {
+    const coord = new ReferenceCoordinator({ repo: "demo", now: () => 1_790_000_000_000 });
+    const t = refTransport(coord);
+    const rootA = checkout("a");
+    const rootB = checkout("b");
+    const A = adapter(rootA, "claude-a", "T-1", t);
+    const B = adapter(rootB, "claude-b", "T-2", t);
+    await B.handle(hook("sb", rootB, { hook_event_name: "SessionStart", source: "startup" }));
+    await A.handle(hook("sa", rootA, { hook_event_name: "SessionStart", source: "startup" }));
+    expect((await edit(A, "sa", rootA, "tA1", "src/pricing.ts", PRICING_V1, PRICING_V2)).applied).toBe(true);
+    const b1 = await edit(B, "sb", rootB, "tB1", "src/cart.ts", "return `${items.length} items`;", "return `total ${calcTotal(items)}`;");
+    expect(b1.applied).toBe(false);
+
+    for (let i = 1; i <= 5; i++) {
+      const out = (await B.handle(hook("sb", rootB, { hook_event_name: "Stop", stop_hook_active: i > 1 }))) as { decision: string; reason: string };
+      expect(out.decision).toBe("block");
+      expect(out.reason).toContain(`stop refusal ${i}/5`);
+    }
+    // the cap: the same open error no longer holds the stop
+    expect(await B.handle(hook("sb", rootB, { hook_event_name: "Stop", stop_hook_active: true }))).toBeUndefined();
+    expect(await B.handle(hook("sb", rootB, { hook_event_name: "Stop", stop_hook_active: true }))).toBeUndefined();
+    // ...but the error is still open and the commit gate still refuses
+    expect(await B.commitGate("sb")).toContain("stale_assumption");
+    expect(coord.log.filter((r) => r.kind === "edit" && r.agent === "claude-b" && r.status === "accepted")).toEqual([]);
+  });
+
   it("A changes a signature; B's stale call is denied with a positioned squiggle; B adapts; gates follow open errors", async () => {
     const coord = new ReferenceCoordinator({ repo: "demo", now: () => 1_790_000_000_000 });
     const t = refTransport(coord);

@@ -478,7 +478,7 @@ alternatives of every member too.
 | L0 | observe | report edits after the fact (file watcher, async hook) | nothing — diagnostics reach humans only |
 | L1 | inject | put model-visible text into the run after a tool call | diagnostics reach the model (immediately or at the next safe point) |
 | L2 | block | deny a tool call before it runs, with a model-visible reason | `check` before every edit |
-| L3 | gate | refuse the agent's stop (and/or intercept `git commit`) | open errors keep the agent working (default `hold`; under `conflicts: continue`, another agent's conflict does not hold the stop, §8.4) |
+| L3 | gate | refuse the agent's stop (and/or intercept `git commit`) | open errors keep the agent working, in both `conflicts` modes (§8.4) |
 
 `hello.capabilities` = `{level, observe: sync|async, inject: immediate|delayed|false,
 deny_edit, refuse_stop, commit_gate: native|tool_interception|false}`. Consistency
@@ -540,13 +540,12 @@ Adapters SHOULD inject it verbatim so squiggles look the same in every harness.
 config, set when the repo is created (`CoordinatorInit.conflicts`, validated by the gateway
 registry as `hold` or `continue`). An absent field means `hold`, so existing configs are unchanged.
 It is not read from the environment. It is recorded in the repo's config, so a journal replayed
-with the same init reproduces every verdict exactly. With `continue`, open errors caused by
-**another agent's change** (`caused_by_agent` differs from the session's agent) do not hold a
-`gate:"stop"`: the agent may stop and finish its other work with them open, and the owner of the
-causing change receives a `warning` diagnostic (never an error, so the owner is not blocked). A
-rejected landing notifies the owner of the change that blocked it the same way. `gate:"commit"`
-refuses on every open error in both modes, so a conflicting symbol cannot be committed while it
-is open (see `ownership.ts`). Under `continue`, the diagnostics' suggestions say to keep working on
+with the same init reproduces every verdict exactly. With `continue`, the owner of the change that caused a conflict (`caused_by_agent` differs from
+the session's agent) receives a `warning` diagnostic (never an error, so the owner is not blocked).
+A rejected landing notifies the owner of the change that blocked it the same way. The gates do
+not change: `gate:"stop"` and `gate:"commit"` refuse on every open error in both modes (see
+`ownership.ts`). Whether an adapter lets a stop through after repeated refusals is adapter policy,
+not part of this protocol. Under `continue`, the diagnostics' suggestions say to keep working on
 other tasks instead of rebasing or adapting to the other agent's change; under `hold` the
 suggestions are unchanged from today. `reason` renders the blocking errors and dues, and
 `gate.result.negotiations` lists the dues `{seq, due, record, keys}`:

@@ -1,13 +1,13 @@
-// A conflict another agent's change caused does not hold the agent that hit it: that agent may
-// stop and finish its other work with the conflict open. The owner of the change is told, as an
-// informational diagnostic, and the owner is never blocked by it. Commits stay gated on every open
-// error (the commit gate is unchanged), so a conflicting symbol cannot land while it is open.
+// Under `conflicts: continue` the owner of a change that caused a conflict is told, as an
+// informational diagnostic, and is never blocked by it. The agent that hit the conflict is gated
+// exactly as in `hold`: its stop and its commits are refused while the error is open. Only the
+// wording and the owner's notice differ.
 import type { Diagnostic } from "./types";
 
 /**
- * `hold` (default, today's behaviour): a conflict on the agent's own symbols holds its stop, and the
- * owner is not told. `continue` (per-repo opt-in: `conflicts: "continue"` in the repo's config): another agent's
- * conflict does not hold the stop, the owner is told, and the wording says to keep working.
+ * `hold` (default, today's behaviour): the owner is not told. `continue` (per-repo opt-in:
+ * `conflicts: "continue"` in the repo's config): the owner is told and the suggestions say to keep
+ * working on other tasks instead of adapting to the other agent's change. Gates are the same in both.
  */
 export type ConflictMode = "hold" | "continue";
 

@@ -761,7 +761,7 @@ export class SqlCoordinator {
             symbol: key,
             message: `You use ${key}, whose ${strong.w.kind === "deleted" ? "declaration was removed" : "signature changed"} in #${strong.r.seq} by ${strong.r.agent ?? strong.r.actor.id} after your base #${e.base_seq}.`,
             suggestion: this.conflicts === "continue"
-              ? `Keep working on your other tasks. Do not adapt this call site to ${strong.r.agent ?? strong.r.actor.id}'s new ${key} (event #${strong.r.seq}) or adopt their partial work: ${strong.r.agent ?? strong.r.actor.id} owns the conflict; you may finish with this open.`
+              ? `Keep working on your other tasks. Do not adapt this call site to ${strong.r.agent ?? strong.r.actor.id}'s new ${key} (event #${strong.r.seq}) or adopt their partial work: ${strong.r.agent ?? strong.r.actor.id} owns the conflict.`
               : `Read the new ${key} (event #${strong.r.seq}) and update this call site, or negotiate with ${strong.r.agent ?? strong.r.actor.id}.`,
             ...cause(strong.r),
           });
@@ -1340,16 +1340,13 @@ export class SqlCoordinator {
   gate(sid: string, g: Gate, owner?: string): GateResult {
     const s = this.session(sid, owner);
     const open = this.openOf(s.id);
-    // Stopping does not wait on conflicts caused by other agents: their owners are told (see ownership.ts).
-    const block = g.gate === "stop" && this.conflicts === "continue" ? open.filter((d) => !ownedElsewhere(d, s.agent)) : open;
     const dues = g.gate === "stop" ? this.dues(s) : [];
     const extra = dues.length ? { negotiations: dues } : {};
     if (g.gate === "stop" && s.paused_by !== undefined)
       return { type: "gate.result", gate: g.gate, allow: true, reason: "paused by a human; stopping is allowed", open_errors: open, ...extra };
-    if (!block.length && !dues.length)
-      return { type: "gate.result", gate: g.gate, allow: true, ...(open.length ? { reason: `${open.length} conflict(s) caused by other agents stay open; their owners are told` } : {}), open_errors: open };
+    if (!open.length && !dues.length) return { type: "gate.result", gate: g.gate, allow: true, open_errors: [] };
     const parts = [
-      ...(block.length ? [`${block.length} open Weft error(s) must be resolved first:\n${renderContext(block)}`] : []),
+      ...(open.length ? [`${open.length} open Weft error(s) must be resolved first:\n${renderContext(open)}`] : []),
       ...(dues.length ? [`${dues.length} negotiation(s) still due:\n${dues.map(renderDue).join("\n")}`] : []),
     ];
     return { type: "gate.result", gate: g.gate, allow: false, reason: parts.join("\n"), open_errors: open, ...extra };

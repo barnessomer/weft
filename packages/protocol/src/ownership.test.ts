@@ -1,5 +1,6 @@
-// A conflict another agent's change caused: the agent that hit it may stop; its commit stays
-// blocked; the owner of the change is told as a warning and is not blocked.
+// A conflict another agent's change caused: the agent that hit it is gated like any other (its stop
+// and its commit are refused while the error is open), in both modes. Under `continue` the owner of
+// the change is told as a warning and is not blocked.
 import { describe, expect, it } from "vitest";
 import { ReferenceCoordinator } from "./reference";
 import { ownedElsewhere, ownerNotice } from "./ownership";
@@ -28,8 +29,8 @@ describe("default (hold): unchanged from today", () => {
   });
 });
 
-describe("conflicts: continue (opt-in): the hit agent may stop, the owner is told", () => {
-  it("stop is allowed with the conflict open; commit is still refused; the owner gets a warning, not a block", () => {
+describe("conflicts: continue (opt-in): the hit agent is still gated, the owner is told", () => {
+  it("stop and commit are refused with the conflict open; the owner gets a warning, not a block", () => {
     const coord = new ReferenceCoordinator({ repo: "demo", conflicts: "continue" });
     const a = hello(coord, "claude-a", "I-a");
     const b = hello(coord, "claude-b", "I-b");
@@ -40,10 +41,10 @@ describe("conflicts: continue (opt-in): the hit agent may stop, the owner is tol
     expect(r.verdict).toBe("reject");
     expect(r.diagnostics.map((d) => d.code)).toContain("stale_assumption");
 
-    // B may stop with the conflict open; its commits are still refused.
+    // B's stop and its commits are refused while the conflict is open (same gate as hold).
     const stop = coord.gate(b.session, { type: "gate", gate: "stop" });
-    expect(stop.allow).toBe(true);
-    expect(stop.open_errors.length).toBeGreaterThan(0);
+    expect(stop.allow).toBe(false);
+    expect(stop.open_errors.map((d) => d.code)).toContain("stale_assumption");
     expect(coord.gate(b.session, { type: "gate", gate: "commit" }).allow).toBe(false);
 
     // A, the owner, is told as a warning and is not blocked by it.
