@@ -294,7 +294,7 @@ keys appear in E (`writes` for R1/R3, `reads` for R2).
 - **R3 claim overlap** (`edit`, `claim`): for each write key k with active claims, apply
   arbitration (§7). Predicted claims never arbitrate (§7.5).
 - `land` drafts (system) are checked with R1 only, against committed records in W: this
-  is the trunk compare-and-swap; a rejected land MUST be retried after rebase. Under `conflicts: continue` the owner of the blocking change is also told (§8.4).
+  is the trunk compare-and-swap; a rejected land MUST be retried after rebase under `conflicts: hold`. Under `conflicts: continue` it is not retried by rebasing: the owner of the blocking change is told instead (§8.4).
 - Other kinds produce no diagnostics.
 
 **Verdict:** `reject` iff at least one diagnostic for E has severity `error`; else
@@ -545,9 +545,7 @@ the session's agent) receives a `warning` diagnostic (never an error, so the own
 A rejected landing notifies the owner of the change that blocked it the same way. The gates do
 not change: `gate:"stop"` and `gate:"commit"` refuse on every open error in both modes (see
 `ownership.ts`). Whether an adapter lets a stop through after repeated refusals is adapter policy,
-not part of this protocol. Under `continue`, the diagnostics' suggestions say to keep working on
-other tasks instead of rebasing or adapting to the other agent's change; under `hold` the
-suggestions are unchanged from today. `reason` renders the blocking errors and dues, and
+not part of this protocol. Under `continue`, the diagnostics say to keep editing other tasks instead of rebasing or adapting to the other agent's change, and state that the commit gate stays closed while the error is open; under `hold` the suggestions are unchanged from today. `reason` renders the blocking errors and dues, and
 `gate.result.negotiations` lists the dues `{seq, due, record, keys}`:
 
 - `due:"reply"`: an accepted `negotiate.propose`/`negotiate.counter` addressed to the session

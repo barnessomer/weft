@@ -503,7 +503,7 @@ export class ReferenceCoordinator {
           symbol: w.key,
           message: `${w.key} changed on trunk (#${hit.r.seq}, ${hit.r.kind} by ${hit.r.agent ?? hit.r.actor.id}) after your base #${e.base_seq}; this edit would overwrite it.`,
           suggestion: this.continueMode
-            ? `Keep working on your other tasks. Do not rebase onto trunk, redo this edit on top of ${hit.r.agent ?? hit.r.actor.id}'s work, or widen your change to absorb it: ${hit.r.agent ?? hit.r.actor.id} owns the conflict and is told about it.`
+            ? `Keep editing your other tasks, but the commit gate stays closed while this error is open: report it instead of working around it. Do not rebase onto trunk, redo this edit on top of ${hit.r.agent ?? hit.r.actor.id}'s work, or widen your change to absorb it: ${hit.r.agent ?? hit.r.actor.id} owns the conflict and is told about it.`
             : `Rebase onto trunk at or after #${hit.r.seq}, then redo the edit.`,
           ...cause(hit.r),
         });
@@ -520,7 +520,7 @@ export class ReferenceCoordinator {
             symbol: key,
             message: `You use ${key}, whose ${strong.w.kind === "deleted" ? "declaration was removed" : "signature changed"} in #${strong.r.seq} by ${strong.r.agent ?? strong.r.actor.id} after your base #${e.base_seq}.`,
             suggestion: this.continueMode
-              ? `Keep working on your other tasks. Do not adapt this call site to ${strong.r.agent ?? strong.r.actor.id}'s new ${key} (event #${strong.r.seq}) or adopt their partial work: ${strong.r.agent ?? strong.r.actor.id} owns the conflict.`
+              ? `Keep editing your other tasks, but the commit gate stays closed while this error is open: report it instead of working around it. Do not adapt this call site to ${strong.r.agent ?? strong.r.actor.id}'s new ${key} (event #${strong.r.seq}) or adopt their partial work: ${strong.r.agent ?? strong.r.actor.id} owns the conflict.`
               : `Read the new ${key} (event #${strong.r.seq}) and update this call site, or negotiate with ${strong.r.agent ?? strong.r.actor.id}.`,
             ...cause(strong.r),
           });
@@ -883,7 +883,7 @@ export class ReferenceCoordinator {
                 symbol: w.key,
                 message: `${rec.agent ?? rec.actor.id} ${w.kind === "deleted" ? "removed" : "changed the signature of"} ${w.key} (#${rec.seq}), which your change uses.`,
                 suggestion: this.continueMode
-                  ? `Keep working on your other tasks instead of adapting your call sites to ${rec.agent ?? rec.actor.id}'s change; do not adopt their partial work. ${rec.agent ?? rec.actor.id} owns the change and is told about it.`
+                  ? `Keep editing your other tasks (the commit gate stays closed while this error is open) instead of adapting your call sites to ${rec.agent ?? rec.actor.id}'s change; do not adopt their partial work. ${rec.agent ?? rec.actor.id} owns the change and is told about it.`
                   : `Re-read ${w.key} and adapt your call sites before your next edit, or negotiate (e.g. keep the old signature as an overload).`,
                 caused_by_seq: rec.seq,
                 caused_by_agent: rec.agent ?? rec.actor.id,

@@ -143,13 +143,13 @@ describe("conflicts: continue (repo config)", () => {
 
   it("the editor's stale_assumption suggestion uses the continue wording", () => {
     const { r } = staleCall(repo(init).j);
-    expect(r.diagnostics.find((d) => d.code === "stale_assumption")?.suggestion).toContain("Keep working on your other tasks");
+    expect(r.diagnostics.find((d) => d.code === "stale_assumption")?.suggestion).toContain("Keep editing your other tasks");
   });
 
   it("the editor's stale_overwrite suggestion uses the continue wording", () => {
     const r = overwriteCall(repo(init).j);
     expect(r.verdict).toBe("reject");
-    expect(r.diagnostics.find((d) => d.code === "stale_overwrite")?.suggestion).toContain("Keep working on your other tasks");
+    expect(r.diagnostics.find((d) => d.code === "stale_overwrite")?.suggestion).toContain("Keep editing your other tasks");
   });
 
   it("matches the reference coordinator for the same repo config", () => {
