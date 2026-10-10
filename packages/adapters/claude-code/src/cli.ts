@@ -167,6 +167,7 @@ export function mergeSettings(settings: Record<string, unknown>, command: string
     UserPromptSubmit: ours(),
     PreToolUse: ours("Edit|Write|MultiEdit|Bash"),
     PostToolUse: ours("*"),
+    PostToolUseFailure: ours("Bash"),
     Stop: ours(),
     SessionEnd: ours(),
   };
