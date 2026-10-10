@@ -21,7 +21,6 @@ import {
 import { canAccessRepo, hasScope, type Grant, type TokenVerifier } from "./auth";
 import { SqlCoordinator, type CoordinatorConfig, type CoordinatorInit, type EventQuery } from "./coordinator";
 import { JournaledCoordinator, type JournalOp } from "./journal";
-import { enforcementFrom } from "./enforcement";
 import { redactRecord } from "./redact";
 import type { Sql } from "./sql";
 
@@ -30,8 +29,6 @@ export type Result<T> = { ok: true; value: T } | { ok: false; error: WcpError };
 export interface SequencerEnv {
   /** Registry Durable Object (token verification for WebSocket auth frames). */
   WEFT_REGISTRY?: DurableObjectNamespace;
-  /** Deployment-wide enforcement for every repo: `block` denies same-symbol overlaps; anything else is `advise`. */
-  WEFT_ENFORCEMENT?: string;
 }
 
 /** Observer replay cap per stream connect (spec §9.4: MAY close with 4413 beyond it). */
@@ -77,7 +74,7 @@ export class RepoCoordinator extends DurableObject<SequencerEnv> {
   }
 
   private get j(): JournaledCoordinator {
-    if (!this.engine) this.engine = new JournaledCoordinator(this.sql, () => this.clock(), enforcementFrom(this.env.WEFT_ENFORCEMENT));
+    if (!this.engine) this.engine = new JournaledCoordinator(this.sql, () => this.clock());
     return this.engine;
   }
 

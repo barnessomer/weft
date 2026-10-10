@@ -66,7 +66,6 @@ script_name = "weft-workflows"
 WEFT_ARTIFACTS_NAMESPACE = "weft"
 WEFT_CF_ACCOUNT_ID = "2d659dee148763a8d64c80135da7165d"
 WEFT_EVENTS_QUEUE_ID = "a8419287d5f34deaa49e8ba10250c2c2"
-# Opt-in: WEFT_ENFORCEMENT = "block" makes same-symbol overlaps (claim_wait) errors for every repo. Default advise.
 
 [observability]
 enabled = true

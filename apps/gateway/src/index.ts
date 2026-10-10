@@ -27,8 +27,6 @@ export interface Env extends ArtifactsEnv {
   WEFT_REGISTRY: DurableObjectNamespace<Registry>;
   /** Operator secret for /v1/admin (wrangler secret). The admin API is disabled when unset. */
   WEFT_ADMIN_TOKEN?: string;
-  /** Deployment-wide enforcement (all repos): `block` denies an edit that overlaps another agent's in-flight symbol. Default advise. */
-  WEFT_ENFORCEMENT?: string;
 }
 
 const MAX_BODY_BYTES = 2 * 1024 * 1024;

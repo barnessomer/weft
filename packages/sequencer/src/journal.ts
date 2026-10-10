@@ -2,7 +2,7 @@
 // ran under, then dispatched. Replaying the journal into an empty database reproduces the
 // log, every verdict and all derived state byte-for-byte (spec §5.1: replay determinism).
 
-import { WcpProtocolError, type Actor, type EnforcementMode, type EventDraft, type Gate, type Hello, type HumanAction, type Submit } from "@weft/protocol";
+import { WcpProtocolError, type Actor, type EventDraft, type Gate, type Hello, type HumanAction, type Submit } from "@weft/protocol";
 import { SqlCoordinator, type CoordinatorInit, type QueueEntry } from "./coordinator";
 import { all, run, type Sql } from "./sql";
 
@@ -58,9 +58,8 @@ export class JournaledCoordinator {
   constructor(
     private readonly sql: Sql,
     private readonly now: () => number,
-    enforcement: EnforcementMode = "advise",
   ) {
-    this.coord = new SqlCoordinator(sql, () => this.frozen ?? now(), enforcement);
+    this.coord = new SqlCoordinator(sql, () => this.frozen ?? now());
   }
 
   call<T = unknown>(op: JournalOp, ...args: unknown[]): T {
@@ -86,19 +85,13 @@ export class JournaledCoordinator {
 
 /**
  * Replay a journal into an empty database. Returns the rebuilt coordinator and the
- * result (or protocol error) of every entry. `enforcement` must be the mode the journal was
- * written under: the journal does not record it, and a block-mode verdict replays differently
- * in advise mode.
+ * result (or protocol error) of every entry. `init` must be the config the journal was written
+ * under; enforcement (like every other setting) is read from it, so replay is exact.
  */
-export function replay(
-  sql: Sql,
-  init: CoordinatorInit,
-  entries: JournalEntry[],
-  enforcement: EnforcementMode,
-): { coord: SqlCoordinator; results: unknown[] } {
+export function replay(sql: Sql, init: CoordinatorInit, entries: JournalEntry[]): { coord: SqlCoordinator; results: unknown[] } {
   let t = 0;
   SqlCoordinator.init(sql, init);
-  const coord = new SqlCoordinator(sql, () => t, enforcement);
+  const coord = new SqlCoordinator(sql, () => t);
   const results: unknown[] = [];
   for (const e of entries) {
     t = e.at;

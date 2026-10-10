@@ -1,7 +1,7 @@
 import { readdirSync, readFileSync } from "node:fs";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 import {
   ReferenceCoordinator,
   runScenario,
@@ -11,8 +11,7 @@ import {
   type Hello,
   type Scenario,
 } from "@weft/protocol";
-import { SqlCoordinator } from "./coordinator";
-import { enforcementFrom } from "./enforcement";
+import { SqlCoordinator, type CoordinatorInit } from "./coordinator";
 import { JournaledCoordinator, replay } from "./journal";
 import { nodeSql } from "./node-sqlite";
 
@@ -84,10 +83,10 @@ describe("SqlCoordinator conformance (spec §12)", () => {
   it.each(scenarios)("$name: journal replay reproduces log and state exactly", async ({ data }) => {
     const live = await runSql(data);
     const entries = live.j.journal();
-    const re = replay(nodeSql(), initOf(data), entries, "advise");
+    const re = replay(nodeSql(), initOf(data), entries);
     expect(JSON.stringify(re.coord.dump())).toBe(JSON.stringify(live.j.coord.dump()));
     // And replay of the replay is a fixed point.
-    const again = replay(nodeSql(), initOf(data), entries, "advise");
+    const again = replay(nodeSql(), initOf(data), entries);
     expect(again.results).toEqual(re.results);
   });
 });
@@ -253,20 +252,26 @@ describe("schema migration", () => {
   });
 });
 
-describe("enforcement mode (deployment-wide, SQLite coordinator)", () => {
+describe("enforcement mode (per-repo config, SQLite coordinator)", () => {
   const caps = { level: 3, observe: "sync", inject: "immediate", deny_edit: true, refuse_stop: true, commit_gate: "tool_interception" } as const;
   const key = "src/auth/session.ts#refreshToken";
+  const edit = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key, kind: "body" }] } };
+  const helloA = { type: "hello", protocol: "wcp/0.1", agent: { id: "claude-a", harness: "claude-code" }, capabilities: caps, task: { id: "T-1" }, change: "I-a" };
+  const helloB = { type: "hello", protocol: "wcp/0.1", agent: { id: "codex-b", harness: "codex" }, capabilities: caps, task: { id: "T-2" }, change: "I-b" };
+  type Verdict = { verdict: string; diagnostics: Array<{ code: string; severity: string }> };
+
+  /** Senior claude-a edits the symbol; junior codex-b then submits the same edit. */
   function overlap(enforcement?: "advise" | "block") {
     const clock = scenarioClock("2026-10-05T14:00:00.000Z");
     const sql = nodeSql();
-    SqlCoordinator.init(sql, { repo: "demo" });
-    const j = enforcement ? new JournaledCoordinator(sql, clock.now, enforcement) : new JournaledCoordinator(sql, clock.now);
-    const a = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "claude-a", harness: "claude-code" }, capabilities: caps, task: { id: "T-1" }, change: "I-a" });
-    const b = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "codex-b", harness: "codex" }, capabilities: caps, task: { id: "T-2" }, change: "I-b" });
-    const edit = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key, kind: "body" }] } };
+    SqlCoordinator.init(sql, enforcement ? { repo: "demo", enforcement } : { repo: "demo" });
+    const j = new JournaledCoordinator(sql, clock.now);
+    const a = j.call<{ session: string }>("hello", helloA);
+    const b = j.call<{ session: string }>("hello", helloB);
     j.call("submit", a.session, edit);
-    return j.call<{ verdict: string; diagnostics: Array<{ code: string; severity: string }> }>("submit", b.session, edit);
+    return j.call<Verdict>("submit", b.session, edit);
   }
+
   it("defaults to advise: claim_wait warning, edit accepted", () => {
     const r = overlap();
     expect(r.verdict).toBe("accept");
@@ -278,39 +283,61 @@ describe("enforcement mode (deployment-wide, SQLite coordinator)", () => {
     expect(r.verdict).toBe("reject");
     expect(r.diagnostics).toMatchObject([{ code: "claim_wait", severity: "error" }]);
   });
-  it("replay reproduces a block-mode verdict only when told the journal's mode", () => {
-    // Rebuild the same scenario, keeping its journal, then replay it under each mode.
-    const clock = scenarioClock("2026-10-05T14:00:00.000Z");
+  it("absent enforcement is not written to the config and reads as advise", () => {
     const sql = nodeSql();
     SqlCoordinator.init(sql, { repo: "demo" });
-    const j = new JournaledCoordinator(sql, clock.now, "block");
+    const c = new SqlCoordinator(sql);
+    expect(c.config).not.toHaveProperty("enforcement");
+    expect(c.enforcement).toBe("advise");
+  });
+  it("a block repo replays to identical results from its journaled config", () => {
+    const clock = scenarioClock("2026-10-05T14:00:00.000Z");
+    const init: CoordinatorInit = { repo: "demo", enforcement: "block" };
+    const sql = nodeSql();
+    SqlCoordinator.init(sql, init);
+    const j = new JournaledCoordinator(sql, clock.now);
+    const a = j.call<{ session: string }>("hello", helloA);
+    const b = j.call<{ session: string }>("hello", helloB);
+    j.call("submit", a.session, edit);
+    const live = j.call<Verdict>("submit", b.session, edit);
+    expect(live.verdict).toBe("reject");
+    const entries = j.journal();
+    // Only the journal and its config are needed: no mode is passed to replay.
+    const re = replay(nodeSql(), init, entries);
+    expect(re.coord.enforcement).toBe("block");
+    expect(JSON.stringify(re.coord.dump())).toBe(JSON.stringify(j.coord.dump()));
+    expect(re.results.at(-1)).toMatchObject({ verdict: "reject" });
+    const again = replay(nodeSql(), init, entries);
+    expect(again.results).toEqual(re.results);
+  });
+});
+
+describe("blocking power: the holder goes silent", () => {
+  const caps = { level: 3, observe: "sync", inject: "immediate", deny_edit: true, refuse_stop: true, commit_gate: "tool_interception" } as const;
+  const key = "src/auth/session.ts#refreshToken";
+  it("a block-mode junior is denied by a senior's claim, and accepted once the silent senior's claim expires", () => {
+    const clock = scenarioClock("2026-10-05T14:00:00.000Z");
+    const sql = nodeSql();
+    // Short claim TTL keeps the test fast; the session TTL is long so only the claim expires.
+    SqlCoordinator.init(sql, { repo: "demo", enforcement: "block", claim_ttl_ms: 1_000, session_ttl_ms: 60_000 });
+    const j = new JournaledCoordinator(sql, clock.now);
     const a = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "claude-a", harness: "claude-code" }, capabilities: caps, task: { id: "T-1" }, change: "I-a" });
     const b = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "codex-b", harness: "codex" }, capabilities: caps, task: { id: "T-2" }, change: "I-b" });
     const edit = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key, kind: "body" }] } };
     j.call("submit", a.session, edit);
-    const live = j.call<{ verdict: string }>("submit", b.session, edit);
-    expect(live.verdict).toBe("reject");
-    const entries = j.journal();
-    const init = { repo: "demo" };
-    const asBlock = replay(nodeSql(), init, entries, "block");
-    expect(JSON.stringify(asBlock.coord.dump())).toBe(JSON.stringify(j.coord.dump()));
-    // Replayed as advise, the same overlap is accepted: the caller must pass the mode.
-    const asAdvise = replay(nodeSql(), init, entries, "advise");
-    expect(JSON.stringify(asAdvise.coord.dump())).not.toBe(JSON.stringify(j.coord.dump()));
-  });
-});
 
-describe("WEFT_ENFORCEMENT parsing (deployment value)", () => {
-  it("block in any case and padding enables blocking; unset and advise mean advise", () => {
-    expect(enforcementFrom("block")).toBe("block");
-    expect(enforcementFrom("  BLOCK ")).toBe("block");
-    expect(enforcementFrom(undefined)).toBe("advise");
-    expect(enforcementFrom("advise")).toBe("advise");
-  });
-  it("a near-miss value falls back to advise and warns", () => {
-    const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
-    expect(enforcementFrom("blok")).toBe("advise");
-    expect(warn).toHaveBeenCalledWith(expect.stringContaining("WEFT_ENFORCEMENT"));
-    warn.mockRestore();
+    // The senior's claim is live: the junior is denied.
+    const denied = j.call<{ verdict: string; diagnostics: Array<{ code: string; severity: string }> }>("submit", b.session, edit);
+    expect(denied.verdict).toBe("reject");
+    expect(denied.diagnostics).toMatchObject([{ code: "claim_wait", severity: "error" }]);
+
+    // The senior goes silent (no heartbeat, no events) for longer than the claim TTL.
+    clock.advance(500);
+    expect(j.call<{ verdict: string }>("submit", b.session, edit).verdict).toBe("reject");
+    clock.advance(4_500);
+    j.call("tick");
+    const accepted = j.call<{ verdict: string; diagnostics: Array<{ code: string }> }>("submit", b.session, edit);
+    expect(accepted.verdict).toBe("accept");
+    expect(accepted.diagnostics.map((d) => d.code)).not.toContain("claim_wait");
   });
 });
