@@ -316,8 +316,8 @@ async function negotiateCmd(args: string[]): Promise<number> {
   return r.code;
 }
 
-/** Longest a claim may be held (one hour). A longer hold would block other agents for the rest of a run. */
-export const CLAIM_TTL_MAX_MS = 60 * 60_000;
+/** Longest a claim may be held (ten minutes): the planned hard limit for firm claims. A longer hold would block other agents for the rest of a run. */
+export const CLAIM_TTL_MAX_MS = 10 * 60_000;
 
 export const CLAIM_USAGE = `usage: weft claim --keys path#symbol[,path#symbol…] [--firm] [--ttl MS] (1..${CLAIM_TTL_MAX_MS}, default: the deployment claim TTL)
 

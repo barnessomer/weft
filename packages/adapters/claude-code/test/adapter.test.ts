@@ -480,9 +480,9 @@ describe("explicit claims from the agent's shell (spec §7.5)", () => {
     // a bare --ttl must not fall back to the default lifetime and report success
     expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl"])).toThrow(/ttl/);
     expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl", "--firm"])).toThrow(/ttl/);
-    // a ceiling: an hour at most
-    expect(parseClaim(["--keys", "src/a.ts#f", "--ttl", "3600000"]).ttl_ms).toBe(3_600_000);
-    expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl", "3600001"])).toThrow(/ttl/);
+    // a ceiling: ten minutes at most
+    expect(parseClaim(["--keys", "src/a.ts#f", "--ttl", "600000"]).ttl_ms).toBe(600_000);
+    expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl", "600001"])).toThrow(/ttl/);
     expect(() => parseClaim(["--keys", "src/a.ts#f", "--ttl", "1e15"])).toThrow(/ttl/);
   });
 

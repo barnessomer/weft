@@ -439,7 +439,9 @@ two tasks — §7.6).
   way. Only an explicit `claim` event can be firm; implicit edit claims are always soft, so
   default behavior never blocks on claims alone. (Conformance: `arbitration-wound-wait`.)
   The Claude Code adapter exposes this as an opt-in shell command:
-  `.weft/bin/weft claim --keys path#symbol[,…] [--firm] [--ttl MS]`.
+  `.weft/bin/weft claim --keys path#symbol[,…] [--firm] [--ttl MS]`. The CLI caps `--ttl` at
+  ten minutes (600000 ms); a longer hold would block other agents for the rest of a run. The
+  coordinator applies `claim.ttl_ms` as sent, with no cap of its own.
 - TTL: `claim.ttl_ms` or `welcome.claim_ttl_ms` (default 30 min). Any accepted event or
   heartbeat from the change extends its non-predicted claims to `now + claim_ttl_ms`.
 - Expiry: the coordinator MUST release expired claims by appending a `release` record

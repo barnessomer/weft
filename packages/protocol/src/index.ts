@@ -18,7 +18,7 @@ export {
 } from "./negotiation";
 export { WcpProtocolError, ERROR_STATUS, closeCode } from "./errors";
 export { encodeCursor, decodeCursor, mergeFeed, compareFeed, type FeedCursor } from "./feed";
-export { ReferenceCoordinator, listView, mergeWriteKind, CLAIM_TTL_MAX_MS, type CoordinatorOptions } from "./reference";
+export { ReferenceCoordinator, listView, mergeWriteKind, type CoordinatorOptions } from "./reference";
 export {
   runScenario,
   partialMatch,

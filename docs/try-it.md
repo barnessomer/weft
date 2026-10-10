@@ -159,6 +159,8 @@ By default an agent's edits only make soft claims: another agent writing the sam
    .weft/bin/weft claim --keys src/pricing.ts#calcTotal --firm   # omit --firm for a soft claim
    ```
 
+   A claim's own `--ttl` is capped at ten minutes (600000 ms; the default is the deployment's claim TTL). To see the difference side by side, run `packages/adapters/claude-code/scripts/demo-firm-claim.sh`.
+
 
 What the script does, if you want to script it differently. `U` is the gateway URL; each token
 response contains the secret once, in its `token` field.
