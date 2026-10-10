@@ -312,10 +312,10 @@ describe("enforcement mode (per-repo config, SQLite coordinator)", () => {
   });
 });
 
-describe("blocking power: the holder goes silent", () => {
+describe("claim lease: a claim expires and stops blocking", () => {
   const caps = { level: 3, observe: "sync", inject: "immediate", deny_edit: true, refuse_stop: true, commit_gate: "tool_interception" } as const;
   const key = "src/auth/session.ts#refreshToken";
-  it("a block-mode junior is denied by a senior's claim, and accepted once the silent senior's claim expires", () => {
+  it("a claim expires after claim_ttl_ms and then stops blocking (the holder sends nothing)", () => {
     const clock = scenarioClock("2026-10-05T14:00:00.000Z");
     const sql = nodeSql();
     // Short claim TTL keeps the test fast; the session TTL is long so only the claim expires.
@@ -331,7 +331,8 @@ describe("blocking power: the holder goes silent", () => {
     expect(denied.verdict).toBe("reject");
     expect(denied.diagnostics).toMatchObject([{ code: "claim_wait", severity: "error" }]);
 
-    // The senior goes silent (no heartbeat, no events) for longer than the claim TTL.
+    // The senior goes silent (no heartbeat, no events) for longer than the claim TTL. A heartbeat keeps a
+    // claim alive, so a bound on a live-but-idle holder waits for the lease change; see the next test.
     clock.advance(500);
     expect(j.call<{ verdict: string }>("submit", b.session, edit).verdict).toBe("reject");
     clock.advance(4_500);
@@ -339,5 +340,82 @@ describe("blocking power: the holder goes silent", () => {
     const accepted = j.call<{ verdict: string; diagnostics: Array<{ code: string }> }>("submit", b.session, edit);
     expect(accepted.verdict).toBe("accept");
     expect(accepted.diagnostics.map((d) => d.code)).not.toContain("claim_wait");
+  });
+
+  it("a heartbeating holder keeps its claim alive past claim_ttl_ms and still blocks", () => {
+    const clock = scenarioClock("2026-10-05T14:00:00.000Z");
+    const sql = nodeSql();
+    SqlCoordinator.init(sql, { repo: "demo", enforcement: "block", claim_ttl_ms: 1_000, session_ttl_ms: 60_000 });
+    const j = new JournaledCoordinator(sql, clock.now);
+    const a = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "claude-a", harness: "claude-code" }, capabilities: caps, task: { id: "T-1" }, change: "I-a" });
+    const b = j.call<{ session: string }>("hello", { type: "hello", protocol: "wcp/0.1", agent: { id: "codex-b", harness: "codex" }, capabilities: caps, task: { id: "T-2" }, change: "I-b" });
+    const edit = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key, kind: "body" }] } };
+    j.call("submit", a.session, edit);
+    // 3.2s elapsed, four times the claim TTL, but each heartbeat renews the lease before it lapses.
+    for (let i = 0; i < 4; i++) {
+      clock.advance(800);
+      j.call("heartbeat", a.session);
+    }
+    j.call("tick");
+    const denied = j.call<{ verdict: string; diagnostics: Array<{ code: string; severity: string }> }>("submit", b.session, edit);
+    expect(denied.verdict).toBe("reject");
+    expect(denied.diagnostics).toMatchObject([{ code: "claim_wait", severity: "error" }]);
+  });
+});
+
+describe("block mode: own claims, claim submissions, and wait-die (per repo)", () => {
+  const caps = { level: 3, observe: "sync", inject: "immediate", deny_edit: true, refuse_stop: true, commit_gate: "tool_interception" } as const;
+  const key = "src/auth/session.ts#refreshToken";
+  const helloOf = (agent: string, harness: string, task: string, change: string) => ({
+    type: "hello",
+    protocol: "wcp/0.1",
+    agent: { id: agent, harness },
+    capabilities: caps,
+    task: { id: task },
+    change,
+  });
+  const message = (event: object) => ({ type: "submit", mode: "commit", event });
+  const edit = message({ kind: "edit", base_seq: 1, writes: [{ key, kind: "body" }] });
+  const claim = (firm = false) => message({ kind: "claim", base_seq: 1, writes: [{ key, kind: "body" }], payload: { firm, source: "explicit" } });
+  type Verdict = { verdict: string; diagnostics: Array<{ code: string; severity: string }> };
+
+  function fresh(init: CoordinatorInit) {
+    const clock = scenarioClock("2026-10-05T14:00:00.000Z");
+    const sql = nodeSql();
+    SqlCoordinator.init(sql, init);
+    return new JournaledCoordinator(sql, clock.now);
+  }
+
+  it("block: an agent's own claim on another task does not deny its edit; advise still warns", () => {
+    const run = (enforcement?: "advise" | "block") => {
+      const j = fresh(enforcement ? { repo: "demo", enforcement } : { repo: "demo" });
+      const t1 = j.call<{ session: string }>("hello", helloOf("claude-a", "claude-code", "T-1", "I-a"));
+      const t2 = j.call<{ session: string }>("hello", helloOf("claude-a", "claude-code", "T-2", "I-b"));
+      j.call("submit", t1.session, edit);
+      return j.call<Verdict>("submit", t2.session, edit);
+    };
+    expect(run("block")).toMatchObject({ verdict: "accept", diagnostics: [] });
+    expect(run()).toMatchObject({ verdict: "accept", diagnostics: [{ code: "claim_wait", severity: "warning" }] });
+  });
+
+  it("block: a claim is never refused by enforcement; a junior's soft claim over a senior's is a warning, and its edit is denied", () => {
+    const j = fresh({ repo: "demo", enforcement: "block" });
+    const senior = j.call<{ session: string }>("hello", helloOf("claude-a", "claude-code", "T-1", "I-a"));
+    const junior = j.call<{ session: string }>("hello", helloOf("codex-b", "codex", "T-2", "I-b"));
+    j.call("submit", senior.session, claim());
+    expect(j.call<Verdict>("submit", junior.session, claim())).toMatchObject({ verdict: "accept", diagnostics: [{ code: "claim_wait", severity: "warning" }] });
+    expect(j.call<Verdict>("submit", junior.session, edit)).toMatchObject({ verdict: "reject", diagnostics: [{ code: "claim_wait", severity: "error" }] });
+  });
+
+  // Wait-die, block: the senior's edit is denied by a junior's claim. Pinned on purpose. This is part of the
+  // lease discussion; do not change it without revisiting the lease design.
+  it("wait-die + block: the senior's edit is denied by a junior's claim (wait, not die)", () => {
+    const j = fresh({ repo: "demo", policy: "wait-die", enforcement: "block" });
+    const senior = j.call<{ session: string }>("hello", helloOf("claude-a", "claude-code", "T-1", "I-a"));
+    const junior = j.call<{ session: string }>("hello", helloOf("codex-b", "codex", "T-2", "I-b"));
+    // The senior's first accepted event sets its birth before the junior's, making it the senior.
+    j.call("submit", senior.session, message({ kind: "edit", base_seq: 1, writes: [{ key: "src/other.ts#x", kind: "body" }] }));
+    j.call("submit", junior.session, claim());
+    expect(j.call<Verdict>("submit", senior.session, edit)).toMatchObject({ verdict: "reject", diagnostics: [{ code: "claim_wait", severity: "error" }] });
   });
 });

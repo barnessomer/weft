@@ -46,7 +46,7 @@ export type CoordinatorOptions = {
   policy?: ArbitrationPolicy;
   /** Who resolves `negotiate.escalate` (spec §7.6). Default `auto`: the coordinator merges. */
   escalation?: EscalationPolicy;
-  /** Deployment-wide: `block` makes a same-symbol overlap with a neighbor's in-flight change an error. Default `advise`. */
+  /** Per repo: `block` makes a same-symbol overlap with a neighbor's in-flight change an error. Default `advise`. */
   enforcement?: EnforcementMode;
   claim_ttl_ms?: number;
   session_ttl_ms?: number;
@@ -442,10 +442,20 @@ export class ReferenceCoordinator {
     return false;
   }
 
-  private activeClaims(key: SymbolKey, exceptChange: string): Claim[] {
+  /**
+   * Live claims on `key` that `exceptChange` must yield to. Under `block` a claim held by the submitting
+   * agent itself is skipped (its other task's change is not a neighbor to be denied by); under `advise` it still counts.
+   */
+  private activeClaims(key: SymbolKey, exceptChange: string, agent: string): Claim[] {
     const now = this.now();
     return this.claims.filter(
-      (c) => c.key === key && !this.sameGroup(c.change, exceptChange) && !this.alternatives(c.change, exceptChange) && !c.shared.has(exceptChange) && c.expires_at > now,
+      (c) =>
+        c.key === key &&
+        !this.sameGroup(c.change, exceptChange) &&
+        !this.alternatives(c.change, exceptChange) &&
+        !c.shared.has(exceptChange) &&
+        !(this.enforcement === "block" && c.agent === agent) &&
+        c.expires_at > now,
     );
   }
 
@@ -538,7 +548,7 @@ export class ReferenceCoordinator {
     const predicted = e.kind === "claim" && e.payload?.source === "predicted";
     for (const w of writes) {
       if (r1.has(w.key)) continue;
-      const holders = this.activeClaims(w.key, s.change);
+      const holders = this.activeClaims(w.key, s.change, s.agent);
       if (!holders.length) continue;
       const real = holders.filter((c) => c.source !== "predicted");
       if (predicted || !real.length) {
@@ -587,7 +597,8 @@ export class ReferenceCoordinator {
       } else if (outcome === "wait") {
         out.push({
           ...base,
-          severity: h.firm || this.enforcement === "block" ? "error" : "warning",
+          // Block denies edits only. A claim is never refused by enforcement mode; a firm holder still is.
+          severity: h.firm || (this.enforcement === "block" && e.kind === "edit") ? "error" : "warning",
           code: "claim_wait",
           message: `${w.key} is ${h.firm ? "firmly claimed" : "being edited"} by ${h.agent} (${h.change}), which has precedence.`,
           suggestion: `Wait for ${h.agent} to land or release ${w.key}, work elsewhere, or negotiate (negotiate.propose to ${h.agent}).`,
@@ -716,7 +727,7 @@ export class ReferenceCoordinator {
           if (arb.outcome === "wound") {
             // The requester outranks the most senior holder, hence every holder (§7.2).
             const wounded = uniq(
-              this.activeClaims(d.symbol, rec.change!)
+              this.activeClaims(d.symbol, rec.change!, rec.agent!)
                 .filter((c) => c.source !== "predicted")
                 .map((c) => c.change),
             );
