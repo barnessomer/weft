@@ -440,8 +440,10 @@ two tasks — §7.6).
   default behavior never blocks on claims alone. (Conformance: `arbitration-wound-wait`.)
   The Claude Code adapter exposes this as an opt-in shell command:
   `.weft/bin/weft claim --keys path#symbol[,…] [--firm] [--ttl MS]`. The CLI caps `--ttl` at
-  ten minutes (600000 ms); a longer hold would block other agents for the rest of a run. The
-  coordinator applies `claim.ttl_ms` as sent, with no cap of its own.
+  ten minutes (600000 ms). The cap bounds only the `--ttl` the agent asks for. A claim without
+  `--ttl` lasts the deployment's claim TTL, and any accepted event or heartbeat from the change
+  extends it (below), so the cap does not bound how long a claim can hold. The coordinator applies
+  `claim.ttl_ms` as sent; the bound on holds is the lease change (not in this PR).
 - TTL: `claim.ttl_ms` or `welcome.claim_ttl_ms` (default 30 min). Any accepted event or
   heartbeat from the change extends its non-predicted claims to `now + claim_ttl_ms`.
 - Expiry: the coordinator MUST release expired claims by appending a `release` record
