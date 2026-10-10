@@ -24,7 +24,7 @@
 import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, renameSync } from "node:fs";
 import { isAbsolute, join, relative, resolve, sep } from "node:path";
-import type { AgentRef, Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, NegotiateCommand, NegotiationDue, Verdict } from "@weft/protocol";
+import type { AgentRef, Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, NegotiateCommand, NegotiationDue, SymbolKey, Verdict } from "@weft/protocol";
 import { WcpError, PROTOCOL, type Transport } from "./client";
 import { readState, withLock, writeState, type Loaded, type SessionState } from "./config";
 import { EDIT_TOOLS, editPath, isGitCommit, proposedText } from "./edits";
@@ -647,6 +647,13 @@ export class ClaudeAdapter {
   }
 
   async claim(claudeSession: string, cmd: ClaimCommand): Promise<CliResult> {
+    // Keys are checked before anything is drained or written: a refused key must not consume the inbox.
+    let writes: Array<{ key: SymbolKey; kind: "body" }>;
+    try {
+      writes = cmd.keys.map((key) => ({ key: this.claimKey(key), kind: "body" as const }));
+    } catch (err) {
+      return { text: `weft: ${err instanceof Error ? err.message : String(err)}`, code: 1 };
+    }
     try {
       return await withLock(this.root, claudeSession, async () => {
         const st = readState(this.root, claudeSession);
@@ -654,8 +661,7 @@ export class ClaudeAdapter {
           const batch = await this.call(st, (s) => this.deps.transport.drain(s, this.ack(st)));
           const pre = this.delivered(st, await renderForModel([], batch.items, this.ctx()), batch.delivered_through, batch.items);
           const event = this.draft(st, "claim", {
-            // Keys are written the way edits are keyed: this checkout's prefix plus a relative path.
-            writes: cmd.keys.map((key) => ({ key: this.claimKey(key), kind: "body" as const })),
+            writes,
             payload: { firm: cmd.firm, source: "explicit", ...(cmd.ttl_ms ? { ttl_ms: cmd.ttl_ms } : {}) },
             tool: { name: "weft-cli", harness_event: "Bash" },
           });
