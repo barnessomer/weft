@@ -46,7 +46,8 @@ export function findRoot(start: string, configRel: string = CONFIG_REL): string 
  *   - a leading `cd <dir> && ...`        (dir absolute, or ~ / ~/... ; quoted or bare)
  *   - a leading `git -C <dir> ...`       (same dir forms)
  * Nothing else counts: no relative paths, no $VAR, no `cd` after another command. Undefined when
- * the command names no accepted target (callers fail closed under --by-path).
+ * the command names no accepted target (callers fail closed under --by-path). Only this leading target is checked;
+ * a later `cd` or absolute path in the same command is not attributed.
  */
 export const BASH_TARGET_FORMS = "a leading `cd <absolute or ~ path> && ...` or `git -C <absolute or ~ path> ...`";
 const DIR = String.raw`(?:"([^"$\`]+)"|'([^'$\`]+)'|([^\s"'$\`;&|<>()]+))`;

@@ -427,6 +427,8 @@ export class ClaudeAdapter {
     st.head = this.git(["rev-parse", "HEAD"])?.trim() ?? st.head;
     // What the checkout looked like before this command ran; PostToolUse(Bash) diffs against it.
     // Taken without a session too: a subagent has no SessionStart, and its first call may be a shell edit.
+    // A Bash call whose PostToolUse never fired leaves its snapshot behind; drop those older than 10 minutes.
+    for (const [id, p] of Object.entries(st.pending)) if (p.tool === "Bash" && this.now() - p.at > 10 * 60_000) delete st.pending[id];
     if (input.tool_use_id && (st.wcpSession || this.deps.byPath)) st.pending[input.tool_use_id] = { tool: "Bash", before: this.dirtySnapshot(), shown: [], head: st.head, at: this.now() };
     if (!isGitCommit(command) || !st.wcpSession || !this.enforce) return undefined;
     const result = await this.call(st, (s) => this.deps.transport.gate(s, "commit"));

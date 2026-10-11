@@ -111,7 +111,8 @@ one of these forms, and is otherwise denied before it runs:
 - a leading `cd <dir> && ...`, where `<dir>` is an absolute path or `~` / `~/...` (bare, `"…"` or `'…'`);
 - a leading `git -C <dir> ...`, with the same `<dir>` forms.
 
-Relative paths (`cd src && ...`), `$VAR` or `${VAR}`, a `cd` that is not the first command, and a
+Only the leading target is checked: a later `cd` or absolute path inside the same command is not
+attributed, so writes it makes outside the named checkout are not reconciled to it. Relative paths (`cd src && ...`), `$VAR` or `${VAR}`, a `cd` that is not the first command, and a
 bare `cd <dir>` without `&&` are refused. The deny tells the agent to start the command with
 `cd <worktree> &&`. Plain `hook` does not deny Bash.
 
