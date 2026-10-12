@@ -69,6 +69,8 @@ export type PendingEdit = {
   shown: string[];
   /** Bash only: HEAD before the call ran (files it committed are compared with it). */
   head?: string;
+  /** Bash only: the command is a `git commit`. Only then are files that moved HEAD counted as this call's edits (a pull is not). */
+  commits?: boolean;
   at: number;
 };
 

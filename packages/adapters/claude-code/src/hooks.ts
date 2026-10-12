@@ -429,7 +429,7 @@ export class ClaudeAdapter {
     const command = typeof input.tool_input?.command === "string" ? input.tool_input.command : "";
     st.head = this.git(["rev-parse", "HEAD"])?.trim() ?? st.head;
     // What the checkout looked like before this command ran; PostToolUse(Bash) diffs against it.
-    if (input.tool_use_id && st.wcpSession) st.pending[input.tool_use_id] = { tool: "Bash", before: this.dirtySnapshot(), shown: [], head: st.head, at: this.now() };
+    if (input.tool_use_id && st.wcpSession) st.pending[input.tool_use_id] = { tool: "Bash", before: this.dirtySnapshot(), shown: [], head: st.head, commits: isGitCommit(command), at: this.now() };
     if (!isGitCommit(command) || !st.wcpSession || !this.enforce) return undefined;
     const result = await this.call(st, (s) => this.deps.transport.gate(s, "commit"));
     if (result.allow) return undefined;
@@ -545,7 +545,7 @@ export class ClaudeAdapter {
     const baseHead = pend?.head;
     const head = this.git(["rev-parse", "HEAD"])?.trim();
     // Files the call committed are clean now, so they are found through the commits it made.
-    const committed = baseHead && head && baseHead !== head ? (this.git(["diff", "--name-only", "--no-renames", "-z", baseHead, head]) ?? "").split("\0").filter(Boolean) : [];
+    const committed = pend?.commits && baseHead && head && baseHead !== head ?(this.git(["diff", "--name-only", "--no-renames", "-z", baseHead, head]) ?? "").split("\0").filter(Boolean) : [];
     const rels = new Set([...Object.keys(before0), ...this.dirtyFiles(), ...committed]);
     let text = "";
     for (const rel of rels) {
@@ -557,8 +557,14 @@ export class ClaudeAdapter {
         continue;
       }
       const before: string | null = Object.prototype.hasOwnProperty.call(before0, rel) ? (before0[rel] as string | null) : (this.git(["show", `${baseHead ?? "HEAD"}:${rel}`]) ?? null);
-      const res = await this.commitChange(st, rel, before, read.text, "Bash", callId, []);
-      if (res?.text) text += (text ? "\n" : "") + res.text;
+      try {
+        const res = await this.commitChange(st, rel, before, read.text, "Bash", callId, []);
+        if (res?.text) text += (text ? "\n" : "") + res.text;
+      } catch (err) {
+        // One failed submit must not drop the other files this call changed.
+        this.log(`submit failed for ${t.rel} (Bash): ${String(err)}`);
+        text += (text ? "\n" : "") + `[weft] ${t.rel} changed by this shell command could not be submitted; it is not coordinated.`;
+      }
     }
     return text;
   }
