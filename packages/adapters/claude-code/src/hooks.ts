@@ -169,7 +169,8 @@ export class ClaudeAdapter {
       if (st.isSymbolicLink()) return { unreadable: `${relative(this.root, cur)} is a symbolic link` };
     }
     try {
-      if (statSync(abs).size > MAX_FILE_BYTES) return { text: null };
+      // Over the cap is unreadable, not absent: submitting it as absent would record a deletion.
+      if (statSync(abs).size > MAX_FILE_BYTES) return { unreadable: `over the size limit` };
       return { text: readFileSync(abs, "utf8") };
     } catch {
       return { text: null };
@@ -520,7 +521,7 @@ export class ClaudeAdapter {
 
   /** Text of every dirty file right now (null = absent), taken before a Bash call runs. Unreadable files are left out. */
   private dirtySnapshot(): Record<string, string | null> {
-    const snap: Record<string, string | null> = {};
+    const snap: Record<string, string | null> = Object.create(null);
     for (const rel of this.dirtyFiles()) {
       const read = this.readFile(join(this.root, rel));
       if (!("unreadable" in read)) snap[rel] = read.text;
@@ -540,11 +541,11 @@ export class ClaudeAdapter {
     const pend = st.pending[callId];
     delete st.pending[callId];
     if (!st.wcpSession) return "";
-    const before0 = pend?.before ?? {};
+    const before0: Record<string, string | null> = Object.assign(Object.create(null), pend?.before ?? {});
     const baseHead = pend?.head;
     const head = this.git(["rev-parse", "HEAD"])?.trim();
     // Files the call committed are clean now, so they are found through the commits it made.
-    const committed = baseHead && head && baseHead !== head ? (this.git(["diff", "--name-only", "-z", baseHead, head]) ?? "").split("\0").filter(Boolean) : [];
+    const committed = baseHead && head && baseHead !== head ? (this.git(["diff", "--name-only", "--no-renames", "-z", baseHead, head]) ?? "").split("\0").filter(Boolean) : [];
     const rels = new Set([...Object.keys(before0), ...this.dirtyFiles(), ...committed]);
     let text = "";
     for (const rel of rels) {
@@ -555,7 +556,7 @@ export class ClaudeAdapter {
         this.log(`unreadable ${t.rel}: ${read.unreadable}; not submitted`);
         continue;
       }
-      const before: string | null = rel in before0 ? (before0[rel] as string | null) : (this.git(["show", `${baseHead ?? "HEAD"}:${rel}`]) ?? null);
+      const before: string | null = Object.prototype.hasOwnProperty.call(before0, rel) ? (before0[rel] as string | null) : (this.git(["show", `${baseHead ?? "HEAD"}:${rel}`]) ?? null);
       const res = await this.commitChange(st, rel, before, read.text, "Bash", callId, []);
       if (res?.text) text += (text ? "\n" : "") + res.text;
     }
