@@ -57,6 +57,8 @@ export const ADVISORY_CAPABILITIES: Capabilities = {
 const SKIP_PARTS = new Set([".git", ".weft", ".claude", ".cursor", ".opencode", ".gemini", "node_modules", ".wrangler", "dist", ".turbo"]);
 const DRAIN_MIN_INTERVAL_MS = 2000;
 const MAX_FILE_BYTES = 1 << 20;
+const isMissing = (err: unknown) => (err as NodeJS.ErrnoException)?.code === "ENOENT";
+const errCode = (err: unknown) => (err as NodeJS.ErrnoException)?.code ?? String(err);
 
 export type HookInput = {
   hook_event_name: string;
@@ -163,8 +165,10 @@ export class ClaudeAdapter {
       let st;
       try {
         st = lstatSync(cur);
-      } catch {
-        return { text: null };
+      } catch (err) {
+        // Only a missing path is absent; any other error (EACCES, EIO, ENOTDIR) means we cannot read it.
+        if (isMissing(err)) return { text: null };
+        return { unreadable: `${relative(this.root, cur)} cannot be read (${errCode(err)})` };
       }
       if (st.isSymbolicLink()) return { unreadable: `${relative(this.root, cur)} is a symbolic link` };
     }
@@ -172,8 +176,9 @@ export class ClaudeAdapter {
       // Over the cap is unreadable, not absent: submitting it as absent would record a deletion.
       if (statSync(abs).size > MAX_FILE_BYTES) return { unreadable: `over the size limit` };
       return { text: readFileSync(abs, "utf8") };
-    } catch {
-      return { text: null };
+    } catch (err) {
+      if (isMissing(err)) return { text: null };
+      return { unreadable: `${relative(this.root, abs)} cannot be read (${errCode(err)})` };
     }
   }
 
