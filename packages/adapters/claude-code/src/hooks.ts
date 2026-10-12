@@ -502,7 +502,7 @@ export class ClaudeAdapter {
     });
     // One Bash call can change several files: each file needs its own key, or the coordinator
     // answers the second file with the first file's verdict and appends nothing.
-    const verdict = await this.submit(st, "commit", event, callId ? `${callId}:${rel}` : `anon-${this.now()}`);
+    const verdict = await this.submit(st, "commit", event, callId ? `${callId}:${rel}` : `anon-${globalThis.crypto.randomUUID()}:${rel}`);
     st.lastContact = this.now();
     this.log(`commit ${rel} base #${event.base_seq} -> ${verdict.verdict} #${verdict.seq} (${verdict.diagnostics.map((d) => d.code).join(",") || "clean"})`);
     const full = await renderForModel(verdict.diagnostics, verdict.inbox, this.ctx({ rel, before, after }));
