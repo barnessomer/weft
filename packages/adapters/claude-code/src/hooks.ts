@@ -167,7 +167,8 @@ export class ClaudeAdapter {
         st = lstatSync(cur);
       } catch (err) {
         // Only a missing path is absent; any other error (EACCES, EIO, ENOTDIR) means we cannot read it.
-        if (isMissing(err)) return { text: null };
+        // A path under a replaced directory (ENOTDIR) cannot exist either.
+        if (isMissing(err) || errCode(err) === "ENOTDIR") return { text: null };
         return { unreadable: `${relative(this.root, cur)} cannot be read (${errCode(err)})` };
       }
       if (st.isSymbolicLink()) return { unreadable: `${relative(this.root, cur)} is a symbolic link` };
