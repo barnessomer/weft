@@ -23,7 +23,7 @@
 // model) — an unreachable coordinator must never wedge the agent.
 import { execFileSync } from "node:child_process";
 import { appendFileSync, existsSync, mkdirSync, readFileSync, statSync, renameSync } from "node:fs";
-import { isAbsolute, join, relative, resolve, sep } from "node:path";
+import { isAbsolute, join, posix, relative, resolve, sep } from "node:path";
 import type { AgentRef, Capabilities, Diagnostic, EventDraft, EventRecord, InboxItem, NegotiateCommand, NegotiationDue, SymbolKey, Verdict } from "@weft/protocol";
 import { WcpError, PROTOCOL, type Transport } from "./client";
 import { readState, withLock, writeState, type Loaded, type SessionState } from "./config";
@@ -573,9 +573,10 @@ export class ClaudeAdapter {
     try {
       out = await withLock(this.root, claudeSession, async () => {
         const st = readState(this.root, claudeSession);
+        let pre = "";
         try {
           const batch = await this.call(st, (s) => this.deps.transport.drain(s, this.ack(st)));
-          const pre = this.delivered(st, await renderForModel([], batch.items, this.ctx()), batch.delivered_through, batch.items);
+          pre = this.delivered(st, await renderForModel([], batch.items, this.ctx()), batch.delivered_through, batch.items);
           let kind: EventDraft["kind"];
           let payload: Record<string, unknown>;
           switch (cmd.cmd) {
@@ -616,7 +617,7 @@ export class ClaudeAdapter {
           const head = `[weft] sent #${verdict.seq}: ${verdict.summary ?? kind}`;
           return { text: [pre, head, after].filter(Boolean).join("\n"), code: 0 };
         } catch (err) {
-          if (err instanceof WcpError) return { text: `weft: ${err.code}: ${err.message}`, code: 1 };
+          if (err instanceof WcpError) return { text: [pre, `weft: ${err.code}: ${err.message}`].filter(Boolean).join("\n"), code: 1 };
           throw err;
         } finally {
           writeState(this.root, st);
@@ -640,9 +641,11 @@ export class ClaudeAdapter {
   /** `path#symbol` as the coordinator keys it for this checkout (same prefix rule as edits). */
   private claimKey(key: string): string {
     const hash = key.indexOf("#");
-    const path = (hash < 0 ? key : key.slice(0, hash)).replace(/^\.\//, "");
+    // Canonical form, so `./a.ts`, `a/./a.ts` and `a//a.ts` are one key (firm claims must not be defeated by an alias).
+    const raw = hash < 0 ? key : key.slice(0, hash);
+    const path = posix.normalize(raw.replace(/\\/g, "/"));
     const symbol = hash < 0 ? "" : key.slice(hash);
-    if (path.split("/").includes("..") || isAbsolute(path)) throw new Error(`claim: ${key} is outside this checkout`);
+    if (path === "." || path === "" || path.startsWith("..") || path.split("/").includes("..") || isAbsolute(path)) throw new Error(`claim: ${key} is outside this checkout`);
     return this.prefix + path + symbol;
   }
 
@@ -662,7 +665,7 @@ export class ClaudeAdapter {
           const pre = this.delivered(st, await renderForModel([], batch.items, this.ctx()), batch.delivered_through, batch.items);
           const event = this.draft(st, "claim", {
             writes,
-            payload: { firm: cmd.firm, source: "explicit", ...(cmd.ttl_ms ? { ttl_ms: cmd.ttl_ms } : {}) },
+            payload: { firm: cmd.firm, source: "explicit", ...(cmd.ttl_ms !== undefined ? { ttl_ms: cmd.ttl_ms } : {}) },
             tool: { name: "weft-cli", harness_event: "Bash" },
           });
           const verdict = await this.submit(st, "commit", event, `claim-${this.now()}`);
