@@ -276,3 +276,68 @@ describe("conformance scenarios (reference coordinator)", () => {
     expect(partialMatch([1], [1, 2])).toHaveLength(1);
   });
 });
+
+describe("enforcement mode (per repo)", () => {
+  const caps = { level: 3, observe: "sync", inject: "immediate", deny_edit: true, refuse_stop: true, commit_gate: "tool_interception" } as const;
+  const key = "src/auth/session.ts#refreshToken";
+  async function overlap(enforcement?: "advise" | "block") {
+    const clock = scenarioClock("2026-10-05T14:00:00.000Z");
+    const c = new ReferenceCoordinator({ repo: "demo", now: clock.now, ...(enforcement ? { enforcement } : {}) });
+    const a = await c.hello({ type: "hello", protocol: "wcp/0.1", agent: { id: "claude-a", harness: "claude-code" }, capabilities: caps, task: { id: "T-1" }, change: "I-a" } as never);
+    const b = await c.hello({ type: "hello", protocol: "wcp/0.1", agent: { id: "codex-b", harness: "codex" }, capabilities: caps, task: { id: "T-2" }, change: "I-b" } as never);
+    const edit = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key, kind: "body" }] } } as never;
+    await c.submit((a as { session: string }).session, edit);
+    return (await c.submit((b as { session: string }).session, edit)) as { verdict: string; diagnostics: Array<{ code: string; severity: string }> };
+  }
+  it("defaults to advise: a same-symbol overlap is a claim_wait warning and the edit is accepted", async () => {
+    const r = await overlap();
+    expect(r.verdict).toBe("accept");
+    expect(r.diagnostics).toMatchObject([{ code: "claim_wait", severity: "warning" }]);
+    expect((await overlap("advise")).diagnostics).toMatchObject([{ code: "claim_wait", severity: "warning" }]);
+  });
+  it("block: the same overlap is a claim_wait error and the edit is rejected", async () => {
+    const r = await overlap("block");
+    expect(r.verdict).toBe("reject");
+    expect(r.diagnostics).toMatchObject([{ code: "claim_wait", severity: "error" }]);
+  });
+
+  const hello = (agent: string, task: string, change: string) =>
+    ({ type: "hello", protocol: "wcp/0.1", agent: { id: agent, harness: "claude-code" }, capabilities: caps, task: { id: task }, change }) as never;
+  const sessionOf = (r: unknown) => (r as { session: string }).session;
+  const claim = (firm = false) => ({ type: "submit", mode: "commit", event: { kind: "claim", base_seq: 1, writes: [{ key, kind: "body" }], payload: { firm, source: "explicit" } } }) as never;
+  const edit = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key, kind: "body" }] } } as never;
+  type Result = { verdict: string; diagnostics: Array<{ code: string; severity: string }> };
+
+  it("block: an agent's own claim on another task does not deny its edit; advise still warns", async () => {
+    const run = async (enforcement?: "advise" | "block") => {
+      const c = new ReferenceCoordinator({ repo: "demo", now: scenarioClock("2026-10-05T14:00:00.000Z").now, ...(enforcement ? { enforcement } : {}) });
+      const t1 = sessionOf(await c.hello(hello("claude-a", "T-1", "I-a")));
+      const t2 = sessionOf(await c.hello(hello("claude-a", "T-2", "I-b")));
+      await c.submit(t1, edit);
+      return (await c.submit(t2, edit)) as Result;
+    };
+    expect(await run("block")).toMatchObject({ verdict: "accept", diagnostics: [] });
+    expect(await run()).toMatchObject({ verdict: "accept", diagnostics: [{ code: "claim_wait", severity: "warning" }] });
+  });
+
+  it("block: a claim is never refused by enforcement; a junior's soft claim over a senior's is a warning, and its edit is denied", async () => {
+    const c = new ReferenceCoordinator({ repo: "demo", enforcement: "block", now: scenarioClock("2026-10-05T14:00:00.000Z").now });
+    const senior = sessionOf(await c.hello(hello("claude-a", "T-1", "I-a")));
+    const junior = sessionOf(await c.hello(hello("codex-b", "T-2", "I-b")));
+    await c.submit(senior, claim());
+    expect(await c.submit(junior, claim())).toMatchObject({ verdict: "accept", diagnostics: [{ code: "claim_wait", severity: "warning" }] });
+    expect(await c.submit(junior, edit)).toMatchObject({ verdict: "reject", diagnostics: [{ code: "claim_wait", severity: "error" }] });
+  });
+
+  // Wait-die, block: the senior's edit is denied by a junior's claim. Pinned on purpose. This is part of the
+  // lease discussion; do not change it without revisiting the lease design.
+  it("wait-die + block: the senior's edit is denied by a junior's claim (wait, not die)", async () => {
+    const c = new ReferenceCoordinator({ repo: "demo", policy: "wait-die", enforcement: "block", now: scenarioClock("2026-10-05T14:00:00.000Z").now });
+    const senior = sessionOf(await c.hello(hello("claude-a", "T-1", "I-a")));
+    const junior = sessionOf(await c.hello(hello("codex-b", "T-2", "I-b")));
+    // The senior's first accepted event sets its birth before the junior's, making it the senior.
+    await c.submit(senior, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key: "src/other.ts#x", kind: "body" }] } } as never);
+    await c.submit(junior, claim());
+    expect(await c.submit(senior, edit)).toMatchObject({ verdict: "reject", diagnostics: [{ code: "claim_wait", severity: "error" }] });
+  });
+});
