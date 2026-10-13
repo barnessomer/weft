@@ -344,8 +344,8 @@ The task message gives you its absolute path.
   the worktree from that; a command without it is denied ("names no checkout Weft can
   coordinate"), so every command must start with it. Its git \`pre-commit\` hook refuses commits
   while Weft has open errors.
-- If an edit is denied with \`[weft error]\`, do not retry it. When the cause is another agent's
-  change, stop and report it (the diagnostic names the agent and event) instead of adopting their work.
+- If an edit is denied with \`[weft error]\`, do not retry it unchanged: the diagnostic says what
+  to do next.
 - \`<worktree>/.weft/bin/weft inbox\` shows what is waiting for you.
 `;
 }

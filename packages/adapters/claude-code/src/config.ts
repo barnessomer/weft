@@ -117,9 +117,12 @@ export function readConfigFile(root: string, configRel: string = CONFIG_REL): Pa
   }
 }
 
-/** Env overrides a by-path hook must ignore: each would point a pinned checkout somewhere else. */
+/**
+ * Env overrides a by-path hook must ignore: each would point a pinned checkout somewhere else, or
+ * (WEFT_TOKEN, inherited from the parent session) make the worker act with the parent's identity.
+ */
 export function withoutPinnedOverrides(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
-  const { WEFT_URL: _url, WEFT_ROOT: _root, WEFT_MODE: _mode, ...rest } = env;
+  const { WEFT_URL: _url, WEFT_ROOT: _root, WEFT_MODE: _mode, WEFT_TOKEN: _token, ...rest } = env;
   return rest;
 }
 

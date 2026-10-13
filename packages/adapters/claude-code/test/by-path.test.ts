@@ -366,3 +366,37 @@ describe("review: quoted tilde, no fallback, .weft must be a real directory (#21
     expect(loadConfig(root, {} as NodeJS.ProcessEnv, CONFIG_REL, true)).toBeUndefined();
   });
 });
+
+describe("review: subagent text and inherited token (#21)", () => {
+  it("WEFT_TOKEN is ignored under --by-path: the checkout's own token is used, not the parent's", async () => {
+    const { loadConfig, withoutPinnedOverrides } = await import("../src/config");
+    const root = checkout("by-path-token");
+    mkdirSync(join(root, ".weft"), { recursive: true });
+    writeFileSync(join(root, ".weft", "claude.json"), JSON.stringify({ url: "http://localhost:1", repo: "demo", agent: "worker", change: "I" + "0".repeat(40), task: { id: "T" }, tokenFile: ".weft/token" }));
+    writeFileSync(join(root, ".weft", "token"), "worker-token\n");
+    const env = { WEFT_TOKEN: "parent-token" } as NodeJS.ProcessEnv;
+    expect(withoutPinnedOverrides(env).WEFT_TOKEN).toBeUndefined();
+    expect(loadConfig(root, withoutPinnedOverrides(env), CONFIG_REL, true)?.token).toBe("worker-token");
+    // without --by-path, WEFT_TOKEN still overrides the token file (unchanged)
+    expect(loadConfig(root, env)?.token).toBe("parent-token");
+  });
+
+  it("the default weft-worker text is pinned and does not depend on the repo's conflicts mode", async () => {
+    const { workerAgent } = await import("../src/cli");
+    const text = workerAgent("weft-claude hook --by-path");
+    expect(text.slice(text.indexOf("\n---\n") + 5)).toBe(`
+You work on one task inside one git worktree that is joined to Weft (it has \`.weft/claude.json\`).
+The task message gives you its absolute path.
+
+- Edit only files under that worktree, always by absolute path and never through a symlink.
+  Weft checks each edit as that worktree's agent; edits elsewhere are not coordinated.
+- Start every Bash command with \`cd <worktree> && …\` (or use \`git -C <worktree> …\`). Weft finds
+  the worktree from that; a command without it is denied ("names no checkout Weft can
+  coordinate"), so every command must start with it. Its git \`pre-commit\` hook refuses commits
+  while Weft has open errors.
+- If an edit is denied with \`[weft error]\`, do not retry it unchanged: the diagnostic says what
+  to do next.
+- \`<worktree>/.weft/bin/weft inbox\` shows what is waiting for you.
+`);
+  });
+});
