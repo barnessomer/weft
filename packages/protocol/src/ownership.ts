@@ -17,15 +17,16 @@ export function ownedElsewhere(d: Diagnostic, agent: string): boolean {
 }
 
 /** What the owner of the causing change sees: a warning, so it never blocks the owner. */
-export function ownerNotice(d: Diagnostic, editor: string): Diagnostic {
+export function ownerNotice(d: Diagnostic, editor: string, kind: string): Diagnostic {
   // Built field by field: the editor's diagnostic (and its suggestion, which is written for the editor)
-  // is not copied to the owner.
+  // is not copied to the owner. `kind` is the rejected event's kind, so a claim is not called an edit.
+  const act = kind === "edit" ? "edit to" : kind === "claim" ? "claim on" : kind === "land" ? "landing touching" : `${kind} on`;
   return {
     severity: "warning",
     code: d.code,
     file: d.file,
     symbol: d.symbol,
-    message: `${editor}'s edit to ${d.symbol} conflicts with your change #${d.caused_by_seq}.`,
+    message: `${editor}'s ${act} ${d.symbol} conflicts with your change #${d.caused_by_seq}.`,
     suggestion: `${editor} keeps working on its other tasks and does not adopt your change. Negotiate with ${editor} if the contract needs to change; otherwise no action is needed.`,
     caused_by_seq: d.caused_by_seq,
     caused_by_agent: editor,

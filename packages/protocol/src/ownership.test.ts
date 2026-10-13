@@ -65,7 +65,7 @@ describe("ownership rules", () => {
     expect(ownedElsewhere(d as never, "claude-a")).toBe(false);
   });
   it("the owner's notice carries owner-directed text, not the editor's suggestion", () => {
-    const n = ownerNotice(d as never, "claude-b");
+    const n = ownerNotice(d as never, "claude-b", "edit");
     expect(n.severity).toBe("warning");
     expect(n.suggestion).not.toContain("Keep working on your other tasks.");
     expect(n.suggestion).toContain("does not adopt your change");

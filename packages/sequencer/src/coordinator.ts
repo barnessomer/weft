@@ -618,7 +618,7 @@ export class SqlCoordinator {
       const rec = this.append({ kind: e.kind, actor, session: s, draft: e, diagnostics, status: reject ? "rejected" : "accepted", mode: msg.mode });
       if (reject) {
         for (const d of diagnostics) if (d.severity === "error" && d.code !== "agent_paused") this.openSet(s.change, d, msg.mode, rec.seq);
-        if (this.conflicts === "continue") for (const d of diagnostics) if (ownedElsewhere(d, s.agent)) this.notifyOwner(d, s.agent);
+        if (this.conflicts === "continue") for (const d of diagnostics) if (ownedElsewhere(d, s.agent)) this.notifyOwner(d, s.agent, e.kind);
       } else {
         this.applyAccepted(rec, s);
       }
@@ -1031,10 +1031,10 @@ export class SqlCoordinator {
   }
 
   /** Tell the owner of the change that caused a conflict (informational; never blocks the owner). */
-  private notifyOwner(d: Diagnostic, editor: string): void {
+  private notifyOwner(d: Diagnostic, editor: string, kind: string): void {
     const cause = this.record(d.caused_by_seq);
     if (!cause?.change) return;
-    const notice = ownerNotice(d, editor);
+    const notice = ownerNotice(d, editor, kind);
     // Matched on the cause's agent too: a session can name any change in hello, so the change ID alone is not proof of ownership.
     for (const os of this.sessionsOf({ change: cause.change }).filter((s) => s.agent === cause.agent)) {
       const seen = all<{ item: string }>(this.sql, `SELECT item FROM inbox WHERE session = ? AND seq = ?`, os.id, d.caused_by_seq);
@@ -1559,7 +1559,7 @@ export class SqlCoordinator {
       ...(change ? { agent: change.agent, change: change.id, ...(change.task ? { task: change.task } : {}) } : {}),
     });
     // A landing blocked by another agent's change tells that change's owner (continue mode only).
-    if (status === "rejected" && this.conflicts === "continue" && change) for (const x of diagnostics) if (ownedElsewhere(x, change.agent)) this.notifyOwner(x, change.agent);
+    if (status === "rejected" && this.conflicts === "continue" && change) for (const x of diagnostics) if (ownedElsewhere(x, change.agent)) this.notifyOwner(x, change.agent, d.kind);
     if (status === "accepted") this.applyAccepted(rec);
     return rec;
   }

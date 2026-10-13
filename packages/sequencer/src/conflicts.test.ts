@@ -176,7 +176,30 @@ describe("conflicts: continue (repo config)", () => {
     const told = j.call<{ items: Array<{ kind: string; diagnostic?: { severity: string; message: string } }> }>("drain", a.session, 0).items.filter((i) => i.kind === "diagnostic");
     expect(told).toHaveLength(1);
     expect(told[0]?.diagnostic?.severity).toBe("warning");
-    expect(told[0]?.diagnostic?.message).toBe("claude-b's edit to src/x.ts#f conflicts with your change #3.");
+    expect(told[0]?.diagnostic?.message).toBe("claude-b's landing touching src/x.ts#f conflicts with your change #3.");
+  });
+
+  it("a rejected claim is called a claim in the owner's notice, not an edit (sequencer and reference)", () => {
+    const wd: CoordinatorInit = { repo: "r", conflicts: "continue", policy: "wait-die" };
+    const edit = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, writes: [{ key: "src/x.ts#f", kind: "body" }] } } satisfies Submit;
+    const claim = { type: "submit", mode: "commit", event: { kind: "claim", base_seq: 2, writes: [{ key: "src/x.ts#f", kind: "body" }], payload: { firm: false, source: "explicit" } } } satisfies Submit;
+    type Items = { items: Array<{ kind: string; diagnostic?: { code: string; message: string } }> };
+    const msgs = (d: Items) => d.items.filter((i) => i.kind === "diagnostic").map((i) => `${i.diagnostic?.code}: ${i.diagnostic?.message}`);
+    const expected = ["claim_die: claude-b's claim on src/x.ts#f conflicts with your change #3."];
+
+    const { j } = repo(wd);
+    const a = j.call<{ session: string }>("hello", hello("claude-a", "I-a"));
+    const b = j.call<{ session: string }>("hello", hello("claude-b", "I-b"));
+    j.call("submit", a.session, edit);
+    expect(j.call<{ verdict: string }>("submit", b.session, claim).verdict).toBe("reject");
+    expect(msgs(j.call<Items>("drain", a.session, 0))).toEqual(expected);
+
+    const ref = new ReferenceCoordinator({ repo: "r", conflicts: "continue", policy: "wait-die" });
+    const ra = ref.hello(hello("claude-a", "I-a"));
+    const rb = ref.hello(hello("claude-b", "I-b"));
+    ref.submit(ra.session, edit);
+    expect(ref.submit(rb.session, claim).verdict).toBe("reject");
+    expect(msgs(ref.drain(ra.session, 0) as Items)).toEqual(expected);
   });
 
   it("the editor's stale_assumption suggestion uses the continue wording", () => {
