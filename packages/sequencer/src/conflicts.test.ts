@@ -1,7 +1,7 @@
 // Cross-agent conflict policy (spec §8.4) is per-repo: `conflicts` in the repo config, recorded at
 // init, so the journal replays it exactly. Default (no field) is `hold` and must not change.
 import { describe, expect, it } from "vitest";
-import { ReferenceCoordinator, type Hello } from "@weft/protocol";
+import { ReferenceCoordinator, type Hello, type Submit } from "@weft/protocol";
 import { configFrom, SqlCoordinator, type CoordinatorInit } from "./coordinator";
 import { JournaledCoordinator, replay } from "./journal";
 import { nodeSql } from "./node-sqlite";
@@ -139,6 +139,25 @@ describe("conflicts: continue (repo config)", () => {
     expect(warn?.severity).toBe("warning");
     expect(warn?.message).toContain("conflicts with your change");
     expect(j.call<{ allow: boolean }>("gate", a.session, { type: "gate", gate: "commit" }).allow).toBe(true);
+  });
+
+  it("a resubmission of the same conflicting edit does not repeat the owner's notice (sequencer and reference)", () => {
+    const stale = { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, files: ["src/cart.ts"], reads: ["src/pricing.ts#calcTotal"], writes: [{ key: "src/cart.ts#cartSummary", kind: "body" }] } } satisfies Submit;
+    type Items = { items: Array<{ kind: string; diagnostic?: { code: string } }> };
+    const notices = (d: Items) => d.items.filter((i) => i.kind === "diagnostic" && i.diagnostic?.code === "stale_assumption");
+
+    const { j } = repo(init);
+    const { a, b } = staleCall(j);
+    expect(j.call<{ verdict: string }>("submit", b.session, stale).verdict).toBe("reject");
+    expect(j.call<{ verdict: string }>("submit", b.session, stale).verdict).toBe("reject");
+    expect(notices(j.call<Items>("drain", a.session, 0))).toHaveLength(1);
+
+    const ref = new ReferenceCoordinator({ repo: "r", conflicts: "continue", now: () => Date.parse("2026-10-05T12:00:00.000Z") });
+    const ra = ref.hello(hello("claude-a", "I-a"));
+    const rb = ref.hello(hello("claude-b", "I-b"));
+    ref.submit(ra.session, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: 1, files: ["src/pricing.ts"], reads: [], writes: [{ key: "src/pricing.ts#calcTotal", kind: "signature" }] } });
+    for (let n = 0; n < 3; n++) expect(ref.submit(rb.session, stale).verdict).toBe("reject");
+    expect(notices(ref.drain(ra.session, 0) as Items)).toHaveLength(1);
   });
 
   it("the editor's stale_assumption suggestion uses the continue wording", () => {
