@@ -5,8 +5,8 @@ import { describe, expect, it, afterAll } from "vitest";
 import { ReferenceCoordinator } from "@weft/protocol";
 import { execFile, execFileSync } from "node:child_process";
 import { promisify } from "node:util";
-import { mkdirSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
-import { homedir } from "node:os";
+import { mkdirSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { homedir, tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CONFIG_REL, bashTargetDir, configStarts } from "../src/config";
@@ -140,7 +140,9 @@ describe("--by-path coordinates only the pinned checkout (issue #8c, real bundle
       tool_input: { file_path: join(wt, `src/${name}.ts`), content: `export function ${name}(n: number) { return n; }\n` },
     });
 
-    expect(await hook(pinned(url), parent, write(evil, "fe"))).toBeUndefined();
+    const refused = await hook(pinned(url), parent, write(evil, "fe"));
+    expect(refused?.hookSpecificOutput?.permissionDecision).toBeUndefined();
+    expect(refused?.hookSpecificOutput?.additionalContext).toContain("not coordinated");
     expect(logOf(evil)).toContain("hook --by-path refused");
     expect(logOf(evil)).not.toContain("hello worker-evil");
 
@@ -227,7 +229,7 @@ describe("the pin covers mode and ignores env overrides (issue #8c, review)", ()
       env: { ...process.env, WEFT_TOKEN: "local-test-token" },
     });
     const out = await hook([...pinned(url), "--mode", "enforce"], root, { hook_event_name: "PreToolUse", tool_name: "Write", tool_input: { file_path: join(root, "f.ts"), content: "export const x = 1;\n" } });
-    expect(out).toBeUndefined();
+    expect(out?.hookSpecificOutput?.additionalContext).toContain("not coordinated");
     expect(logOf(root)).toMatch(/hook --by-path refused.*do not match the pinned coordinator/);
   });
 
@@ -263,6 +265,66 @@ describe("review: quoted tilde, no fallback, .weft must be a real directory (#21
     }
     expect(logOf(parent)).not.toMatch(/ hello | check /);
   }, 30_000);
+
+  it("a double-quoted target with a backslash is refused (the shell would unescape it)", () => {
+    expect(bashTargetDir(String.raw`cd "/wt/a\\b" && ls`, "/repo")).toBeUndefined();
+    expect(bashTargetDir(String.raw`cd "/wt/a\"b" && ls`, "/repo")).toBeUndefined();
+    expect(bashTargetDir(String.raw`git -C "/wt/a\$b" status`, "/repo")).toBeUndefined();
+    // single quotes keep a backslash literal
+    expect(bashTargetDir(String.raw`cd '/wt/a\b' && ls`, "/repo")).toBe(String.raw`/wt/a\b`);
+  });
+
+  it("an edit through a symlink below the worktree is denied: the write would land outside it (real bundle)", async () => {
+    const { coord, url } = await coordinator();
+    const parent = await joined(url, "sl-parent", "parent-agent");
+    const wt = await joined(url, "sl-wt", "worker-sl");
+    writeFileSync(join(parent, "total.ts"), "export const total = 1;\n");
+    symlinkSync(join(parent, "total.ts"), join(wt, "src", "alias.ts"));
+    symlinkSync(parent, join(wt, "linked"));
+    for (const file of [join(wt, "src", "alias.ts"), join(wt, "linked", "total.ts")]) {
+      const out = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Write", tool_use_id: "sl", tool_input: { file_path: file, content: "export const total = 2;\n" } });
+      expect(out?.hookSpecificOutput?.permissionDecision, file).toBe("deny");
+      expect(out?.hookSpecificOutput?.permissionDecisionReason, file).toContain("symlink");
+    }
+    // a Bash target through the link is denied too: it would load the parent's config as this worktree
+    const bash = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_use_id: "slb", tool_input: { command: `cd ${join(wt, "linked")} && sed -i s/1/2/ total.ts` } });
+    expect(bash?.hookSpecificOutput?.permissionDecision).toBe("deny");
+    expect((coord.events(0, 1000).events as Array<{ kind: string }>).filter((e) => e.kind === "edit")).toEqual([]);
+    // a link outside any checkout is not this check's business (macOS /tmp, /var): not denied
+    const loose = mkdtempSync(join(tmpdir(), "weft-loose-"));
+    symlinkSync(tmpdir(), join(loose, "l"));
+    const outside = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Write", tool_input: { file_path: join(loose, "l", "x.txt"), content: "x" } });
+    expect(outside?.hookSpecificOutput?.permissionDecision).toBeUndefined();
+    // a plain file in the worktree is still coordinated
+    const ok = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Write", tool_use_id: "ok", tool_input: { file_path: join(wt, "src", "fresh.ts"), content: "export const f = 1;\n" } });
+    expect(ok?.hookSpecificOutput?.permissionDecision).toBeUndefined();
+    expect(logOf(wt)).toContain("check src/fresh.ts");
+  }, 30_000);
+
+  it("a pinned hook that refuses a checkout tells the agent its edit is not coordinated", async () => {
+    const { url } = await coordinator();
+    const other = await joined("https://other.example.test", "fb-other", "worker-other");
+    const out = await hook(pinned(url), other, { hook_event_name: "PreToolUse", tool_name: "Write", tool_input: { file_path: join(other, "x.ts"), content: "export const x = 1;\n" } });
+    expect(out?.hookSpecificOutput?.permissionDecision).toBeUndefined();
+    expect(out?.hookSpecificOutput?.additionalContext).toContain("not coordinated");
+  }, 30_000);
+
+  it("a non-string tokenFile does not make loadConfig throw", async () => {
+    const { loadConfig } = await import("../src/config");
+    const root = checkout("token-nonstring");
+    mkdirSync(join(root, ".weft"), { recursive: true });
+    writeFileSync(join(root, ".weft", "claude.json"), JSON.stringify({ url: "http://localhost:1", repo: "demo", agent: "a", change: "I" + "0".repeat(40), task: { id: "T" }, tokenFile: 7 }));
+    expect(() => loadConfig(root, {} as NodeJS.ProcessEnv)).not.toThrow();
+    expect(loadConfig(root, {} as NodeJS.ProcessEnv, CONFIG_REL, true)).toBeUndefined();
+  });
+
+  it("a JSON null config is not a config", async () => {
+    const { loadConfig } = await import("../src/config");
+    const root = checkout("null-config");
+    mkdirSync(join(root, ".weft"), { recursive: true });
+    writeFileSync(join(root, ".weft", "claude.json"), "null");
+    expect(loadConfig(root, {} as NodeJS.ProcessEnv)).toBeUndefined();
+  });
 
   it("a .weft that is a symlink to another directory is refused", async () => {
     const { loadConfig } = await import("../src/config");

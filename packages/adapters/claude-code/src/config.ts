@@ -41,6 +41,13 @@ export function findRoot(start: string, configRel: string = CONFIG_REL): string 
   }
 }
 
+export const BASH_TARGET_FORMS = "a leading `cd <absolute or ~ path> && ...` or `git -C <absolute or ~ path> ...`";
+// Bare paths exclude glob and brace characters: Bash expands them before cd runs, so the literal would be a wrong target.
+// Double-quoted paths exclude `\`: inside "…" the shell unescapes it, so the literal would be a wrong target.
+const DIR = String.raw`(?:"([^"$\`\\]+)"|'([^'$\`]+)'|([^\s"'$\`;&|<>()*?\[\]{},\\]+))`;
+const CD_TARGET = new RegExp(String.raw`^\s*cd\s+${DIR}\s*&&`);
+const GIT_C_TARGET = new RegExp(String.raw`^\s*git\s+-C\s+${DIR}\s`);
+
 /**
  * The directory a Bash command works in, when it names one in an accepted form (and only these):
  *   - a leading `cd <dir> && ...`        (dir absolute, or ~ / ~/... ; quoted or bare)
@@ -49,12 +56,6 @@ export function findRoot(start: string, configRel: string = CONFIG_REL): string 
  * the command names no accepted target (callers fail closed under --by-path). Only this leading target is checked;
  * a later `cd` or absolute path in the same command is not attributed.
  */
-export const BASH_TARGET_FORMS = "a leading `cd <absolute or ~ path> && ...` or `git -C <absolute or ~ path> ...`";
-// Bare paths exclude glob and brace characters: Bash expands them before cd runs, so the literal would be a wrong target.
-const DIR = String.raw`(?:"([^"$\`]+)"|'([^'$\`]+)'|([^\s"'$\`;&|<>()*?\[\]{},\\]+))`;
-const CD_TARGET = new RegExp(String.raw`^\s*cd\s+${DIR}\s*&&`);
-const GIT_C_TARGET = new RegExp(String.raw`^\s*git\s+-C\s+${DIR}\s`);
-
 export function bashTargetDir(command: string, cwd: string): string | undefined {
   const m = CD_TARGET.exec(command) ?? GIT_C_TARGET.exec(command);
   const raw = m ? (m[1] ?? m[2] ?? m[3]) : undefined;
@@ -103,17 +104,38 @@ export function readConfigFile(root: string, configRel: string = CONFIG_REL): Pa
   }
 }
 
-/**
- * `--by-path` trusts a checkout's `.weft/claude.json` only when its url and repo equal the pin.
- * A repo can ship its own config, so an unpinned or mismatched one must not route edits to a
- * server it chose. No pin means nothing is trusted.
- */
 /** Env overrides a by-path hook must ignore: each would point a pinned checkout somewhere else. */
 export function withoutPinnedOverrides(env: NodeJS.ProcessEnv): NodeJS.ProcessEnv {
   const { WEFT_URL: _url, WEFT_ROOT: _root, WEFT_MODE: _mode, ...rest } = env;
   return rest;
 }
 
+/**
+ * True when `path` reaches its checkout through a symlink: the path itself or any directory on the
+ * way up to, and including, the first one holding `.git`. `--by-path` attributes a path to that
+ * checkout lexically, so a link (`src/x.ts -> /parent/src/x.ts`, or `linked -> /parent`) would let
+ * a write land in another checkout, or load another checkout's config. `--by-path` denies it.
+ * Components that do not exist yet are not links. A path in no checkout is not coordinated at all,
+ * so its links (macOS `/tmp`, `/var`) do not count.
+ */
+export function throughSymlink(path: string): boolean {
+  let linked = false;
+  for (let p = resolve(path); ; p = dirname(p)) {
+    try {
+      if (lstatSync(p).isSymbolicLink()) linked = true;
+    } catch {
+      /* not created yet */
+    }
+    if (existsSync(join(p, ".git"))) return linked;
+    if (dirname(p) === p) return false;
+  }
+}
+
+/**
+ * `--by-path` trusts a checkout's `.weft/claude.json` only when its url, repo and mode equal the pin.
+ * A repo can ship its own config, so an unpinned or mismatched one must not route edits to a
+ * server it chose. No pin means nothing is trusted.
+ */
 export function pinMatches(root: string, pin: Pin | undefined): boolean {
   const c = readConfigFile(root);
   return !!pin && !!c && c.url === pin.url && c.repo === pin.repo && (c.mode ?? "enforce") === (pin.mode ?? "enforce");
@@ -151,8 +173,8 @@ export function loadConfig(start: string, env: NodeJS.ProcessEnv = process.env, 
   if (env.WEFT_MODE === "advise" || env.WEFT_MODE === "enforce") config.mode = env.WEFT_MODE;
   let token = env.WEFT_TOKEN ?? "";
   if (!token) {
-    const tokenPath = resolve(root, config.tokenFile ?? ".weft/token");
     try {
+      const tokenPath = resolve(root, config.tokenFile ?? ".weft/token");
       if (confineToken) {
         // A repo-shipped config must not point tokenFile at another file and have its content sent as the
         // bearer token. .weft itself must be a real directory (a symlinked .weft would move the whole
