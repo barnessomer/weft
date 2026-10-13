@@ -117,7 +117,9 @@ checkout's config: each subagent acts as the agent of the worktree it works in.
 Bash target) whose path goes through a symlink, anywhere from the file up to and including the
 directory holding `.git`, is denied before it runs: `src/x.ts -> /parent/src/x.ts` or
 `linked -> /parent` would write to, or load the config of, another checkout. Give subagents the
-real worktree path. Paths in no checkout are not checked (they are not coordinated at all).
+real worktree path. Paths in no checkout are not checked (they are not coordinated at all). A
+`..` segment in an edited path or a Bash target is denied too: the kernel resolves `link/..`
+against the link's target, not lexically.
 
 **Pinned coordinator.** A checkout can ship its own `.weft/claude.json`, so `--by-path` does not
 trust one by location alone. `install-agent` pins the url, repo and mode of the parent session's
@@ -140,8 +142,9 @@ Plain `hook` reads none of this: no pin, the env overrides apply, and `tokenFile
 one of these forms, and is otherwise denied before it runs:
 
 - a leading `cd <dir> && ...`, where `<dir>` is an absolute path or a bare `~` / `~/...`
-  (an absolute path may be bare, `"…"` without `\`, or `'…'`; a quoted `~` is not expanded by the
-  shell, so it is refused, and a `\` inside `"…"` is unescaped by the shell, so it is refused too);
+  (an absolute path may be bare, `"…"` without `$`, backquote or `\`, or `'…'` taken literally; a
+  quoted `~` is not expanded by the shell, so it is refused, and `$`, backquote or `\` inside `"…"`
+  would be expanded or unescaped by the shell, so they are refused rather than decoded);
 - a leading `git -C <dir> ...`, with the same `<dir>` forms.
 
 Relative paths (`cd src && ...`), `$VAR` or `${VAR}`, a bare path with glob or brace characters

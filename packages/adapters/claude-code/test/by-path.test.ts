@@ -270,8 +270,12 @@ describe("review: quoted tilde, no fallback, .weft must be a real directory (#21
     expect(bashTargetDir(String.raw`cd "/wt/a\\b" && ls`, "/repo")).toBeUndefined();
     expect(bashTargetDir(String.raw`cd "/wt/a\"b" && ls`, "/repo")).toBeUndefined();
     expect(bashTargetDir(String.raw`git -C "/wt/a\$b" status`, "/repo")).toBeUndefined();
-    // single quotes keep a backslash literal
+    // single quotes keep every character literal: \, $ and backquote are part of the path
     expect(bashTargetDir(String.raw`cd '/wt/a\b' && ls`, "/repo")).toBe(String.raw`/wt/a\b`);
+    expect(bashTargetDir("cd '/wt/a$b`c' && ls", "/repo")).toBe("/wt/a$b`c");
+    // a `..` segment is refused in every form
+    for (const cmd of ["cd /wt/a/.. && ls", `cd "/wt/a/../b" && ls`, "git -C '/wt/..' status"]) expect(bashTargetDir(cmd, "/repo"), cmd).toBeUndefined();
+    expect(bashTargetDir("cd /wt/a..b && ls", "/repo")).toBe("/wt/a..b");
   });
 
   it("an edit through a symlink below the worktree is denied: the write would land outside it (real bundle)", async () => {
@@ -289,6 +293,14 @@ describe("review: quoted tilde, no fallback, .weft must be a real directory (#21
     // a Bash target through the link is denied too: it would load the parent's config as this worktree
     const bash = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_use_id: "slb", tool_input: { command: `cd ${join(wt, "linked")} && sed -i s/1/2/ total.ts` } });
     expect(bash?.hookSpecificOutput?.permissionDecision).toBe("deny");
+    expect((coord.events(0, 1000).events as Array<{ kind: string }>).filter((e) => e.kind === "edit")).toEqual([]);
+    // `..` after a link is resolved by the kernel against the link target: refused before any lexical resolve
+    mkdirSync(join(parent, "sub"));
+    symlinkSync(join(parent, "sub"), join(wt, "up"));
+    const dotdot = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Write", tool_use_id: "dd", tool_input: { file_path: `${wt}/up/../total.ts`, content: "export const total = 3;\n" } });
+    expect(dotdot?.hookSpecificOutput?.permissionDecision).toBe("deny");
+    const ddBash = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_use_id: "ddb", tool_input: { command: `cd ${wt}/up/.. && sed -i s/1/2/ total.ts` } });
+    expect(ddBash?.hookSpecificOutput?.permissionDecision).toBe("deny");
     expect((coord.events(0, 1000).events as Array<{ kind: string }>).filter((e) => e.kind === "edit")).toEqual([]);
     // a link outside any checkout is not this check's business (macOS /tmp, /var): not denied
     const loose = mkdtempSync(join(tmpdir(), "weft-loose-"));

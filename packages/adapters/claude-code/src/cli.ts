@@ -23,7 +23,7 @@ import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CLAIM_USAGE, NEGOTIATE_USAGE, parseClaim, parseNegotiate } from "@weft/protocol";
 import { HttpTransport, type Transport } from "./client";
-import { BASH_TARGET_FORMS, CONFIG_REL, appendAdapterLog, bashTargetDir, configStarts, withoutPinnedOverrides, currentSession, findRoot, loadConfig, pinMatches, throughSymlink, readConfigFile, readState, stateDir, type AdapterConfig, type Loaded, type Pin } from "./config";
+import { BASH_TARGET_FORMS, CONFIG_REL, appendAdapterLog, bashTargetDir, configStarts, withoutPinnedOverrides, currentSession, findRoot, loadConfig, hasDotDot, pinMatches, throughSymlink, readConfigFile, readState, stateDir, type AdapterConfig, type Loaded, type Pin } from "./config";
 import { EDIT_TOOLS, editPath } from "./edits";
 import { ClaudeAdapter, type HookInput } from "./hooks";
 import { stableNodePath } from "./node-path";
@@ -91,9 +91,9 @@ export function injectedText(out: unknown): string {
 /** The one denial `--by-path` gives a Bash command that names no accepted target. */
 export const BASH_NEEDS_TARGET =
   `[weft] This Bash command names no checkout Weft can coordinate. Start the command with \`cd <worktree> &&\` (or \`git -C <worktree> ...\`), using the absolute worktree path. Accepted forms: ${BASH_TARGET_FORMS}.`;
-/** `--by-path` denial for an edit or Bash target that reaches its checkout through a symlink. */
+/** `--by-path` denial for an edit or Bash target that reaches its checkout through a symlink or a `..`. */
 export const BY_PATH_SYMLINK =
-  "[weft] This path goes through a symlink, so Weft cannot tell which checkout it writes to. Use the real path of the file (or worktree), with no symlink in it.";
+  "[weft] This path goes through a symlink or a `..` segment, so Weft cannot tell which checkout it writes to. Use the real absolute path of the file (or worktree), with no symlink and no `..` in it.";
 /** `--by-path` note when the checkout's config does not match the pinned coordinator. */
 export const BY_PATH_REFUSED =
   "[weft] This checkout is not coordinated: its .weft/claude.json does not match the coordinator this subagent is pinned to (see .weft/log/adapter.log). Work only in the worktree you were given.";
@@ -117,7 +117,7 @@ async function hook(byPath: boolean, args: string[] = []): Promise<void> {
     if (pre && input.tool_name === "Bash" && !bashDir) {
       // Fail closed: a command with no accepted target is not run, and no checkout is coordinated for it.
       out = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: BASH_NEEDS_TARGET } };
-    } else if (target && throughSymlink(target)) {
+    } else if (target && ((file && hasDotDot(file)) || throughSymlink(target))) {
       // The checkout is found lexically: through a link, the write (or the config) would be another checkout's.
       out = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: BY_PATH_SYMLINK } };
     } else {

@@ -43,8 +43,9 @@ export function findRoot(start: string, configRel: string = CONFIG_REL): string 
 
 export const BASH_TARGET_FORMS = "a leading `cd <absolute or ~ path> && ...` or `git -C <absolute or ~ path> ...`";
 // Bare paths exclude glob and brace characters: Bash expands them before cd runs, so the literal would be a wrong target.
-// Double-quoted paths exclude `\`: inside "…" the shell unescapes it, so the literal would be a wrong target.
-const DIR = String.raw`(?:"([^"$\`\\]+)"|'([^'$\`]+)'|([^\s"'$\`;&|<>()*?\[\]{},\\]+))`;
+// Double-quoted paths exclude `$`, backquote and `\`: inside "…" the shell expands or unescapes them, so
+// the literal would be a wrong target (refused, not decoded). Single quotes keep every character literal.
+const DIR = String.raw`(?:"([^"$\`\\]+)"|'([^']+)'|([^\s"'$\`;&|<>()*?\[\]{},\\]+))`;
 const CD_TARGET = new RegExp(String.raw`^\s*cd\s+${DIR}\s*&&`);
 const GIT_C_TARGET = new RegExp(String.raw`^\s*git\s+-C\s+${DIR}\s`);
 
@@ -56,10 +57,17 @@ const GIT_C_TARGET = new RegExp(String.raw`^\s*git\s+-C\s+${DIR}\s`);
  * the command names no accepted target (callers fail closed under --by-path). Only this leading target is checked;
  * a later `cd` or absolute path in the same command is not attributed.
  */
+/** True when a path has a `..` segment. */
+export function hasDotDot(path: string): boolean {
+  return path.split(/[\\/]/).includes("..");
+}
+
 export function bashTargetDir(command: string, cwd: string): string | undefined {
   const m = CD_TARGET.exec(command) ?? GIT_C_TARGET.exec(command);
   const raw = m ? (m[1] ?? m[2] ?? m[3]) : undefined;
   if (!raw) return undefined;
+  // `..` is resolved by the kernel after symlinks (`/wt/link/..` is the link target's parent), not lexically.
+  if (hasDotDot(raw)) return undefined;
   // A quoted ~ is not expanded by the shell, so it is a literal relative directory, not a home path.
   if (m && (m[1] !== undefined || m[2] !== undefined) && raw.startsWith("~")) return undefined;
   if (raw === "~") return homedir();
