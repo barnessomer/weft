@@ -110,6 +110,21 @@ describe("read guard: symlinks, unreadable and oversized files are never read as
     expect(editedFiles(b)).not.toContain("src/pricing.ts");
   }, 30_000);
 
+  it("a Bash call that shrinks a file committed over the size cap is not submitted against an empty baseline", async () => {
+    const b = await bed("guard-big-head");
+    const p = join(b.root, "src/big.ts");
+    writeFileSync(p, PRICING_V1 + "//" + "x".repeat(1 << 20));
+    await run("git", ["-C", b.root, "add", "-A"]);
+    await run("git", ["-C", b.root, "commit", "-qm", "big"]);
+    await hook(b.root, { hook_event_name: "SessionStart", source: "startup" });
+    const command = "cp src/pricing.ts src/big.ts";
+    await hook(b.root, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command }, tool_use_id: "b1" });
+    await run("sh", ["-c", command], { cwd: b.root });
+    await hook(b.root, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command }, tool_use_id: "b1", tool_response: {} });
+    expect(logOf(b.root)).toContain("unreadable src/big.ts at HEAD");
+    expect(editedFiles(b)).not.toContain("src/big.ts");
+  }, 30_000);
+
   it("a file that grows over the size cap is not submitted as a deletion", async () => {
     const b = await bed("guard-big");
     await edit(b, "src/pricing.ts", () =>

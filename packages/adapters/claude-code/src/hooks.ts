@@ -149,6 +149,19 @@ export class ClaudeAdapter {
     }
   }
 
+  /**
+   * A file's text at HEAD. null = not in HEAD (a new file); undefined = in HEAD but not usable as a
+   * baseline (over the size cap, or git failed). Like readText, the second must never mean absent.
+   */
+  private headText(rel: string): string | null | undefined {
+    const listed = this.git(["ls-tree", "-z", "HEAD", "--", rel]);
+    if (listed === undefined) return undefined;
+    if (!listed) return null;
+    const size = Number(this.git(["cat-file", "-s", `HEAD:${rel}`])?.trim());
+    if (!Number.isFinite(size) || size > MAX_FILE_BYTES) return undefined;
+    return this.git(["show", `HEAD:${rel}`]);
+  }
+
   private target(path: string, cwd?: string): Target | undefined {
     const abs = resolve(isAbsolute(path) ? path : join(cwd ?? this.root, path));
     const rel = relative(this.root, abs);
@@ -497,10 +510,10 @@ export class ClaudeAdapter {
     let before: string | null | undefined = pend?.before[t.rel];
     if (before === undefined) {
       const original = (input.tool_response as { originalFile?: unknown } | undefined)?.originalFile;
-      before = typeof original === "string" ? original : this.git(["show", `HEAD:${t.rel}`]) ?? null;
+      before = typeof original === "string" ? original : this.headText(t.rel);
     }
     const after = this.readText(t.abs);
-    if (pend?.unreadable?.includes(t.rel) || after === undefined) {
+    if (pend?.unreadable?.includes(t.rel) || after === undefined || before === undefined) {
       this.log(`unreadable ${t.rel} ${after === undefined ? "after" : "before"} the edit; not submitted`);
       return this.postOther(input, st);
     }
@@ -552,7 +565,11 @@ export class ClaudeAdapter {
           this.log(`unreadable ${t.rel} around the Bash call; not submitted`);
           continue;
         }
-        const before = t.rel in pend.before ? pend.before[t.rel]! : (this.git(["show", `HEAD:${t.rel}`]) ?? null);
+        const before = t.rel in pend.before ? pend.before[t.rel]! : this.headText(t.rel);
+        if (before === undefined) {
+          this.log(`unreadable ${t.rel} at HEAD; not submitted`);
+          continue;
+        }
         if (before !== after) changes.push({ rel: t.rel, before, after });
       }
       const sets = changes.length ? await this.deps.analyze(changes, this.root, this.prefix) : undefined;

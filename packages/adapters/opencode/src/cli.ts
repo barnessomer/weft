@@ -4,7 +4,7 @@
 //   hook      plugin bridge: one OpenCode plugin message on stdin -> answer JSON on stdout
 //   (+ the shared commit-msg, pre-commit, heartbeat-loop, status, negotiate, inbox)
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Capabilities } from "@weft/protocol";
 import { Host, readStdin } from "../../claude-code/src/host";
@@ -75,7 +75,7 @@ async function hook(): Promise<void> {
         for (const [i, f] of files.entries()) {
           const abs = isAbsolute(f) ? f : resolve(msg.directory ?? root, f);
           const rel = relative(root, abs);
-          if (!rel.startsWith("..")) await host.seedBefore(root, msg.sessionID, `${msg.callID ?? "patch"}#${i}`, "Write", { [rel]: readMaybe(abs) });
+          if (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)) await host.seedBefore(root, msg.sessionID, `${msg.callID ?? "patch"}#${i}`, "Write", { [rel]: readMaybe(abs) });
         }
       }
       const outs = [];
