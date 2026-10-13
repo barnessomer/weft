@@ -88,6 +88,67 @@ edit was not coordinated) and is logged. Files outside the checkout, and under `
 `.claude`, `node_modules`, `dist`, are ignored. Edits whose analysis yields no writes
 (comment/import-only) are not submitted.
 
+## Subagents: `install-agent` and `hook --by-path`
+
+A subagent (for example `weft-worker`) runs in the parent session's cwd but edits inside its own
+joined worktree, and has no SessionStart of its own. In the orchestrating session's project:
+
+```sh
+# in each worktree the subagents will work in
+WEFT_TOKEN=... node …/weft-claude.mjs install --url … --repo my-repo --agent worker-1 --task T-1
+# once, in the orchestrating session's project (then start a new session so it loads)
+node …/weft-claude.mjs install-agent [--name weft-worker]
+```
+
+`install-agent` writes `.claude/agents/weft-worker.md` (added to `.git/info/exclude`: it holds
+absolute paths), a subagent whose own frontmatter hooks run `hook --by-path` on Edit, Write,
+MultiEdit, Bash and on Bash failures. Plain `hook` is unchanged.
+
+**Which checkout.** `--by-path` takes the checkout from the edited file (for Bash, from the
+`cd`/`git -C` target below): the nearest directory holding `.git`. That checkout is coordinated
+only through its own `.weft/claude.json`; if it has none, or the config does not load (broken
+JSON, JSON `null`, a missing field), the call is not coordinated. It never falls back to the
+cwd's config, which would attribute the edit to the parent agent. Only a call that names no file
+or target at all uses the cwd's checkout (still subject to the pin below); a Bash call with no
+target is denied before it runs. The agent, change and task are the ones in that
+checkout's config: each subagent acts as the agent of the worktree it works in.
+
+**Pinned coordinator.** A checkout can ship its own `.weft/claude.json`, so `--by-path` does not
+trust one by location alone. `install-agent` pins the url, repo and mode of the parent session's
+own config (or `--url`, `--repo` and `--mode` when the parent has none) into the worker definition
+as `hook --by-path --url U --repo R --mode M`. A `--by-path` hook coordinates only a checkout whose
+config has exactly that url, repo and mode (mode defaults to `enforce`). Any other checkout is
+logged (`hook --by-path refused`) and not coordinated, and an unpinned `--by-path` hook trusts
+nothing. Re-run `install-agent` after changing the coordinator. Under `--by-path`:
+
+- `WEFT_URL`, `WEFT_ROOT` and `WEFT_MODE` are ignored: each would move a pinned checkout elsewhere.
+  `WEFT_TOKEN` is still read.
+- The token file must be under the checkout's `.weft/`, which must be a real directory (not a
+  symlink); the token path is compared by real path, so a symlink under `.weft/` that points
+  outside it is refused. Otherwise the config does not load.
+
+Plain `hook` reads none of this: no pin, the env overrides apply, and `tokenFile` is read as before.
+
+**Bash target.** Under `--by-path`, a Bash command is attributed only through a target it names in
+one of these forms, and is otherwise denied before it runs:
+
+- a leading `cd <dir> && ...`, where `<dir>` is an absolute path or a bare `~` / `~/...`
+  (an absolute path may be bare, `"…"` or `'…'`; a quoted `~` is not expanded by the shell, so it is refused);
+- a leading `git -C <dir> ...`, with the same `<dir>` forms.
+
+Relative paths (`cd src && ...`), `$VAR` or `${VAR}`, a bare path with glob or brace characters
+(`*`, `?`, `[`, `{`), a `cd` that is not the first command, and a bare `cd <dir>` without `&&` are
+refused. The deny tells the agent to start the command with `cd <worktree> &&`. Plain `hook` does
+not deny Bash.
+
+**Limit:** only the leading target is checked. A later `cd` or path inside the same command
+(`cd /wt/a && cd /wt/b && sed -i … f`) is not attributed: the reconcile compares the named
+checkout only, so writes the command makes in another checkout are not coordinated.
+
+Not covered yet: the in-session commit and Stop gates still use the parent's checkout for a
+subagent's commands; the worktree's git `pre-commit` hook still refuses commits while that worktree
+has open errors.
+
 ## Negotiation from the shell (spec §7.4, §7.6, §8.4)
 
 `install` also writes `<checkout>/.weft/bin/weft`, the agent's own Weft command (the model runs
