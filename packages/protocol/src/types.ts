@@ -226,6 +226,8 @@ export function claimsPolicyError(p: unknown): string | undefined {
 /** `claims` is absent for repos created before the claims policy (legacy TTL rules). */
 export type RepoPolicy = { arbitration: ArbitrationPolicy; escalation?: EscalationPolicy; claims?: ClaimsPolicy };
 
+/** `advise` (default): a same-symbol overlap with a neighbor's in-flight change is a warning. `block`: it is an error (the edit is denied; claims are never refused by it). Set per repo. */
+export type EnforcementMode = "advise" | "block";
 export type Welcome = {
   type: "welcome";
   protocol: string;
