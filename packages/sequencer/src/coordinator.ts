@@ -11,6 +11,10 @@
 import {
   addresseeOf,
   agreementOf,
+  ownedElsewhere,
+  ownerNotice,
+  sameNotice,
+  type ConflictMode,
   negotiationDues,
   renderDue,
   fileOf,
@@ -58,6 +62,8 @@ import { all, migrate, one, run, type Sql } from "./sql";
 export type CoordinatorConfig = {
   repo: string;
   policy: ArbitrationPolicy;
+  /** Cross-agent conflicts (spec §8.4). Absent = `hold`, so configs written before this option are unchanged. */
+  conflicts?: ConflictMode;
   /** Absent in configs written before B11: treated as `auto`. */
   escalation?: EscalationPolicy;
   claim_ttl_ms: number;
@@ -74,6 +80,7 @@ export type CoordinatorConfig = {
 export type CoordinatorInit = {
   repo: string;
   policy?: ArbitrationPolicy;
+  conflicts?: ConflictMode;
   escalation?: EscalationPolicy;
   claim_ttl_ms?: number;
   /** Default: DEFAULT_CLAIMS_POLICY. `null`: create a legacy repo (tests, migrations). */
@@ -96,6 +103,7 @@ export function configFrom(o: CoordinatorInit | CoordinatorConfig): CoordinatorC
     repo: o.repo,
     policy: o.policy ?? "wound-wait",
     escalation: o.escalation ?? "auto",
+    ...(o.conflicts ? { conflicts: o.conflicts } : {}),
     claim_ttl_ms: o.claim_ttl_ms ?? 30 * 60_000,
     ...(i.claims === null ? {} : { claims: { ...(i.claims ?? DEFAULT_CLAIMS_POLICY) } }),
     session_ttl_ms: o.session_ttl_ms ?? 5 * 60_000,
@@ -246,6 +254,10 @@ export class SqlCoordinator {
   }
   get policy(): ArbitrationPolicy {
     return this.config.policy;
+  }
+  /** Per-repo, recorded in the config at init (so replay is exact): `hold` unless the repo opted in. */
+  get conflicts(): ConflictMode {
+    return this.config.conflicts ?? "hold";
   }
   get escalation(): EscalationPolicy {
     return this.config.escalation ?? "auto";
@@ -606,6 +618,7 @@ export class SqlCoordinator {
       const rec = this.append({ kind: e.kind, actor, session: s, draft: e, diagnostics, status: reject ? "rejected" : "accepted", mode: msg.mode });
       if (reject) {
         for (const d of diagnostics) if (d.severity === "error" && d.code !== "agent_paused") this.openSet(s.change, d, msg.mode, rec.seq);
+        if (this.conflicts === "continue") for (const d of diagnostics) if (ownedElsewhere(d, s.agent)) this.notifyOwner(d, s.agent);
       } else {
         this.applyAccepted(rec, s);
       }
@@ -825,7 +838,9 @@ export class SqlCoordinator {
           file: fileOf(w.key),
           symbol: w.key,
           message: `${w.key} changed on trunk (#${hit.r.seq}, ${hit.r.kind} by ${hit.r.agent ?? hit.r.actor.id}) after your base #${e.base_seq}; this edit would overwrite it.`,
-          suggestion: `Rebase onto trunk at or after #${hit.r.seq}, then redo the edit.`,
+          suggestion: this.conflicts === "continue"
+            ? `Keep editing your other tasks, but the commit gate stays closed while this error is open: report it instead of working around it. Do not rebase onto trunk, redo this edit on top of ${hit.r.agent ?? hit.r.actor.id}'s work, or widen your change to absorb it: ${hit.r.agent ?? hit.r.actor.id} owns the conflict and is told about it.`
+            : `Rebase onto trunk at or after #${hit.r.seq}, then redo the edit.`,
           ...cause(hit.r),
         });
       }
@@ -840,7 +855,9 @@ export class SqlCoordinator {
             file: fileOf(key),
             symbol: key,
             message: `You use ${key}, whose ${strong.w.kind === "deleted" ? "declaration was removed" : "signature changed"} in #${strong.r.seq} by ${strong.r.agent ?? strong.r.actor.id} after your base #${e.base_seq}.`,
-            suggestion: `Read the new ${key} (event #${strong.r.seq}) and update this call site, or negotiate with ${strong.r.agent ?? strong.r.actor.id}.`,
+            suggestion: this.conflicts === "continue"
+              ? `Keep editing your other tasks, but the commit gate stays closed while this error is open: report it instead of working around it. Do not adapt this call site to ${strong.r.agent ?? strong.r.actor.id}'s new ${key} (event #${strong.r.seq}) or adopt their partial work: ${strong.r.agent ?? strong.r.actor.id} owns the conflict.`
+              : `Read the new ${key} (event #${strong.r.seq}) and update this call site, or negotiate with ${strong.r.agent ?? strong.r.actor.id}.`,
             ...cause(strong.r),
           });
           continue;
@@ -1011,6 +1028,19 @@ export class SqlCoordinator {
         run(this.sql, `INSERT OR IGNORE INTO event_writes (seq, key, wkind, change_id, committed) VALUES (?, ?, ?, ?, ?)`, rec.seq, w.key, w.kind, rec.change, committed);
     }
     return rec;
+  }
+
+  /** Tell the owner of the change that caused a conflict (informational; never blocks the owner). */
+  private notifyOwner(d: Diagnostic, editor: string): void {
+    const cause = this.record(d.caused_by_seq);
+    if (!cause?.change) return;
+    const notice = ownerNotice(d, editor);
+    // Matched on the cause's agent too: a session can name any change in hello, so the change ID alone is not proof of ownership.
+    for (const os of this.sessionsOf({ change: cause.change }).filter((s) => s.agent === cause.agent)) {
+      const seen = all<{ item: string }>(this.sql, `SELECT item FROM inbox WHERE session = ? AND seq = ?`, os.id, d.caused_by_seq);
+      if (seen.some((r) => (JSON.parse(r.item) as InboxItem).diagnostic !== undefined && sameNotice((JSON.parse(r.item) as InboxItem).diagnostic!, notice))) continue;
+      this.push(os, { seq: d.caused_by_seq, kind: "diagnostic", diagnostic: notice });
+    }
   }
 
   private sessionsOf(t: { agent?: string; change?: string }): Session[] {
@@ -1272,7 +1302,9 @@ export class SqlCoordinator {
                 file: fileOf(w.key),
                 symbol: w.key,
                 message: `${rec.agent ?? rec.actor.id} ${w.kind === "deleted" ? "removed" : "changed the signature of"} ${w.key} (#${rec.seq}), which your change uses.`,
-                suggestion: `Re-read ${w.key} and adapt your call sites before your next edit, or negotiate (e.g. keep the old signature as an overload).`,
+                suggestion: this.conflicts === "continue"
+                  ? `Keep editing your other tasks instead of adapting your call sites to ${rec.agent ?? rec.actor.id}'s change; do not adopt their partial work. ${rec.agent ?? rec.actor.id} owns the change and is told about it.`
+                  : `Re-read ${w.key} and adapt your call sites before your next edit, or negotiate (e.g. keep the old signature as an overload).`,
                 caused_by_seq: rec.seq,
                 caused_by_agent: rec.agent ?? rec.actor.id,
                 ...(rec.task ? { caused_by_task: rec.task } : {}),
@@ -1510,7 +1542,7 @@ export class SqlCoordinator {
             code: "stale_overwrite",
             file: fileOf(w.key),
             symbol: w.key,
-            message: `Trunk changed ${w.key} in #${hit.seq} after the landing base #${d.base_seq}; rebase and retry the landing.`,
+            message: `Trunk changed ${w.key} in #${hit.seq} after the landing base #${d.base_seq}; ${this.conflicts === "continue" ? "the owner of the change is told; do not rebase and retry the landing to clear it." : "rebase and retry the landing."}`,
             caused_by_seq: hit.seq,
             caused_by_agent: hit.agent ?? hit.actor.id,
             ...(hit.task ? { caused_by_task: hit.task } : {}),
@@ -1526,6 +1558,8 @@ export class SqlCoordinator {
       status,
       ...(change ? { agent: change.agent, change: change.id, ...(change.task ? { task: change.task } : {}) } : {}),
     });
+    // A landing blocked by another agent's change tells that change's owner (continue mode only).
+    if (status === "rejected" && this.conflicts === "continue" && change) for (const x of diagnostics) if (ownedElsewhere(x, change.agent)) this.notifyOwner(x, change.agent);
     if (status === "accepted") this.applyAccepted(rec);
     return rec;
   }

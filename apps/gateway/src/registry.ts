@@ -47,9 +47,14 @@ export class Registry extends DurableObject<RegistryEnv> {
     if (init.escalation && init.escalation !== "auto" && init.escalation !== "human") return { error: "escalation must be auto or human" };
     // claims: omitted = the defaults (spec §7.5); null = a legacy repo (tests and migrations).
     if (init.claims !== undefined && init.claims !== null && claimsPolicyError(init.claims)) return { error: claimsPolicyError(init.claims)! };
+    if (init.conflicts && init.conflicts !== "hold" && init.conflicts !== "continue") return { error: "conflicts must be hold or continue" };
     const stub = this.env.WEFT_REPO.get(this.env.WEFT_REPO.idFromName(init.repo));
     const r = (await stub.init(init)) as unknown as Result<{ created: boolean; config: CoordinatorConfig }>;
     if (!r.ok) return { error: r.error.error.message };
+    // An existing repo keeps its stored config. Asking for a different conflicts mode must fail, not be ignored.
+    if (!r.value.created && (init.conflicts ?? "hold") !== (r.value.config.conflicts ?? "hold")) {
+      return { error: `repo ${init.repo} already exists with conflicts=${r.value.config.conflicts ?? "hold"}; create it with the mode you want` };
+    }
     const now = new Date().toISOString();
     this.sql.exec(`INSERT OR IGNORE INTO repos (repo, config, created_at) VALUES (?, ?, ?)`, init.repo, JSON.stringify(init), now);
     return { created: r.value.created, repo: (await this.listRepos()).find((x) => x.repo === init.repo)! };
