@@ -5,7 +5,7 @@
 //   (+ the shared commit-msg, pre-commit, heartbeat-loop, status, negotiate, inbox)
 import { createHash } from "node:crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Capabilities } from "@weft/protocol";
 import { Host, readStdin } from "../../claude-code/src/host";
@@ -128,7 +128,7 @@ async function afterFileEdit(raw: CursorInput, root: string, session: string): P
   if (!loaded || !raw.file_path) return;
   const abs = resolve(root, raw.file_path);
   const rel = relative(root, abs);
-  if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return; // not a name like "..notes.ts"
+  if (rel.startsWith("..")) return;
   const now = existsSync(abs) ? readFileSync(abs, "utf8") : null;
   const st = join(root, ".weft", "state", `${session.replace(/[^A-Za-z0-9._-]/g, "_")}.cursor-seen.json`);
   const seen = existsSync(st) ? (JSON.parse(readFileSync(st, "utf8")) as Record<string, string>) : {};

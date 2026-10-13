@@ -4,14 +4,13 @@
 //   hook      plugin bridge: one OpenCode plugin message on stdin -> answer JSON on stdout
 //   (+ the shared commit-msg, pre-commit, heartbeat-loop, status, negotiate, inbox)
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
-import { dirname, isAbsolute, join, relative, resolve, sep } from "node:path";
+import { dirname, isAbsolute, join, relative, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import type { Capabilities } from "@weft/protocol";
 import { Host, readStdin } from "../../claude-code/src/host";
 import { ADAPTER_VERSION } from "../../claude-code/src/hooks";
 import { obj, str } from "../../claude-code/src/tools";
 import { stableNodePath } from "../../claude-code/src/node-path";
-import { readCheckoutFile } from "../../claude-code/src/safe-read";
 import { pluginSource } from "./plugin";
 import { fromCore, patchFiles, toCore, type OpenCodeAnswer, type OpenCodeMsg } from "./translate";
 
@@ -53,9 +52,12 @@ export const host = new Host({
   },
 });
 
-/** Pre-patch text, through the checkout-safe reader: null = absent, undefined = may not be read (do not seed). */
-function readMaybe(root: string, abs: string): string | null | undefined {
-  return readCheckoutFile(root, abs, 1 << 20);
+function readMaybe(abs: string): string | null {
+  try {
+    return existsSync(abs) ? readFileSync(abs, "utf8") : null;
+  } catch {
+    return null;
+  }
 }
 
 async function hook(): Promise<void> {
@@ -73,13 +75,7 @@ async function hook(): Promise<void> {
         for (const [i, f] of files.entries()) {
           const abs = isAbsolute(f) ? f : resolve(msg.directory ?? root, f);
           const rel = relative(root, abs);
-          if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) continue;
-          const before = readMaybe(root, abs);
-          const id = `${msg.callID ?? "patch"}#${i}`;
-          // A symlink or unreadable file is never read through; it is marked so the post-hook skips it
-          // instead of diffing against HEAD.
-          if (before === undefined) await host.seedBefore(root, msg.sessionID, id, "Write", {}, [rel.split(sep).join("/")]);
-          else await host.seedBefore(root, msg.sessionID, id, "Write", { [rel]: before });
+          if (!rel.startsWith("..")) await host.seedBefore(root, msg.sessionID, `${msg.callID ?? "patch"}#${i}`, "Write", { [rel]: readMaybe(abs) });
         }
       }
       const outs = [];

@@ -154,7 +154,13 @@ export class ClaudeAdapter {
    * baseline (over the size cap, or git failed). Like readText, the second must never mean absent.
    */
   private headText(rel: string): string | null | undefined {
-    if (this.git(["rev-parse", "--verify", "-q", "HEAD"]) === undefined) return null; // no commits yet: nothing is in HEAD
+    // `rev-parse --verify -q` exits 1 only when HEAD names no commit yet (an unborn branch): nothing is
+    // in HEAD. Any other failure (128: lock, safe.directory, not a repository) is unknown, not absent.
+    try {
+      execFileSync("git", ["-C", this.root, "rev-parse", "--verify", "-q", "HEAD"], { stdio: "ignore", timeout: 5000 });
+    } catch (err) {
+      return (err as { status?: number }).status === 1 ? null : undefined;
+    }
     const listed = this.git(["ls-tree", "-z", "HEAD", "--", rel]);
     if (listed === undefined) return undefined;
     if (!listed) return null;

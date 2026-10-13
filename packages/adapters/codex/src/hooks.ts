@@ -138,7 +138,7 @@ export class CodexAdapter {
   private target(path: string, cwd?: string): Target | undefined {
     const abs = resolve(isAbsolute(path) ? path : join(cwd ?? this.root, path));
     const rel = relative(this.root, abs);
-    if (!rel || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) return undefined; // not a name like "..notes.ts"
+    if (!rel || rel.startsWith("..") || isAbsolute(rel)) return undefined;
     const parts = rel.split(sep);
     if (parts.some((p) => SKIP_PARTS.has(p))) return undefined;
     return { abs, rel: parts.join("/") };

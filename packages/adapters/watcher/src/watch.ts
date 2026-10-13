@@ -68,7 +68,7 @@ export class Watcher {
   relevant(pathOrRel: string): string | undefined {
     const abs = resolve(this.root, pathOrRel);
     const rel = relative(this.root, abs);
-    if (!rel || rel === ".." || rel.startsWith(`..${sep}`)) return undefined; // not a name like "..notes.ts"
+    if (!rel || rel.startsWith("..")) return undefined;
     const parts = rel.split(sep);
     if (parts.some((p) => SKIP.has(p))) return undefined;
     if (this.git(["check-ignore", "-q", "--", rel]) !== undefined) return undefined; // exit 0 = ignored
