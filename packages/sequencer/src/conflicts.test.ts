@@ -160,6 +160,25 @@ describe("conflicts: continue (repo config)", () => {
     expect(notices(ref.drain(ra.session, 0) as Items)).toHaveLength(1);
   });
 
+  it("a landing rejected by another agent's trunk change says not to rebase, and that agent is told once", () => {
+    const { j } = repo(init);
+    const a = j.call<{ session: string; delivered_through: number }>("hello", hello("claude-a", "I-a"));
+    const ea = j.call<{ seq: number }>("submit", a.session, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: a.delivered_through, writes: [{ key: "src/x.ts#f", kind: "body" }] } });
+    j.call("system", { kind: "land", base_seq: ea.seq, change: "I-a", payload: { sha: "a".repeat(40), op_id: "op-1" } });
+    const b = j.call<{ session: string; delivered_through: number }>("hello", hello("claude-b", "I-b"));
+    j.call("submit", b.session, { type: "submit", mode: "commit", event: { kind: "edit", base_seq: b.delivered_through, writes: [{ key: "src/x.ts#f", kind: "body" }] } });
+    const land = () => j.call<{ status: string; diagnostics: Array<{ message: string }> }>("system", { kind: "land", base_seq: ea.seq, change: "I-b", payload: { sha: "b".repeat(40), op_id: "op-2" } });
+    const landing = land();
+    expect(landing.status).toBe("rejected");
+    expect(landing.diagnostics.map((d) => d.message)).toEqual([
+      "Trunk changed src/x.ts#f in #3 after the landing base #2; the owner of the change is told; do not rebase and retry the landing to clear it.",
+    ]);
+    const told = j.call<{ items: Array<{ kind: string; diagnostic?: { severity: string; message: string } }> }>("drain", a.session, 0).items.filter((i) => i.kind === "diagnostic");
+    expect(told).toHaveLength(1);
+    expect(told[0]?.diagnostic?.severity).toBe("warning");
+    expect(told[0]?.diagnostic?.message).toBe("claude-b's edit to src/x.ts#f conflicts with your change #3.");
+  });
+
   it("the editor's stale_assumption suggestion uses the continue wording", () => {
     const { r } = staleCall(repo(init).j);
     expect(r.diagnostics.find((d) => d.code === "stale_assumption")?.suggestion).toContain("Keep editing your other tasks");

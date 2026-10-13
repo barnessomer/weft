@@ -252,4 +252,12 @@ describe("conflicts mode on an existing repo (#4, review)", () => {
     const same = await call("POST", "/v1/admin/repos", ADMIN, { repo, conflicts: "continue" });
     expect(same.status).toBe(200);
   });
+
+  it("an empty or unknown conflicts value is rejected, not treated as hold", async () => {
+    for (const conflicts of ["", "Continue"]) {
+      const r = await call("POST", "/v1/admin/repos", ADMIN, { repo: uniqueRepo("conflicts-bad"), conflicts });
+      expect(r.status).toBe(400);
+      expect(await r.text()).toMatch(/conflicts must be hold or continue/);
+    }
+  });
 });

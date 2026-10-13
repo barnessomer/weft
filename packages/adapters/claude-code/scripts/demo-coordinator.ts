@@ -11,11 +11,16 @@ const coord = new ReferenceCoordinator({ repo, conflicts });
 const server = createServer(async (req, res) => {
   let body = "";
   for await (const chunk of req) body += chunk;
-  const json = body ? JSON.parse(body) : undefined;
   const send = (status: number, payload?: unknown) => {
     res.writeHead(status, { "content-type": "application/json" });
     res.end(payload === undefined ? "" : JSON.stringify(payload));
   };
+  let json: any;
+  try {
+    json = body ? JSON.parse(body) : undefined;
+  } catch {
+    return send(400, { type: "error", error: { code: "bad_request", message: "body is not JSON" } });
+  }
   try {
     const path = (req.url ?? "").replace(/^\/v1/, "");
     let m: RegExpExecArray | null;

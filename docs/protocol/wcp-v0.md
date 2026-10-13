@@ -636,7 +636,7 @@ the session's agent) receives a `warning` diagnostic (never an error, so the own
 A rejected landing notifies the owner of the change that blocked it the same way. The gates do
 not change: `gate:"stop"` and `gate:"commit"` refuse on every open error in both modes (see
 `ownership.ts`). Whether an adapter lets a stop through after repeated refusals is adapter policy,
-not part of this protocol. Under `continue`, the diagnostics say to keep editing other tasks instead of rebasing or adapting to the other agent's change, and state that the commit gate stays closed while the error is open; under `hold` the suggestions are unchanged from today.
+not part of this protocol. Under `continue`, the diagnostics say to keep editing other tasks instead of rebasing or adapting to the other agent's change; the errors (`stale_overwrite`, `stale_assumption`) also state that the commit gate stays closed while the error is open, and the `contract_changed` warning, which closes no gate, does not; under `hold` the suggestions are unchanged from today.
 
 `gate.result.allow` is false iff the session's change has open errors (§6.5), or — for
 `gate:"stop"` only — negotiations are **due**. `reason` renders both, and
