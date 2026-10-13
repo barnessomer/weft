@@ -1,5 +1,6 @@
 import { afterAll, describe, expect, it } from "vitest";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, symlinkSync, writeFileSync } from "node:fs";
+import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { CART_LINE, NEW_CALL, OLD_CALL, PRICING_V1, coordinator, gitCommit, gitLog, installed } from "../../claude-code/test/translator-kit";
@@ -114,5 +115,21 @@ describe("OpenCode plugin end to end (generated plugin loaded as OpenCode would,
     const ev = coord.log.find((r) => r.kind === "edit" && r.agent === "opencode-d")!;
     expect(ev.writes).toContainEqual({ key: "src/pricing.ts#calcTotal", kind: "signature" });
     expect(ev.tool).toMatchObject({ name: "Write", harness_event: "PostToolUse" });
+  }, 30_000);
+
+  it("apply_patch never seeds before-text through a symlink (content outside the checkout stays off the log)", async () => {
+    const { coord, url, server } = await coordinator();
+    servers.push(server);
+    const { root } = installed(BUNDLE, "opencode-patch-link", url, "opencode-e");
+    const outside = mkdtempSync(join(tmpdir(), "weft-outside-"));
+    writeFileSync(join(outside, "secret.ts"), "export const SECRET_TOKEN = 'do-not-leak';\n");
+    symlinkSync(join(outside, "secret.ts"), join(root, "src/link.ts"));
+    const mod = (await import(pathToFileURL(join(root, PLUGIN_REL)).href + "?patchlink")) as { WeftPlugin: Plugin };
+    const hooks = await mod.WeftPlugin({ client: { session: { prompt: async () => {} } }, directory: root });
+    const patch = `*** Begin Patch\n*** Update File: src/link.ts\n@@\n-export const SECRET_TOKEN = 'do-not-leak';\n+export const SECRET_TOKEN = 'x';\n*** End Patch\n`;
+    await hooks["tool.execute.before"]!({ tool: "apply_patch", sessionID: "ses_l", callID: "l1" }, { args: { patchText: patch } });
+    writeFileSync(join(root, "src/link.ts"), "export const SECRET_TOKEN = 'x';\n"); // lands in the outside file
+    await hooks["tool.execute.after"]!({ tool: "apply_patch", sessionID: "ses_l", callID: "l1", args: { patchText: patch } }, { title: "", output: "Success", metadata: {} });
+    expect(JSON.stringify(coord.log)).not.toContain("do-not-leak");
   }, 30_000);
 });

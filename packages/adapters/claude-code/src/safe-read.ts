@@ -48,8 +48,10 @@ export function readCheckoutFile(root: string, abs: string, maxBytes: number): s
       cur = join(cur, part);
       try {
         if (lstatSync(cur).isSymbolicLink()) return undefined;
-      } catch {
-        return null; // the directory itself is missing: nothing is at the path
+      } catch (dirErr) {
+        const dirCode = (dirErr as NodeJS.ErrnoException)?.code;
+        if (dirCode === "ENOENT" || dirCode === "ENOTDIR") return null; // the directory itself is missing
+        return undefined; // cannot tell what is there
       }
     }
     return null;

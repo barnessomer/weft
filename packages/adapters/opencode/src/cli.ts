@@ -11,6 +11,7 @@ import { Host, readStdin } from "../../claude-code/src/host";
 import { ADAPTER_VERSION } from "../../claude-code/src/hooks";
 import { obj, str } from "../../claude-code/src/tools";
 import { stableNodePath } from "../../claude-code/src/node-path";
+import { readCheckoutFile } from "../../claude-code/src/safe-read";
 import { pluginSource } from "./plugin";
 import { fromCore, patchFiles, toCore, type OpenCodeAnswer, type OpenCodeMsg } from "./translate";
 
@@ -52,12 +53,9 @@ export const host = new Host({
   },
 });
 
-function readMaybe(abs: string): string | null {
-  try {
-    return existsSync(abs) ? readFileSync(abs, "utf8") : null;
-  } catch {
-    return null;
-  }
+/** Pre-patch text, through the checkout-safe reader: null = absent, undefined = may not be read (do not seed). */
+function readMaybe(root: string, abs: string): string | null | undefined {
+  return readCheckoutFile(root, abs, 1 << 20);
 }
 
 async function hook(): Promise<void> {
@@ -75,7 +73,10 @@ async function hook(): Promise<void> {
         for (const [i, f] of files.entries()) {
           const abs = isAbsolute(f) ? f : resolve(msg.directory ?? root, f);
           const rel = relative(root, abs);
-          if (rel !== ".." && !rel.startsWith(`..${sep}`) && !isAbsolute(rel)) await host.seedBefore(root, msg.sessionID, `${msg.callID ?? "patch"}#${i}`, "Write", { [rel]: readMaybe(abs) });
+          if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) continue;
+          const before = readMaybe(root, abs);
+          if (before === undefined) continue; // a symlink or unreadable file: never seeded or read through
+          await host.seedBefore(root, msg.sessionID, `${msg.callID ?? "patch"}#${i}`, "Write", { [rel]: before });
         }
       }
       const outs = [];
