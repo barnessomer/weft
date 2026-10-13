@@ -34,8 +34,20 @@ export function readCheckoutFile(root: string, abs: string, maxBytes: number): s
     lstatSync(abs);
   } catch (err) {
     const code = (err as NodeJS.ErrnoException)?.code;
-    if (code === "ENOENT" || code === "ENOTDIR") return null;
-    return undefined;
+    if (code !== "ENOENT" && code !== "ENOTDIR") return undefined;
+    // Missing is absent only if no directory on the way is a symlink (one could point outside).
+    const rel = relative(resolve(root), resolve(abs));
+    if (!rel || rel.startsWith("..") || isAbsolute(rel)) return undefined;
+    let cur = resolve(root);
+    for (const part of rel.split(sep).slice(0, -1)) {
+      cur = join(cur, part);
+      try {
+        if (lstatSync(cur).isSymbolicLink()) return undefined;
+      } catch {
+        return null; // the directory itself is missing: nothing is at the path
+      }
+    }
+    return null;
   }
   return readInsideCheckout(root, abs, maxBytes) ?? undefined;
 }

@@ -81,6 +81,16 @@ describe("read guard: symlinks, unreadable and oversized files are never read as
     expect(editedFiles(b)).not.toContain("src/lib/p.ts");
   }, 30_000);
 
+  it("a new file under a symlinked directory is not read as absent (no check, no edit submitted)", async () => {
+    const b = await bed("guard-dirlink-new");
+    mkdirSync(join(b.outside, "lib"));
+    symlinkSync(join(b.outside, "lib"), join(b.root, "src/lib"));
+    await edit(b, "src/lib/new.ts", () => writeFileSync(join(b.root, "src/lib/new.ts"), PRICING_V1));
+    expect(logOf(b.root)).toContain("unreadable src/lib/new.ts; not coordinated");
+    expect(logOf(b.root)).not.toContain("check src/lib/new.ts"); // the proposed text is never sent
+    expect(editedFiles(b)).not.toContain("src/lib/new.ts");
+  }, 30_000);
+
   it("a file that becomes unreadable after the edit is not submitted as a deletion", async () => {
     const b = await bed("guard-eacces");
     const p = join(b.root, "src/pricing.ts");
