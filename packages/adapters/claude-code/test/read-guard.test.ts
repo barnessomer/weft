@@ -125,6 +125,19 @@ describe("read guard: symlinks, unreadable and oversized files are never read as
     expect(editedFiles(b)).not.toContain("src/big.ts");
   }, 30_000);
 
+  it("in a repository with no commits, a file a Bash call creates is submitted as new (absent at HEAD, not unreadable)", async () => {
+    const b = await bed("guard-unborn");
+    await run("rm", ["-rf", join(b.root, ".git")]);
+    await run("git", ["-C", b.root, "init", "-q", "-b", "main"]);
+    await hook(b.root, { hook_event_name: "SessionStart", source: "startup" });
+    const command = "cp src/pricing.ts src/fresh.ts";
+    await hook(b.root, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_input: { command }, tool_use_id: "u1" });
+    await run("sh", ["-c", command], { cwd: b.root });
+    await hook(b.root, { hook_event_name: "PostToolUse", tool_name: "Bash", tool_input: { command }, tool_use_id: "u1", tool_response: {} });
+    expect(logOf(b.root)).not.toContain("unreadable src/fresh.ts");
+    expect(editedFiles(b)).toContain("src/fresh.ts");
+  }, 30_000);
+
   it("a file that grows over the size cap is not submitted as a deletion", async () => {
     const b = await bed("guard-big");
     await edit(b, "src/pricing.ts", () =>

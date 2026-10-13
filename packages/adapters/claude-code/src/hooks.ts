@@ -154,6 +154,7 @@ export class ClaudeAdapter {
    * baseline (over the size cap, or git failed). Like readText, the second must never mean absent.
    */
   private headText(rel: string): string | null | undefined {
+    if (this.git(["rev-parse", "--verify", "-q", "HEAD"]) === undefined) return null; // no commits yet: nothing is in HEAD
     const listed = this.git(["ls-tree", "-z", "HEAD", "--", rel]);
     if (listed === undefined) return undefined;
     if (!listed) return null;

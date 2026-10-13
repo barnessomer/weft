@@ -206,10 +206,10 @@ export class Host {
    * (post-edit-only harness events, the file watcher), so its post-edit commit diffs
    * against the real before-state instead of git HEAD.
    */
-  async seedBefore(root: string, session: string, callId: string, tool: string, before: Record<string, string | null>): Promise<void> {
+  async seedBefore(root: string, session: string, callId: string, tool: string, before: Record<string, string | null>, unreadable?: string[]): Promise<void> {
     await withLock(root, session, async () => {
       const st = readState(root, session);
-      st.pending[callId] = { tool, before, shown: [], at: Date.now() };
+      st.pending[callId] = { tool, before, shown: [], ...(unreadable?.length ? { unreadable } : {}), at: Date.now() };
       writeState(root, st);
     });
   }

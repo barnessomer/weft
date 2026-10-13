@@ -75,8 +75,11 @@ async function hook(): Promise<void> {
           const rel = relative(root, abs);
           if (rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel)) continue;
           const before = readMaybe(root, abs);
-          if (before === undefined) continue; // a symlink or unreadable file: never seeded or read through
-          await host.seedBefore(root, msg.sessionID, `${msg.callID ?? "patch"}#${i}`, "Write", { [rel]: before });
+          const id = `${msg.callID ?? "patch"}#${i}`;
+          // A symlink or unreadable file is never read through; it is marked so the post-hook skips it
+          // instead of diffing against HEAD.
+          if (before === undefined) await host.seedBefore(root, msg.sessionID, id, "Write", {}, [rel.split(sep).join("/")]);
+          else await host.seedBefore(root, msg.sessionID, id, "Write", { [rel]: before });
         }
       }
       const outs = [];

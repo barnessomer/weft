@@ -131,5 +131,7 @@ describe("OpenCode plugin end to end (generated plugin loaded as OpenCode would,
     writeFileSync(join(root, "src/link.ts"), "export const SECRET_TOKEN = 'x';\n"); // lands in the outside file
     await hooks["tool.execute.after"]!({ tool: "apply_patch", sessionID: "ses_l", callID: "l1", args: { patchText: patch } }, { title: "", output: "Success", metadata: {} });
     expect(JSON.stringify(coord.log)).not.toContain("do-not-leak");
+    // Not diffed against HEAD either: the patched file is not submitted at all.
+    expect(coord.log.some((r) => r.kind === "edit" && r.files.includes("src/link.ts"))).toBe(false);
   }, 30_000);
 });
