@@ -633,7 +633,13 @@ registry as `hold` or `continue`). An absent field means `hold`, so existing con
 It is not read from the environment. It is recorded in the repo's config, so a journal replayed
 with the same init reproduces every verdict exactly. With `continue`, the owner of the change that caused a conflict (`caused_by_agent` differs from
 the session's agent) receives a `warning` diagnostic (never an error, so the owner is not blocked).
-A rejected landing notifies the owner of the change that blocked it the same way. The gates do
+A rejected landing notifies the owner of the change that blocked it the same way. The notice is an
+inbox item like the other coordinator notices (arbitration, `contract_changed`), not change state
+(unlike open errors and due negotiations, which a new session receives on `hello`): it
+goes to the live sessions of the causing change whose agent is the cause's agent, and is not queued
+for an owner with no live session (the rejected event stays in the log). A notice identical to one
+still in that session's inbox is not added again; once acknowledged, a later identical conflict is
+notified again. The gates do
 not change: `gate:"stop"` and `gate:"commit"` refuse on every open error in both modes (see
 `ownership.ts`). Whether an adapter lets a stop through after repeated refusals is adapter policy,
 not part of this protocol. Under `continue`, the diagnostics say to keep editing other tasks instead of rebasing or adapting to the other agent's change; the errors (`stale_overwrite`, `stale_assumption`) also state that the commit gate stays closed while the error is open, and the `contract_changed` warning, which closes no gate, does not; under `hold` the suggestions are unchanged from today.
