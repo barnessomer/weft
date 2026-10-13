@@ -171,7 +171,7 @@ describe("conflicts: continue (repo config)", () => {
     const landing = land();
     expect(landing.status).toBe("rejected");
     expect(landing.diagnostics.map((d) => d.message)).toEqual([
-      "Trunk changed src/x.ts#f in #3 after the landing base #2; the owner of the change is told; do not rebase and retry the landing to clear it.",
+      "Trunk changed src/x.ts#f in #3 after the landing base #2; the owner of the change is told if it has a live session; do not rebase and retry the landing to clear it.",
     ]);
     const told = j.call<{ items: Array<{ kind: string; diagnostic?: { severity: string; message: string } }> }>("drain", a.session, 0).items.filter((i) => i.kind === "diagnostic");
     expect(told).toHaveLength(1);
@@ -211,6 +211,8 @@ describe("conflicts: continue (repo config)", () => {
     const r = overwriteCall(repo(init).j);
     expect(r.verdict).toBe("reject");
     expect(r.diagnostics.find((d) => d.code === "stale_overwrite")?.suggestion).toContain("Keep editing your other tasks");
+    // Owner notices go to live sessions only (spec §8.4), so the editor is not promised more.
+    expect(r.diagnostics.find((d) => d.code === "stale_overwrite")?.suggestion).toMatch(/claude-a owns the conflict and is told about it if it has a live session\.$/);
   });
 
   it("matches the reference coordinator for the same repo config", () => {

@@ -604,7 +604,7 @@ export class ReferenceCoordinator {
           symbol: w.key,
           message: `${w.key} changed on trunk (#${hit.r.seq}, ${hit.r.kind} by ${hit.r.agent ?? hit.r.actor.id}) after your base #${e.base_seq}; this edit would overwrite it.`,
           suggestion: this.continueMode
-            ? `Keep editing your other tasks, but the commit gate stays closed while this error is open: report it instead of working around it. Do not rebase onto trunk, redo this edit on top of ${hit.r.agent ?? hit.r.actor.id}'s work, or widen your change to absorb it: ${hit.r.agent ?? hit.r.actor.id} owns the conflict and is told about it.`
+            ? `Keep editing your other tasks, but the commit gate stays closed while this error is open: report it instead of working around it. Do not rebase onto trunk, redo this edit on top of ${hit.r.agent ?? hit.r.actor.id}'s work, or widen your change to absorb it: ${hit.r.agent ?? hit.r.actor.id} owns the conflict and is told about it if it has a live session.`
             : `Rebase onto trunk at or after #${hit.r.seq}, then redo the edit.`,
           ...cause(hit.r),
         });
@@ -993,7 +993,7 @@ export class ReferenceCoordinator {
                 symbol: w.key,
                 message: `${rec.agent ?? rec.actor.id} ${w.kind === "deleted" ? "removed" : "changed the signature of"} ${w.key} (#${rec.seq}), which your change uses.`,
                 suggestion: this.continueMode
-                  ? `Keep editing your other tasks instead of adapting your call sites to ${rec.agent ?? rec.actor.id}'s change; do not adopt their partial work. ${rec.agent ?? rec.actor.id} owns the change and is told about it.`
+                  ? `Keep editing your other tasks instead of adapting your call sites to ${rec.agent ?? rec.actor.id}'s change; do not adopt their partial work. ${rec.agent ?? rec.actor.id} owns the change and is told about it if it has a live session.`
                   : `Re-read ${w.key} and adapt your call sites before your next edit, or negotiate (e.g. keep the old signature as an overload).`,
                 caused_by_seq: rec.seq,
                 caused_by_agent: rec.agent ?? rec.actor.id,
@@ -1184,7 +1184,7 @@ export class ReferenceCoordinator {
             code: "stale_overwrite",
             file: fileOf(w.key),
             symbol: w.key,
-            message: `Trunk changed ${w.key} in #${hit.seq} after the landing base #${d.base_seq}; ${this.continueMode ? "the owner of the change is told; do not rebase and retry the landing to clear it." : "rebase and retry the landing."}`,
+            message: `Trunk changed ${w.key} in #${hit.seq} after the landing base #${d.base_seq}; ${this.continueMode ? "the owner of the change is told if it has a live session; do not rebase and retry the landing to clear it." : "rebase and retry the landing."}`,
             caused_by_seq: hit.seq,
             caused_by_agent: hit.agent ?? hit.actor.id,
             ...(hit.task ? { caused_by_task: hit.task } : {}),
