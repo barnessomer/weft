@@ -67,6 +67,8 @@ export type PendingEdit = {
   before: Record<string, string | null>;
   /** Context already shown to the model by PreToolUse for this call (avoid repeats). */
   shown: string[];
+  /** Files that existed but could not be read before the tool ran: never submitted for this call. */
+  unreadable?: string[];
   at: number;
 };
 

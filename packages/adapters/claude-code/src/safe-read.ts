@@ -6,7 +6,7 @@
 //   - only regular files, at most `maxBytes`.
 // Anything else reads as "no text" (null): the edit is then not coordinated, which is the
 // adapter's normal fail-open behaviour for files it cannot see.
-import { closeSync, constants, fstatSync, openSync, readFileSync, realpathSync } from "node:fs";
+import { closeSync, constants, fstatSync, lstatSync, openSync, readFileSync, realpathSync } from "node:fs";
 import { join, relative, isAbsolute, resolve, sep } from "node:path";
 
 const realRoots = new Map<string, string>();
@@ -21,6 +21,23 @@ function realRoot(root: string): string | undefined {
   } catch {
     return undefined;
   }
+}
+
+/**
+ * Like readInsideCheckout, but tells "missing" from "cannot be read": null only when nothing is
+ * at the path (ENOENT, or ENOTDIR under a replaced directory); undefined when something is there
+ * that may not be read (a symlink, an unreadable or oversized file, not a regular file). The
+ * edit hooks must not treat the second as absent: that would submit a deletion.
+ */
+export function readCheckoutFile(root: string, abs: string, maxBytes: number): string | null | undefined {
+  try {
+    lstatSync(abs);
+  } catch (err) {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code === "ENOENT" || code === "ENOTDIR") return null;
+    return undefined;
+  }
+  return readInsideCheckout(root, abs, maxBytes) ?? undefined;
 }
 
 /** Text of `abs` if it is a regular, non-symlinked file inside `root`; otherwise null. */

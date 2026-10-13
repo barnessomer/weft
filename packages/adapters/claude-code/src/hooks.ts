@@ -34,7 +34,7 @@ import { readState, withLock, writeState, type Loaded, type SessionState } from 
 import { EDIT_TOOLS, editPath, isGitCommit, proposedText } from "./edits";
 import { renderDues, renderForModel, type EditedFile, type RenderCtx } from "./render";
 import type { Sets, FileChange } from "./analysis";
-import { readInsideCheckout } from "./safe-read";
+import { readCheckoutFile } from "./safe-read";
 
 export const ADAPTER_VERSION = "0.1.0";
 export const CAPABILITIES: Capabilities = {
@@ -158,9 +158,12 @@ export class ClaudeAdapter {
     return { abs, rel: parts.join("/") };
   }
 
-  /** A checkout file's text; never through a symlink, never outside the checkout. */
-  private readText(abs: string): string | null {
-    return readInsideCheckout(this.root, abs, MAX_FILE_BYTES);
+  /**
+   * A checkout file's text; never through a symlink, never outside the checkout. null = nothing
+   * at the path; undefined = something is there that may not be read (not the same as absent).
+   */
+  private readText(abs: string): string | null | undefined {
+    return readCheckoutFile(this.root, abs, MAX_FILE_BYTES);
   }
 
   /** Repo-relative paths git reports as changed or untracked in the working tree. */
@@ -173,7 +176,7 @@ export class ClaudeAdapter {
   }
 
   /** Snapshot (text) of the checkout's dirty files before a Bash call; undefined = do not reconcile. */
-  private snapshotDirty(): Record<string, string | null> | undefined {
+  private snapshotDirty(): { before: Record<string, string | null>; unreadable: string[] } | undefined {
     const files = this.dirtyFiles();
     if (!files) return undefined;
     if (files.length > MAX_BASH_SNAPSHOT_FILES) {
@@ -181,11 +184,16 @@ export class ClaudeAdapter {
       return undefined;
     }
     const snap: Record<string, string | null> = {};
+    const unreadable: string[] = [];
     let bytes = 0;
     for (const rel of files) {
       const t = this.target(rel, this.root);
       if (!t) continue;
-      const text = existsSync(t.abs) ? this.readText(t.abs) : null;
+      const text = this.readText(t.abs);
+      if (text === undefined) {
+        unreadable.push(t.rel); // no baseline: this call never submits it
+        continue;
+      }
       bytes += text?.length ?? 0;
       if (bytes > MAX_BASH_SNAPSHOT_BYTES) {
         this.log(`bash snapshot skipped: dirty files exceed ${MAX_BASH_SNAPSHOT_BYTES} bytes`);
@@ -193,7 +201,7 @@ export class ClaudeAdapter {
       }
       snap[t.rel] = text;
     }
-    return snap;
+    return { before: snap, unreadable };
   }
 
   private async fetchEvent(seq: number): Promise<EventRecord | undefined> {
@@ -416,7 +424,13 @@ export class ClaudeAdapter {
     const t = path ? this.target(path, input.cwd) : undefined;
     if (!t) return undefined; // outside the coordinated checkout
     const callId = input.tool_use_id ?? `anon-${this.now()}`;
-    const before = existsSync(t.abs) ? this.readText(t.abs) : null;
+    const before = this.readText(t.abs);
+    if (before === undefined) {
+      // Something is there that may not be read: not coordinated, and PostToolUse must not submit it.
+      this.log(`unreadable ${t.rel}; not coordinated`);
+      st.pending[callId] = { tool, before: {}, shown: [], unreadable: [t.rel], at: this.now() };
+      return undefined;
+    }
     st.pending[callId] = { tool, before: { [t.rel]: before }, shown: [], at: this.now() };
     const after = proposedText(tool, args, before);
     if (after === undefined || after === before) return undefined;
@@ -454,7 +468,7 @@ export class ClaudeAdapter {
     const callId = input.tool_use_id;
     if (callId) {
       const snap = this.snapshotDirty();
-      if (snap) st.pending[callId] = { tool: "Bash", before: snap, shown: [], at: this.now() };
+      if (snap) st.pending[callId] = { tool: "Bash", before: snap.before, shown: [], unreadable: snap.unreadable, at: this.now() };
     }
     if (!isGitCommit(command) || !st.wcpSession || !this.enforce) return undefined;
     const result = await this.call(st, (s) => this.deps.transport.gate(s, "commit"));
@@ -485,7 +499,11 @@ export class ClaudeAdapter {
       const original = (input.tool_response as { originalFile?: unknown } | undefined)?.originalFile;
       before = typeof original === "string" ? original : this.git(["show", `HEAD:${t.rel}`]) ?? null;
     }
-    const after = existsSync(t.abs) ? this.readText(t.abs) : null;
+    const after = this.readText(t.abs);
+    if (pend?.unreadable?.includes(t.rel) || after === undefined) {
+      this.log(`unreadable ${t.rel} ${after === undefined ? "after" : "before"} the edit; not submitted`);
+      return this.postOther(input, st);
+    }
     if (before === after) return this.postOther(input, st);
     const sets = await this.deps.analyze([{ rel: t.rel, before, after }], this.root, this.prefix);
     if (!sets.writes.length) return this.postOther(input, st);
@@ -529,8 +547,12 @@ export class ClaudeAdapter {
       for (const r of rels) {
         const t = this.target(r, this.root);
         if (!t) continue;
+        const after = this.readText(t.abs);
+        if (pend.unreadable?.includes(t.rel) || after === undefined) {
+          this.log(`unreadable ${t.rel} around the Bash call; not submitted`);
+          continue;
+        }
         const before = t.rel in pend.before ? pend.before[t.rel]! : (this.git(["show", `HEAD:${t.rel}`]) ?? null);
-        const after = existsSync(t.abs) ? this.readText(t.abs) : null;
         if (before !== after) changes.push({ rel: t.rel, before, after });
       }
       const sets = changes.length ? await this.deps.analyze(changes, this.root, this.prefix) : undefined;
