@@ -172,7 +172,8 @@ export function appendAdapterLog(root: string, message: string, at: number = Dat
 
 /**
  * `confineToken` (set by `hook --by-path`, which trusts a checkout's config only through the pin):
- * the token file must stay under a real `.weft/` directory of the checkout, compared by real path.
+ * the config file must be a regular file (not a link to another checkout's config), and the token
+ * file must stay under a real `.weft/` directory of the checkout, compared by real path.
  * Plain `hook` and the other commands read `tokenFile` as before (`install --token-file` may put it anywhere).
  */
 export function loadConfig(start: string, env: NodeJS.ProcessEnv = process.env, configRel: string = CONFIG_REL, confineToken = false): Loaded | undefined {
@@ -180,6 +181,7 @@ export function loadConfig(start: string, env: NodeJS.ProcessEnv = process.env, 
   if (!root) return undefined;
   let config: AdapterConfig;
   try {
+    if (confineToken && (!lstatSync(join(root, dirname(configRel))).isDirectory() || !lstatSync(join(root, configRel)).isFile())) return undefined;
     config = JSON.parse(readFileSync(join(root, configRel), "utf8")) as AdapterConfig;
     if (!config || typeof config !== "object") return undefined; // a config of `null` or a number is not a config
   } catch {

@@ -400,3 +400,41 @@ The task message gives you its absolute path.
 `);
   });
 });
+
+describe("review: no uncoordinated escape from a pinned worktree (#21)", () => {
+  it("a Bash command whose leading target is in no joined checkout is denied (it could write a joined one later)", async () => {
+    const { url } = await coordinator();
+    const parent = await joined(url, "nc-parent", "parent-agent");
+    const wt = await joined(url, "nc-wt", "worker-nc");
+    const loose = mkdtempSync(join(tmpdir(), "weft-nc-"));
+    for (const command of [`cd ${loose} && echo x > ${wt}/src/f.ts`, `git -C ${loose} status && echo x > ${wt}/src/f.ts`]) {
+      const out = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_use_id: "nc", tool_input: { command } });
+      expect(out?.hookSpecificOutput?.permissionDecision, command).toBe("deny");
+    }
+    // the worktree itself is still accepted
+    const ok = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Bash", tool_use_id: "nc-ok", tool_input: { command: `cd ${wt} && ls` } });
+    expect(ok?.hookSpecificOutput?.permissionDecision).toBeUndefined();
+  }, 30_000);
+
+  it("an edit to a pinned checkout's own .weft/ is denied (it would rewrite the identity the hook trusts)", async () => {
+    const { url } = await coordinator();
+    const parent = await joined(url, "wd-parent", "parent-agent");
+    const wt = await joined(url, "wd-wt", "worker-wd");
+    for (const file of [join(wt, ".weft", "claude.json"), join(wt, ".weft", "token")]) {
+      const out = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Write", tool_use_id: "wd", tool_input: { file_path: file, content: "{}" } });
+      expect(out?.hookSpecificOutput?.permissionDecision, file).toBe("deny");
+    }
+  }, 30_000);
+
+  it("a .weft/claude.json that is a symlink is not loaded under --by-path", async () => {
+    const { loadConfig } = await import("../src/config");
+    const { url } = await coordinator();
+    const parent = await joined(url, "cl-parent", "parent-agent");
+    const wt = checkout("cl-wt");
+    mkdirSync(join(wt, ".weft"), { recursive: true });
+    writeFileSync(join(wt, ".weft", "token"), "worker-token\n");
+    symlinkSync(join(parent, ".weft", "claude.json"), join(wt, ".weft", "claude.json"));
+    expect(loadConfig(wt, {} as NodeJS.ProcessEnv, CONFIG_REL, true)).toBeUndefined();
+    expect(loadConfig(wt, {} as NodeJS.ProcessEnv)?.config.agent).toBe("parent-agent"); // plain hook: unchanged
+  }, 30_000);
+});

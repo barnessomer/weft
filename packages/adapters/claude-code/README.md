@@ -130,11 +130,14 @@ logged (`hook --by-path refused`) and not coordinated (on `PreToolUse` the agent
 edit is not blocked), and an unpinned `--by-path` hook trusts
 nothing. Re-run `install-agent` after changing the coordinator. Under `--by-path`:
 
-- `WEFT_URL`, `WEFT_ROOT` and `WEFT_MODE` are ignored: each would move a pinned checkout elsewhere.
-  `WEFT_TOKEN` is still read.
+- `WEFT_URL`, `WEFT_ROOT`, `WEFT_MODE` and `WEFT_TOKEN` are ignored: each would move a pinned
+  checkout elsewhere, or (`WEFT_TOKEN`, inherited from the parent session) act with the parent's identity.
+- `.weft/claude.json` must be a regular file in a real `.weft/` directory (not a symlink to another
+  checkout's config).
 - The token file must be under the checkout's `.weft/`, which must be a real directory (not a
   symlink); the token path is compared by real path, so a symlink under `.weft/` that points
   outside it is refused. Otherwise the config does not load.
+- An edit to a joined checkout's own `.weft/` (its config and token) is denied.
 
 Plain `hook` reads none of this: no pin, the env overrides apply, and `tokenFile` is read as before.
 
@@ -154,12 +157,16 @@ Only spaces and tabs separate the words of the leading part: a newline ends a sh
 
 Relative paths (`cd src && ...`), `$VAR` or `${VAR}`, a bare path with glob or brace characters
 (`*`, `?`, `[`, `{`), a `cd` that is not the first command, and a bare `cd <dir>` without `&&` are
-refused. The deny tells the agent to start the command with `cd <worktree> &&`. Plain `hook` does
-not deny Bash.
+refused, and so is a target that is in no joined checkout (`cd /tmp && …`): it coordinates nothing
+while the rest of the command may write a worktree. The deny tells the agent to start the command
+with `cd <worktree> &&`. Plain `hook` does not deny Bash.
 
 **Limit:** only the leading target is checked. A later `cd` or path inside the same command
 (`cd /wt/a && cd /wt/b && sed -i … f`) is not attributed: the reconcile compares the named
-checkout only, so writes the command makes in another checkout are not coordinated.
+checkout only, so writes the command makes in another checkout are not coordinated. Like every
+hook, this constrains a cooperative agent's tool path and is not a sandbox (hooks-core-v0
+"Enforcement is advisory against a hostile agent"): a shell command can still rewrite or remove
+`.weft/` files.
 
 Not covered yet: the in-session commit and Stop gates still use the parent's checkout for a
 subagent's commands; the worktree's git `pre-commit` hook still refuses commits while that worktree

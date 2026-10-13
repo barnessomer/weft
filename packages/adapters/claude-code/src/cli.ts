@@ -19,7 +19,7 @@
 import { spawn, execFileSync } from "node:child_process";
 import { appendFileSync, chmodSync, existsSync, mkdirSync, readFileSync, writeFileSync, readdirSync } from "node:fs";
 import { createHash, randomBytes } from "node:crypto";
-import { dirname, join, resolve } from "node:path";
+import { dirname, join, relative, resolve, sep } from "node:path";
 import { fileURLToPath } from "node:url";
 import { CLAIM_USAGE, NEGOTIATE_USAGE, parseClaim, parseNegotiate } from "@weft/protocol";
 import { HttpTransport, type Transport } from "./client";
@@ -94,6 +94,9 @@ export const BASH_NEEDS_TARGET =
 /** `--by-path` denial for an edit or Bash target that reaches its checkout through a symlink or a `..`. */
 export const BY_PATH_SYMLINK =
   "[weft] This path goes through a symlink or a `..` segment, so Weft cannot tell which checkout it writes to. Use the real absolute path of the file (or worktree), with no symlink and no `..` in it.";
+/** `--by-path` denial for an edit inside a joined checkout's own `.weft/` (its config and token). */
+export const BY_PATH_WEFT_DIR =
+  "[weft] Files under the worktree's .weft/ are Weft's own (its config and token); a subagent does not edit them.";
 /** `--by-path` note when the checkout's config does not match the pinned coordinator. */
 export const BY_PATH_REFUSED =
   "[weft] This checkout is not coordinated: its .weft/claude.json does not match the coordinator this subagent is pinned to (see .weft/log/adapter.log). Work only in the worktree you were given.";
@@ -120,6 +123,11 @@ async function hook(byPath: boolean, args: string[] = []): Promise<void> {
     } else if (target && ((file && hasDotDot(file)) || throughSymlink(target))) {
       // The checkout is found lexically: through a link, the write (or the config) would be another checkout's.
       out = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: BY_PATH_SYMLINK } };
+    } else if (pre && input.tool_name === "Bash" && !configStarts(input, true).length) {
+      // Fail closed: a leading target in no joined checkout coordinates nothing, while the rest of the command may write one.
+      out = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: BASH_NEEDS_TARGET } };
+    } else if (file && configStarts(input, true).some((root) => relative(root, resolve(cwd, file)).split(sep)[0] === ".weft")) {
+      out = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: BY_PATH_WEFT_DIR } };
     } else {
       for (const start of configStarts(input, byPath)) {
         const found = byPath ? loadConfig(start, withoutPinnedOverrides(process.env), CONFIG_REL, true) : loadConfig(start);
