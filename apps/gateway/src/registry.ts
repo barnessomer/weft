@@ -47,6 +47,7 @@ export class Registry extends DurableObject<RegistryEnv> {
     if (init.escalation && init.escalation !== "auto" && init.escalation !== "human") return { error: "escalation must be auto or human" };
     // claims: omitted = the defaults (spec §7.5); null = a legacy repo (tests and migrations).
     if (init.claims !== undefined && init.claims !== null && claimsPolicyError(init.claims)) return { error: claimsPolicyError(init.claims)! };
+    if (init.enforcement !== undefined && init.enforcement !== "advise" && init.enforcement !== "block") return { error: "enforcement must be advise or block" };
     const stub = this.env.WEFT_REPO.get(this.env.WEFT_REPO.idFromName(init.repo));
     const r = (await stub.init(init)) as unknown as Result<{ created: boolean; config: CoordinatorConfig }>;
     if (!r.ok) return { error: r.error.error.message };
