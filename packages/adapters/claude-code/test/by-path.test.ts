@@ -420,7 +420,8 @@ describe("review: no uncoordinated escape from a pinned worktree (#21)", () => {
     const { url } = await coordinator();
     const parent = await joined(url, "wd-parent", "parent-agent");
     const wt = await joined(url, "wd-wt", "worker-wd");
-    for (const file of [join(wt, ".weft", "claude.json"), join(wt, ".weft", "token")]) {
+    // .WEFT is the same directory on a case-insensitive filesystem (macOS, Windows defaults)
+    for (const file of [join(wt, ".weft", "claude.json"), join(wt, ".weft", "token"), join(wt, ".WEFT", "token"), join(wt, ".Weft", "claude.json")]) {
       const out = await hook(pinned(url), parent, { hook_event_name: "PreToolUse", tool_name: "Write", tool_use_id: "wd", tool_input: { file_path: file, content: "{}" } });
       expect(out?.hookSpecificOutput?.permissionDecision, file).toBe("deny");
     }

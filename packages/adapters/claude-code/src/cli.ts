@@ -126,7 +126,8 @@ async function hook(byPath: boolean, args: string[] = []): Promise<void> {
     } else if (pre && input.tool_name === "Bash" && !configStarts(input, true).length) {
       // Fail closed: a leading target in no joined checkout coordinates nothing, while the rest of the command may write one.
       out = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: BASH_NEEDS_TARGET } };
-    } else if (file && configStarts(input, true).some((root) => relative(root, resolve(cwd, file)).split(sep)[0] === ".weft")) {
+    } else if (file && configStarts(input, true).some((root) => relative(root, resolve(cwd, file)).split(sep)[0]!.toLowerCase() === ".weft")) {
+      // Case-insensitive: on macOS and Windows defaults `.WEFT/token` is the same file.
       out = { hookSpecificOutput: { hookEventName: "PreToolUse", permissionDecision: "deny", permissionDecisionReason: BY_PATH_WEFT_DIR } };
     } else {
       for (const start of configStarts(input, byPath)) {
