@@ -45,23 +45,28 @@ export const BASH_TARGET_FORMS = "a leading `cd <absolute or ~ path> && ...` or 
 // Bare paths exclude glob and brace characters: Bash expands them before cd runs, so the literal would be a wrong target.
 // Double-quoted paths exclude `$`, backquote and `\`: inside "…" the shell expands or unescapes them, so
 // the literal would be a wrong target (refused, not decoded). Single quotes keep every character literal.
-const DIR = String.raw`(?:"([^"$\`\\]+)"|'([^']+)'|([^\s"'$\`;&|<>()*?\[\]{},\\]+))`;
-const CD_TARGET = new RegExp(String.raw`^\s*cd\s+${DIR}\s*&&`);
-const GIT_C_TARGET = new RegExp(String.raw`^\s*git\s+-C\s+${DIR}\s`);
+// Only spaces and tabs separate words here: a newline (or CR) ends a shell command, so it is never
+// part of a target or of the separator before `&&` or the git subcommand.
+const DIR = String.raw`(?:"([^"$\`\\\n\r]+)"|'([^'\n\r]+)'|([^\s"'$\`;&|<>()*?\[\]{},\\]+))`;
+const CD_TARGET = new RegExp(String.raw`^[ \t]*cd[ \t]+${DIR}[ \t]*&&`);
+// The git subcommand must follow `-C <dir>` directly: a second `-C`, `--work-tree`, `--git-dir` or
+// `-c` before it could move the command to another checkout.
+const GIT_C_TARGET = new RegExp(String.raw`^[ \t]*git[ \t]+-C[ \t]+${DIR}[ \t]+[a-z]`);
 
-/**
- * The directory a Bash command works in, when it names one in an accepted form (and only these):
- *   - a leading `cd <dir> && ...`        (dir absolute, or ~ / ~/... ; quoted or bare)
- *   - a leading `git -C <dir> ...`       (same dir forms)
- * Nothing else counts: no relative paths, no $VAR, no `cd` after another command. Undefined when
- * the command names no accepted target (callers fail closed under --by-path). Only this leading target is checked;
- * a later `cd` or absolute path in the same command is not attributed.
- */
 /** True when a path has a `..` segment. */
 export function hasDotDot(path: string): boolean {
   return path.split(/[\\/]/).includes("..");
 }
 
+/**
+ * The directory a Bash command works in, when it names one in an accepted form (and only these):
+ *   - a leading `cd <dir> && ...`        (dir absolute, or ~ / ~/... ; quoted or bare)
+ *   - a leading `git -C <dir> <subcommand> ...` (same dir forms; no other git option before the subcommand)
+ * Nothing else counts: no relative paths, no $VAR, no `..`, no `cd` after another command, no newline
+ * inside the leading part. Undefined when the command names no accepted target (callers fail closed
+ * under --by-path). Only this leading target is checked; a later `cd` or absolute path in the same
+ * command is not attributed.
+ */
 export function bashTargetDir(command: string, cwd: string): string | undefined {
   const m = CD_TARGET.exec(command) ?? GIT_C_TARGET.exec(command);
   const raw = m ? (m[1] ?? m[2] ?? m[3]) : undefined;

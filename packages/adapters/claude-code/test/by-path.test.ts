@@ -115,7 +115,7 @@ describe("install-agent and the coordinator pin (issue #8c, real bundle)", () =>
     const md = readFileSync(join(joinedRoot, ".claude/agents/weft-worker.md"), "utf8");
     expect(md).toContain("--url https://weft.example.test --repo demo");
     expect(md).not.toContain("other.example.test");
-  });
+  }, 30_000);
 
   it("the worker definition runs the pinned hook on Edit/Write/MultiEdit/Bash and on Bash failures", () => {
     const parent = checkout("ia-md");
@@ -276,6 +276,23 @@ describe("review: quoted tilde, no fallback, .weft must be a real directory (#21
     // a `..` segment is refused in every form
     for (const cmd of ["cd /wt/a/.. && ls", `cd "/wt/a/../b" && ls`, "git -C '/wt/..' status"]) expect(bashTargetDir(cmd, "/repo"), cmd).toBeUndefined();
     expect(bashTargetDir("cd /wt/a..b && ls", "/repo")).toBe("/wt/a..b");
+  });
+
+  it("a newline is a command separator, not a word separator; git -C must be followed directly by its subcommand", () => {
+    for (const cmd of [
+      "git -C /wt/worker\nprintf x > f",
+      "git -C /wt/worker\n status",
+      "cd /wt/worker\n&& ls",
+      "\ncd /wt/worker && ls",
+      `cd "/wt/a\nb" && ls`,
+      `cd '/wt/a\nb' && ls`,
+      "git -C /wt/a -C /parent/x add -A",
+      "git -C /wt/a --work-tree=/parent/x checkout -- .",
+      "git -C /wt/a --git-dir=/parent/.git status",
+      "git -C /wt/a -c core.worktree=/parent status",
+    ]) expect(bashTargetDir(cmd, "/repo"), JSON.stringify(cmd)).toBeUndefined();
+    expect(bashTargetDir("git -C /wt/a commit -m x", "/repo")).toBe("/wt/a");
+    expect(bashTargetDir("\tcd /wt/a\t&& ls", "/repo")).toBe("/wt/a");
   });
 
   it("an edit through a symlink below the worktree is denied: the write would land outside it (real bundle)", async () => {

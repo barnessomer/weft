@@ -145,7 +145,12 @@ one of these forms, and is otherwise denied before it runs:
   (an absolute path may be bare, `"…"` without `$`, backquote or `\`, or `'…'` taken literally; a
   quoted `~` is not expanded by the shell, so it is refused, and `$`, backquote or `\` inside `"…"`
   would be expanded or unescaped by the shell, so they are refused rather than decoded);
-- a leading `git -C <dir> ...`, with the same `<dir>` forms.
+- a leading `git -C <dir> <subcommand> ...`, with the same `<dir>` forms; the subcommand must come
+  right after `<dir>` (a second `-C`, `--work-tree`, `--git-dir` or `-c` there could move the
+  command to another checkout, so it is refused).
+
+Only spaces and tabs separate the words of the leading part: a newline ends a shell command, so
+`git -C /wt/a⏎printf x > f` is refused.
 
 Relative paths (`cd src && ...`), `$VAR` or `${VAR}`, a bare path with glob or brace characters
 (`*`, `?`, `[`, `{`), a `cd` that is not the first command, and a bare `cd <dir>` without `&&` are
