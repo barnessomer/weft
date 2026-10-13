@@ -241,3 +241,23 @@ describe("sequencer behaviours (HTTP → DO)", () => {
     expect((await w.submit("b", { kind: "edit", writes: [{ key: K.fetch, kind: "body" }] })).verdict).toBe("accept");
   });
 });
+
+describe("conflicts mode on an existing repo (#4, review)", () => {
+  it("re-creating a repo with a different conflicts mode fails; the same mode is accepted and nothing changes", async () => {
+    const repo = uniqueRepo("conflicts-existing");
+    await createRepo(repo, { conflicts: "continue" });
+    const other = await call("POST", "/v1/admin/repos", ADMIN, { repo, conflicts: "hold" });
+    expect(other.status).toBe(400);
+    expect(await other.text()).toMatch(/already exists with conflicts=continue/);
+    const same = await call("POST", "/v1/admin/repos", ADMIN, { repo, conflicts: "continue" });
+    expect(same.status).toBe(200);
+  });
+
+  it("an empty or unknown conflicts value is rejected, not treated as hold", async () => {
+    for (const conflicts of ["", "Continue"]) {
+      const r = await call("POST", "/v1/admin/repos", ADMIN, { repo: uniqueRepo("conflicts-bad"), conflicts });
+      expect(r.status).toBe(400);
+      expect(await r.text()).toMatch(/conflicts must be hold or continue/);
+    }
+  });
+});

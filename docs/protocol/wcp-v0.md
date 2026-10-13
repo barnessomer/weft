@@ -315,7 +315,7 @@ keys appear in E (`writes` for R1/R3, `reads` for R2).
 - **R3 claim overlap** (`edit`, `claim`): for each write key k with active claims, apply
   arbitration (§7). Predicted claims never arbitrate (§7.5).
 - `land` drafts (system) are checked with R1 only, against committed records in W: this
-  is the trunk compare-and-swap; a rejected land MUST be retried after rebase.
+  is the trunk compare-and-swap; a rejected land MUST be retried after rebase under `conflicts: hold`. Under `conflicts: continue` it is not retried by rebasing: the owner of the blocking change is told instead, if it has a live session (§8.4).
 - Other kinds produce no diagnostics.
 
 **Verdict:** `reject` iff at least one diagnostic for E has severity `error`; else
@@ -568,7 +568,7 @@ Levels, the declaration object and the honesty rule are defined by the core (hoo
 | L0 | observe | report edits after the fact (file watcher, async hook) | nothing — diagnostics reach humans only |
 | L1 | inject | put model-visible text into the run after a tool call | diagnostics reach the model (immediately or at the next safe point) |
 | L2 | block | deny a tool call before it runs, with a model-visible reason | `check` before every edit |
-| L3 | gate | refuse the agent's stop (and/or intercept `git commit`) | open errors keep the agent working |
+| L3 | gate | refuse the agent's stop (and/or intercept `git commit`) | open errors keep the agent working, in both `conflicts` modes (§8.4) |
 
 `hello.capabilities` = `{level, observe: sync|async, inject: immediate|delayed|false,
 deny_edit, refuse_stop, commit_gate: native|tool_interception|false}`. Consistency
@@ -634,6 +634,23 @@ task T-1 · event #12). Suggestion: … Options: retreat | wait | negotiate | es
 Adapters SHOULD inject it verbatim so squiggles look the same in every harness.
 
 ### 8.4 Gates
+
+**Repo policy `conflicts`** (default `hold`, the behaviour below). It is a field of the repo's
+config, set when the repo is created (`CoordinatorInit.conflicts`, validated by the gateway
+registry as `hold` or `continue`). An absent field means `hold`, so existing configs are unchanged.
+It is not read from the environment. It is recorded in the repo's config, so a journal replayed
+with the same init reproduces every verdict exactly. With `continue`, the owner of the change that caused a conflict (`caused_by_agent` differs from
+the session's agent) receives a `warning` diagnostic (never an error, so the owner is not blocked).
+A rejected landing notifies the owner of the change that blocked it the same way. The notice is an
+inbox item like the other coordinator notices (arbitration, `contract_changed`), not change state
+(unlike open errors and due negotiations, which a new session receives on `hello`): it
+goes to the live sessions of the causing change whose agent is the cause's agent, and is not queued
+for an owner with no live session (the rejected event stays in the log). A notice identical to one
+still in that session's inbox is not added again; once acknowledged, a later identical conflict is
+notified again. The gates do
+not change: `gate:"stop"` and `gate:"commit"` refuse on every open error in both modes (see
+`ownership.ts`). Whether an adapter lets a stop through after repeated refusals is adapter policy,
+not part of this protocol. Under `continue`, the diagnostics say to keep editing other tasks instead of rebasing or adapting to the other agent's change; the errors (`stale_overwrite`, `stale_assumption`) also state that the commit gate stays closed while the error is open, and the `contract_changed` warning, which closes no gate, does not; under `hold` the suggestions are unchanged from today.
 
 `gate.result.allow` is false iff the session's change has open errors (§6.5), or — for
 `gate:"stop"` only — negotiations are **due**. `reason` renders both, and
