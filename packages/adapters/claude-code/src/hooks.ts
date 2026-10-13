@@ -34,7 +34,7 @@ import { readState, withLock, writeState, type Loaded, type SessionState } from 
 import { EDIT_TOOLS, editPath, isGitCommit, proposedText } from "./edits";
 import { renderDues, renderForModel, type EditedFile, type RenderCtx } from "./render";
 import type { Sets, FileChange } from "./analysis";
-import { readCheckoutFile } from "./safe-read";
+import { outsideRoot, readCheckoutFile } from "./safe-read";
 
 export const ADAPTER_VERSION = "0.1.0";
 export const CAPABILITIES: Capabilities = {
@@ -152,7 +152,7 @@ export class ClaudeAdapter {
   private target(path: string, cwd?: string): Target | undefined {
     const abs = resolve(isAbsolute(path) ? path : join(cwd ?? this.root, path));
     const rel = relative(this.root, abs);
-    if (!rel || rel.startsWith("..") || isAbsolute(rel)) return undefined;
+    if (outsideRoot(rel)) return undefined;
     const parts = rel.split(sep);
     if (parts.some((p) => SKIP_PARTS.has(p))) return undefined;
     return { abs, rel: parts.join("/") };

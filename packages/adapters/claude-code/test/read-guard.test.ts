@@ -91,6 +91,13 @@ describe("read guard: symlinks, unreadable and oversized files are never read as
     expect(editedFiles(b)).not.toContain("src/lib/new.ts");
   }, 30_000);
 
+  it("a root-level file whose name starts with '..' is inside the checkout (new file: absent, then edited)", async () => {
+    const b = await bed("guard-dotdot-name");
+    await edit(b, "..notes.ts", () => writeFileSync(join(b.root, "..notes.ts"), PRICING_V1));
+    expect(logOf(b.root)).not.toContain("unreadable ..notes.ts");
+    expect(editedFiles(b)).toContain("..notes.ts");
+  }, 30_000);
+
   it("a file that becomes unreadable after the edit is not submitted as a deletion", async () => {
     const b = await bed("guard-eacces");
     const p = join(b.root, "src/pricing.ts");

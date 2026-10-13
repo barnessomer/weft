@@ -11,6 +11,11 @@ import { join, relative, isAbsolute, resolve, sep } from "node:path";
 
 const realRoots = new Map<string, string>();
 
+/** True when a path relative to the checkout root leaves it (`..` or `../x`), not when a name starts with `..`. */
+export function outsideRoot(rel: string): boolean {
+  return !rel || rel === ".." || rel.startsWith(`..${sep}`) || isAbsolute(rel);
+}
+
 function realRoot(root: string): string | undefined {
   const hit = realRoots.get(root);
   if (hit) return hit;
@@ -37,7 +42,7 @@ export function readCheckoutFile(root: string, abs: string, maxBytes: number): s
     if (code !== "ENOENT" && code !== "ENOTDIR") return undefined;
     // Missing is absent only if no directory on the way is a symlink (one could point outside).
     const rel = relative(resolve(root), resolve(abs));
-    if (!rel || rel.startsWith("..") || isAbsolute(rel)) return undefined;
+    if (outsideRoot(rel)) return undefined;
     let cur = resolve(root);
     for (const part of rel.split(sep).slice(0, -1)) {
       cur = join(cur, part);
@@ -56,7 +61,7 @@ export function readCheckoutFile(root: string, abs: string, maxBytes: number): s
 export function readInsideCheckout(root: string, abs: string, maxBytes: number): string | null {
   const full = resolve(abs);
   const rel = relative(resolve(root), full);
-  if (!rel || rel.startsWith("..") || isAbsolute(rel)) return null;
+  if (outsideRoot(rel)) return null;
   const rr = realRoot(resolve(root));
   if (!rr) return null;
   let real: string;
