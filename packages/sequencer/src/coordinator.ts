@@ -52,6 +52,7 @@ import {
   type Welcome,
   type Write,
   type WriteKind,
+  type EnforcementMode,
 } from "@weft/protocol";
 import { all, migrate, one, run, type Sql } from "./sql";
 
@@ -69,12 +70,15 @@ export type CoordinatorConfig = {
   session_ttl_ms: number;
   heartbeat_interval_ms: number;
   limits: { max_diff_bytes: number; max_keys: number; max_page: number };
+  /** Absent = advise. `block` turns a same-symbol `claim_wait` into an error. Part of the journal's config, so replay is exact. */
+  enforcement?: EnforcementMode;
 };
 
 export type CoordinatorInit = {
   repo: string;
   policy?: ArbitrationPolicy;
   escalation?: EscalationPolicy;
+  enforcement?: EnforcementMode;
   claim_ttl_ms?: number;
   /** Default: DEFAULT_CLAIMS_POLICY. `null`: create a legacy repo (tests, migrations). */
   claims?: ClaimsPolicy | null;
@@ -101,6 +105,7 @@ export function configFrom(o: CoordinatorInit | CoordinatorConfig): CoordinatorC
     session_ttl_ms: o.session_ttl_ms ?? 5 * 60_000,
     heartbeat_interval_ms: o.heartbeat_interval_ms ?? 30_000,
     limits: { max_diff_bytes: i.max_diff_bytes ?? 1_048_576, max_keys: i.max_keys ?? 2000, max_page: i.max_page ?? 500 },
+    ...(i.enforcement ? { enforcement: i.enforcement } : {}),
   };
 }
 
@@ -249,6 +254,10 @@ export class SqlCoordinator {
   }
   get escalation(): EscalationPolicy {
     return this.config.escalation ?? "auto";
+  }
+  /** Repo enforcement from the journaled config; absent means advise. */
+  get enforcement(): EnforcementMode {
+    return this.config.enforcement ?? "advise";
   }
   private get claimTtl(): number {
     return this.config.claim_ttl_ms;
@@ -762,10 +771,20 @@ export class SqlCoordinator {
     return all<ClaimRow>(this.sql, `SELECT * FROM claims WHERE key = ? ORDER BY ord`, key).map((r) => this.toClaim(r));
   }
 
-  private activeClaims(key: SymbolKey, exceptChange: string): Claim[] {
+  /**
+   * Live claims on `key` that `exceptChange` must yield to. Under `block` a claim held by the submitting
+   * agent itself is skipped (its other task's change is not a neighbor to be denied by); under `advise` it still counts.
+   * Mirrors ReferenceCoordinator.activeClaims.
+   */
+  private activeClaims(key: SymbolKey, exceptChange: string, agent: string): Claim[] {
     const now = this.now();
     return this.claimsOnKey(key).filter(
-      (c) => !this.sameGroup(c.change, exceptChange) && !this.alternatives(c.change, exceptChange) && !c.shared.includes(exceptChange) && c.expires_at > now,
+      (c) =>
+        !this.sameGroup(c.change, exceptChange) &&
+        !this.alternatives(c.change, exceptChange) &&
+        !c.shared.includes(exceptChange) &&
+        !(this.enforcement === "block" && c.agent === agent) &&
+        c.expires_at > now,
     );
   }
 
@@ -862,7 +881,7 @@ export class SqlCoordinator {
     const predicted = e.kind === "claim" && e.payload?.source === "predicted";
     for (const w of writes) {
       if (r1.has(w.key)) continue;
-      const holders = this.activeClaims(w.key, s.change);
+      const holders = this.activeClaims(w.key, s.change, s.agent);
       if (!holders.length) continue;
       const real = holders.filter((c) => c.source !== "predicted");
       if (predicted || !real.length) {
@@ -911,7 +930,8 @@ export class SqlCoordinator {
       } else if (outcome === "wait") {
         out.push({
           ...base,
-          severity: h.firm ? "error" : "warning",
+          // Block denies edits only. A claim is never refused by enforcement mode; a firm holder still is.
+          severity: h.firm || (this.enforcement === "block" && e.kind === "edit") ? "error" : "warning",
           code: "claim_wait",
           message: `${w.key} is ${h.firm ? "firmly claimed" : "being edited"} by ${h.agent} (${h.change}), which has precedence.`,
           suggestion: `Wait for ${h.agent} to land or release ${w.key}, work elsewhere, or negotiate (negotiate.propose to ${h.agent}).`,
@@ -1103,7 +1123,7 @@ export class SqlCoordinator {
           if (arb.outcome === "wound") {
             // The requester outranks the most senior holder, hence every holder (§7.2).
             const wounded = uniq(
-              this.activeClaims(d.symbol, rec.change!)
+              this.activeClaims(d.symbol, rec.change!, rec.agent!)
                 .filter((c) => c.source !== "predicted")
                 .map((c) => c.change),
             );
